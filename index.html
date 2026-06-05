@@ -318,26 +318,57 @@ async function loadProduccion() {
   }
 }
 
-async function loadEntregas() {
+let fechaEntregasActual = new Date();
+
+function fechaStr(d) {
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+function fechaLabel(d) {
+  const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const hoy = new Date();
+  const manana = new Date(hoy); manana.setDate(hoy.getDate()+1);
+  const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
+  if (fechaStr(d) === fechaStr(hoy)) return "Hoy";
+  if (fechaStr(d) === fechaStr(manana)) return "Mañana";
+  if (fechaStr(d) === fechaStr(ayer)) return "Ayer";
+  return `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]}`;
+}
+
+async function loadEntregas(offset) {
+  if (offset !== undefined) {
+    fechaEntregasActual = new Date(fechaEntregasActual);
+    fechaEntregasActual.setDate(fechaEntregasActual.getDate() + offset);
+  }
   document.getElementById('ent-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
-    const hoy = new Date();
-    const fecha = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+    const fecha = fechaStr(fechaEntregasActual);
     const d = await fetchData('entregas', `&fecha=${fecha}`);
+    const esHoy = fechaStr(fechaEntregasActual) === fechaStr(new Date());
+
     let html = `
-      <div class="metric-grid" style="margin-top:4px">
-        <div class="metric-card"><div class="metric-label">Total hoy</div><div class="metric-value gold">${d.total}</div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px">
+        <button onclick="loadEntregas(-1)" style="width:44px;height:44px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:700;color:var(--text)">${fechaLabel(fechaEntregasActual)}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${fecha}</div>
+        </div>
+        <button onclick="loadEntregas(+1)" style="width:44px;height:44px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+      <div class="metric-grid">
+        <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value gold">${d.total}</div></div>
         <div class="metric-card"><div class="metric-label">Delivery</div><div class="metric-value amber">${d.delivery}</div></div>
         <div class="metric-card"><div class="metric-label">Envíos</div><div class="metric-value blue">${d.envios}</div></div>
         <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
       </div>
-      <div class="date-chip" style="margin-top:4px">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Entregas del ${d.fecha}
-      </div>
     `;
     if (!d.pedidos.length) {
-      html += '<div class="empty-state">No hay entregas para hoy</div>';
+      html += '<div class="empty-state">No hay entregas para este día</div>';
     } else {
       d.pedidos.forEach(p => {
         html += `<div class="card">
@@ -354,10 +385,10 @@ async function loadEntregas() {
         </div>`;
       });
     }
-    html += `<button class="btn" onclick="loadEntregas()">${refreshIcon}Actualizar</button>`;
+    html += `<button class="btn" onclick="loadEntregas(0)">${refreshIcon}Actualizar</button>`;
     document.getElementById('ent-content').innerHTML = html;
   } catch(e) {
-    document.getElementById('ent-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas()">${refreshIcon}Reintentar</button>`;
+    document.getElementById('ent-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas(0)">${refreshIcon}Reintentar</button>`;
   }
 }
 
