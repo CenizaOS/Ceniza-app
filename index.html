@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Ceniza">
+<title>Ceniza</title>
+<style>
+:root{
+  --bg:#0f0f0f;
+  --bg2:#1a1a1a;
+  --bg3:#242424;
+  --bg4:#2e2e2e;
+  --gold:#C9A84C;
+  --gold-dim:#8a6f2e;
+  --gold-bg:rgba(201,168,76,0.12);
+  --text:#f0f0f0;
+  --text2:#999;
+  --text3:#666;
+  --green:#4ade80;
+  --green-bg:rgba(74,222,128,0.12);
+  --red:#f87171;
+  --red-bg:rgba(248,113,113,0.12);
+  --blue:#60a5fa;
+  --blue-bg:rgba(96,165,250,0.12);
+  --amber:#fbbf24;
+  --amber-bg:rgba(251,191,36,0.12);
+  --radius:16px;
+  --radius-sm:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden}
+
+/* TOPBAR */
+.topbar{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg)}
+.topbar-brand{display:flex;align-items:center;gap:10px}
+.topbar-logo{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000}
+.topbar-name{font-size:16px;font-weight:600;color:var(--text)}
+.topbar-mes{font-size:12px;color:var(--text2)}
+.spread-chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--red-bg);color:var(--red)}
+.spread-chip.ok{background:var(--green-bg);color:var(--green)}
+
+/* NAV */
+.nav{display:flex;background:var(--bg2);border-top:1px solid var(--bg3);position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;z-index:100;padding-bottom:env(safe-area-inset-bottom,8px)}
+.nav-btn{flex:1;padding:10px 4px 6px;border:none;background:none;cursor:pointer;font-size:10px;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:4px;transition:color 0.15s}
+.nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:stroke 0.15s}
+.nav-btn.active{color:var(--gold)}
+.nav-btn.active svg{stroke:var(--gold)}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:0;transition:opacity 0.15s}
+.nav-btn.active .nav-dot{opacity:1}
+
+/* SCREENS */
+.screen{display:none;padding:0 16px 100px}
+.screen.active{display:block}
+
+/* SECTIONS */
+.sec-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px}
+
+/* HERO CARD */
+.hero{background:var(--bg2);border-radius:var(--radius);padding:20px;margin-bottom:4px}
+.hero-label{font-size:12px;color:var(--text2);margin-bottom:6px}
+.hero-amount{font-size:36px;font-weight:700;color:var(--text);letter-spacing:-1px;line-height:1}
+.hero-sub{font-size:13px;color:var(--text2);margin-top:6px}
+.hero-badge{display:inline-flex;align-items:center;gap:4px;background:var(--gold-bg);color:var(--gold);font-size:12px;font-weight:600;padding:3px 8px;border-radius:20px;margin-top:8px}
+
+/* METRIC GRID */
+.metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
+.metric-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px}
+.metric-label{font-size:11px;color:var(--text3);margin-bottom:6px}
+.metric-value{font-size:22px;font-weight:700;color:var(--text)}
+.metric-value.green{color:var(--green)}
+.metric-value.blue{color:var(--blue)}
+.metric-value.amber{color:var(--amber)}
+.metric-value.red{color:var(--red)}
+.metric-value.gold{color:var(--gold)}
+
+/* CARDS */
+.card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:8px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.card-title{font-size:15px;font-weight:600;color:var(--text)}
+.card-sub{font-size:12px;color:var(--text3)}
+
+/* ROWS */
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg3)}
+.row:last-child{border-bottom:none;padding-bottom:0}
+.row-label{font-size:13px;color:var(--text2)}
+.row-val{font-size:13px;font-weight:600;color:var(--text)}
+.row-val.pos{color:var(--green)}
+.row-val.neg{color:var(--red)}
+.row-val.gold{color:var(--gold)}
+.total-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;border-top:1px solid var(--bg3);margin-top:4px}
+.total-label{font-size:15px;font-weight:600;color:var(--text)}
+.total-val{font-size:20px;font-weight:700}
+
+/* ORDER ROWS */
+.order-row{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bg3);gap:10px}
+.order-row:last-child{border-bottom:none;padding-bottom:0}
+.order-name{font-size:14px;font-weight:600;color:var(--text)}
+.order-detail{font-size:12px;color:var(--text3);margin-top:3px;line-height:1.4}
+
+/* BADGES */
+.badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.badge-prod{background:var(--green-bg);color:var(--green)}
+.badge-pack{background:var(--blue-bg);color:var(--blue)}
+.badge-paid{background:var(--gold-bg);color:var(--gold)}
+.badge-del{background:var(--amber-bg);color:var(--amber)}
+.badge-env{background:var(--blue-bg);color:var(--blue)}
+.badge-ret{background:rgba(167,139,250,0.15);color:#a78bfa}
+
+/* PROGRESS BAR */
+.bar-bg{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin:8px 0 4px}
+.bar-fill{height:100%;border-radius:3px;background:var(--gold);transition:width 0.6s ease}
+
+/* AVATAR */
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--gold-bg);border:1.5px solid var(--gold-dim);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+
+/* TASA CARDS */
+.tasa-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.tasa-card{background:var(--bg3);border-radius:var(--radius-sm);padding:12px}
+.tasa-name{font-size:11px;color:var(--text3);margin-bottom:4px}
+.tasa-val{font-size:18px;font-weight:700;color:var(--text)}
+.tasa-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* STATES */
+.loading-msg{text-align:center;color:var(--text3);font-size:13px;padding:40px 0;display:flex;flex-direction:column;align-items:center;gap:12px}
+.spinner{width:28px;height:28px;border:2px solid var(--bg3);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err-card{background:var(--red-bg);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius);padding:16px;margin:8px 0;font-size:13px;color:var(--red);line-height:1.5}
+.empty-state{text-align:center;padding:40px 16px;color:var(--text3);font-size:13px}
+
+/* BTN */
+.btn{width:100%;margin-top:12px;padding:14px;background:var(--gold);color:#000;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
+.btn:active{opacity:0.8;transform:scale(0.98)}
+.btn svg{width:16px;height:16px;stroke:#000;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* DATE CHIP */
+.date-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);color:var(--text2);font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">C</div>
+    <div>
+      <div class="topbar-name">Ceniza</div>
+      <div class="topbar-mes" id="topbar-mes">Cargando...</div>
+    </div>
+  </div>
+  <div class="spread-chip" id="spread-chip" style="display:none"></div>
+</div>
+
+<div class="screen active" id="screen-dashboard">
+  <div id="dash-content"><div class="loading-msg"><div class="spinner"></div>Conectando...</div></div>
+</div>
+<div class="screen" id="screen-produccion">
+  <div id="prod-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+</div>
+<div class="screen" id="screen-entregas">
+  <div id="ent-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+</div>
+<div class="screen" id="screen-comisiones">
+  <div id="com-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="show('dashboard',this)">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    inicio
+    <div class="nav-dot"></div>
+  </button>
+  <button class="nav-btn" onclick="show('produccion',this)">
+    <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    producción
+    <div class="nav-dot"></div>
+  </button>
+  <button class="nav-btn" onclick="show('entregas',this)">
+    <svg viewBox="0 0 24 24"><path d="M1 3h15l4 8H5L1 3z"/><path d="M5 11v8a1 1 0 001 1h12a1 1 0 001-1v-8"/><line x1="9" y1="21" x2="9" y2="11"/></svg>
+    entregas
+    <div class="nav-dot"></div>
+  </button>
+  <button class="nav-btn" onclick="show('comisiones',this)">
+    <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
+    comisiones
+    <div class="nav-dot"></div>
+  </button>
+</nav>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
+
+function show(id, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const fmt$ = n => '$' + parseFloat(n||0).toFixed(2);
+
+function badgeHTML(tipo) {
+  const map = {
+    'En producción':'badge-prod','Empaquetado':'badge-pack','Pagado':'badge-paid',
+    'Delivery':'badge-del','Envío MRW':'badge-env','Envío ZOOM':'badge-env','Retiro personal':'badge-ret'
+  };
+  return `<span class="badge ${map[tipo]||'badge-ret'}">${tipo}</span>`;
+}
+
+const refreshIcon = `<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`;
+
+async function fetchData(accion, extra='') {
+  const r = await fetch(`${API}?accion=${accion}${extra}`);
+  if (!r.ok) throw new Error('Error ' + r.status);
+  return r.json();
+}
+
+async function loadDashboard() {
+  document.getElementById('dash-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
+  try {
+    const d = await fetchData('dashboard');
+    document.getElementById('topbar-mes').textContent = d.mes;
+    const spread = parseFloat(d.spread);
+    const chip = document.getElementById('spread-chip');
+    chip.textContent = 'Spread ' + d.spread;
+    chip.className = 'spread-chip' + (spread > 25 ? '' : ' ok');
+    chip.style.display = 'inline-flex';
+
+    const ganancia = parseFloat(d.finanzas.gananciaNeta);
+    const ganPos = ganancia >= 0;
+
+    document.getElementById('dash-content').innerHTML = `
+      <div class="hero">
+        <div class="hero-label">Ingreso total USDT real</div>
+        <div class="hero-amount">${fmt$(d.ventas.totalVendidoUSDT)}</div>
+        <div class="hero-sub">${fmt$(d.ventas.totalVendidoBCV)} en BCV · ${d.ventas.totalPedidos} pedidos</div>
+        <div class="hero-badge">${ganPos ? '▲' : '▼'} Ganancia neta ${fmt$(ganancia)}</div>
+      </div>
+
+      <div class="sec-title">producción</div>
+      <div class="metric-grid">
+        <div class="metric-card"><div class="metric-label">En producción</div><div class="metric-value blue">${d.produccion.enProduccion}</div></div>
+        <div class="metric-card"><div class="metric-label">Empaquetados</div><div class="metric-value gold">${d.produccion.empaquetados}</div></div>
+        <div class="metric-card"><div class="metric-label">Entregados</div><div class="metric-value green">${d.produccion.entregados}</div></div>
+        <div class="metric-card"><div class="metric-label">Entregas hoy</div><div class="metric-value amber">${d.produccion.entregasHoy}</div></div>
+      </div>
+
+      <div class="sec-title">finanzas del mes</div>
+      <div class="card">
+        <div class="row"><span class="row-label">Total vendido BCV</span><span class="row-val">${fmt$(d.ventas.totalVendidoBCV)}</span></div>
+        <div class="row"><span class="row-label">USDT real recibido</span><span class="row-val green">${fmt$(d.ventas.totalVendidoUSDT)}</span></div>
+        <div class="row"><span class="row-label">Delivery cobrado</span><span class="row-val">${fmt$(d.ventas.ingresoDelivery)}</span></div>
+        <div class="row"><span class="row-label">Costo producción</span><span class="row-val neg">− ${fmt$(d.finanzas.costoProduccion)}</span></div>
+        <div class="row"><span class="row-label">Comisión vendedora (${d.finanzas.pctComision})</span><span class="row-val neg">− ${fmt$(d.finanzas.comisionVendedora)}</span></div>
+        <div class="row"><span class="row-label">Gastos fijos</span><span class="row-val neg">− ${fmt$(d.finanzas.gastosFijos)}</span></div>
+        <div class="total-row">
+          <span class="total-label">Ganancia neta</span>
+          <span class="total-val" style="color:${ganPos?'var(--green)':'var(--red)'}">${fmt$(ganancia)}</span>
+        </div>
+      </div>
+
+      <div class="sec-title">tasas de hoy</div>
+      <div class="tasa-grid">
+        <div class="tasa-card"><div class="tasa-name">Tasa BCV</div><div class="tasa-val">Bs ${parseFloat(d.tasaBCV).toFixed(2)}</div><div class="tasa-sub">$1 USD oficial</div></div>
+        <div class="tasa-card"><div class="tasa-name">Tasa USDT</div><div class="tasa-val">Bs ${parseFloat(d.tasaUSDT).toFixed(2)}</div><div class="tasa-sub">$1 paralelo</div></div>
+        <div class="tasa-card"><div class="tasa-name">Spread</div><div class="tasa-val" style="color:var(--red)">${d.spread}</div><div class="tasa-sub">diferencia</div></div>
+        <div class="tasa-card"><div class="tasa-name">$30 BCV en USDT</div><div class="tasa-val" style="color:var(--gold)">${fmt$(30*d.tasaBCV/d.tasaUSDT)}</div><div class="tasa-sub">valor real</div></div>
+      </div>
+
+      <button class="btn" onclick="loadDashboard()">${refreshIcon}Actualizar</button>
+    `;
+  } catch(e) {
+    document.getElementById('dash-content').innerHTML = `<div class="err-card">No se pudo conectar con Sheets.<br>Verifica tu conexión.<br><small style="opacity:0.7">${e.message}</small></div><button class="btn" onclick="loadDashboard()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+async function loadProduccion() {
+  document.getElementById('prod-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const d = await fetchData('produccion');
+    let html = `
+      <div class="metric-grid" style="margin-top:4px">
+        <div class="metric-card"><div class="metric-label">Total pendientes</div><div class="metric-value blue">${d.total}</div></div>
+        <div class="metric-card"><div class="metric-label">Grupos por fecha</div><div class="metric-value">${d.grupos.length}</div></div>
+      </div>
+    `;
+    if (!d.grupos.length) {
+      html += '<div class="empty-state">Sin pedidos en producción</div>';
+    } else {
+      d.grupos.forEach(g => {
+        html += `<div class="card">
+          <div class="card-header">
+            <div>
+              <div class="date-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                ${g.fecha}
+              </div>
+            </div>
+            <span class="card-sub">${g.items.length} pedidos</span>
+          </div>`;
+        g.items.forEach(p => {
+          html += `<div class="order-row">
+            <div style="flex:1;min-width:0">
+              <div class="order-name">${p.cliente}</div>
+              <div class="order-detail">${p.color} · ${p.talla} · ${p.ruedo}cm</div>
+            </div>
+            ${badgeHTML(p.estado)}
+          </div>`;
+        });
+        html += '</div>';
+      });
+    }
+    html += `<button class="btn" onclick="loadProduccion()">${refreshIcon}Actualizar</button>`;
+    document.getElementById('prod-content').innerHTML = html;
+  } catch(e) {
+    document.getElementById('prod-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadProduccion()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+async function loadEntregas() {
+  document.getElementById('ent-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const hoy = new Date();
+    const fecha = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+    const d = await fetchData('entregas', `&fecha=${fecha}`);
+    let html = `
+      <div class="metric-grid" style="margin-top:4px">
+        <div class="metric-card"><div class="metric-label">Total hoy</div><div class="metric-value gold">${d.total}</div></div>
+        <div class="metric-card"><div class="metric-label">Delivery</div><div class="metric-value amber">${d.delivery}</div></div>
+        <div class="metric-card"><div class="metric-label">Envíos</div><div class="metric-value blue">${d.envios}</div></div>
+        <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
+      </div>
+      <div class="date-chip" style="margin-top:4px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Entregas del ${d.fecha}
+      </div>
+    `;
+    if (!d.pedidos.length) {
+      html += '<div class="empty-state">No hay entregas para hoy</div>';
+    } else {
+      d.pedidos.forEach(p => {
+        html += `<div class="card">
+          <div class="card-header">
+            <div class="card-title">${p.cliente}</div>
+            ${badgeHTML(p.tipoEntrega)}
+          </div>
+          <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
+          ${p.direccion ? `<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>` : ''}
+          <div class="row">
+            <span class="row-label">Monto</span>
+            <span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span>
+          </div>
+        </div>`;
+      });
+    }
+    html += `<button class="btn" onclick="loadEntregas()">${refreshIcon}Actualizar</button>`;
+    document.getElementById('ent-content').innerHTML = html;
+  } catch(e) {
+    document.getElementById('ent-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+async function loadComisiones() {
+  document.getElementById('com-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const d = await fetchData('comisiones');
+    let html = '';
+    if (!d.vendedoras.length) {
+      html += '<div class="empty-state" style="margin-top:20px">Sin datos de vendedoras aún</div>';
+    } else {
+      d.vendedoras.forEach(v => {
+        const max = v.nivelSiguiente ? v.nivelSiguiente.pants : Math.max(v.pants, 1);
+        const prog = Math.min(100, Math.round(v.pants / max * 100));
+        html += `<div class="card" style="margin-top:4px">
+          <div class="vendedora-header">
+            <div class="avatar">${v.nombre.substring(0,2).toUpperCase()}</div>
+            <div style="flex:1">
+              <div style="font-size:16px;font-weight:700;color:var(--text)">${v.nombre}</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px">${v.pants} pantalones · comisión ${v.pct}</div>
+            </div>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" style="width:${prog}%"></div></div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
+            ${v.nivelSiguiente ? `Faltan <strong style="color:var(--gold)">${v.faltanParaSiguiente}</strong> pants para nivel ${v.nivelSiguiente.pct}%` : '<span style="color:var(--green)">Nivel máximo alcanzado</span>'}
+          </div>
+          <div class="row"><span class="row-label">Base fija</span><span class="row-val">${fmt$(v.baseFija)}</span></div>
+          <div class="row"><span class="row-label">Comisión escalada (${v.pct})</span><span class="row-val">${fmt$(v.comision)}</span></div>
+          <div class="total-row">
+            <span class="total-label">Total a pagar</span>
+            <span class="total-val" style="color:var(--gold)">${fmt$(v.totalAPagar)}</span>
+          </div>
+        </div>`;
+      });
+    }
+
+    html += `
+      <div class="sec-title">tabla de niveles</div>
+      <div class="card">
+        <div class="row"><span class="row-label">0 – 99 pants</span><span class="row-val">Solo base $200</span></div>
+        <div class="row"><span class="row-label">100 – 149 pants</span><span class="row-val gold">5%</span></div>
+        <div class="row"><span class="row-label">150 – 199 pants</span><span class="row-val gold">6%</span></div>
+        <div class="row"><span class="row-label">200 – 299 pants</span><span class="row-val gold">7%</span></div>
+        <div class="row"><span class="row-label">300 – 399 pants</span><span class="row-val gold">8%</span></div>
+        <div class="row"><span class="row-label">400+ pants</span><span class="row-val gold">10%</span></div>
+      </div>
+      <button class="btn" onclick="loadComisiones()">${refreshIcon}Actualizar</button>
+    `;
+    document.getElementById('com-content').innerHTML = html;
+  } catch(e) {
+    document.getElementById('com-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadComisiones()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+loadDashboard();
+loadProduccion();
+loadEntregas();
+loadComisiones();
+</script>
+</body>
+</html>
