@@ -9,251 +9,473 @@
 <title>Ceniza</title>
 <style>
 :root{
-  --bg:#0f0f0f;
-  --bg2:#1a1a1a;
-  --bg3:#242424;
-  --bg4:#2e2e2e;
-  --gold:#C9A84C;
-  --gold-dim:#8a6f2e;
-  --gold-bg:rgba(201,168,76,0.12);
-  --text:#f0f0f0;
-  --text2:#999;
-  --text3:#666;
-  --green:#4ade80;
-  --green-bg:rgba(74,222,128,0.12);
-  --red:#f87171;
-  --red-bg:rgba(248,113,113,0.12);
-  --blue:#60a5fa;
-  --blue-bg:rgba(96,165,250,0.12);
-  --amber:#fbbf24;
-  --amber-bg:rgba(251,191,36,0.12);
-  --wa:#25D366;
-  --wa-bg:rgba(37,211,102,0.12);
-  --radius:16px;
-  --radius-sm:10px;
+  --bg:#0f0f0f; --bg2:#1a1a1a; --bg3:#242424; --bg4:#2e2e2e;
+  --gold:#C9A84C; --gold-dim:#8a6f2e; --gold-bg:rgba(201,168,76,0.12);
+  --text:#f0f0f0; --text2:#999; --text3:#666;
+  --green:#4ade80; --green-bg:rgba(74,222,128,0.12);
+  --red:#f87171;   --red-bg:rgba(248,113,113,0.12);
+  --blue:#60a5fa;  --blue-bg:rgba(96,165,250,0.12);
+  --amber:#fbbf24; --amber-bg:rgba(251,191,36,0.12);
+  --wa:#25D366;    --wa-bg:rgba(37,211,102,0.12);
+  --radius:16px; --radius-sm:10px;
+  --nav-h:64px; --nav-w:72px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;max-width:430px;margin:0 auto;min-height:100vh;overflow-x:hidden}
-/* TOPBAR */
-.topbar{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg)}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ── LAYOUT ── */
+.app{display:flex;min-height:100vh;max-width:430px;margin:0 auto;flex-direction:column}
+
+/* ── TOPBAR ── */
+.topbar{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);flex-shrink:0}
 .topbar-brand{display:flex;align-items:center;gap:10px}
 .topbar-logo{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000}
-.topbar-name{font-size:16px;font-weight:600;color:var(--text)}
+.topbar-name{font-size:16px;font-weight:600}
 .topbar-mes{font-size:12px;color:var(--text2)}
 .spread-chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;background:var(--red-bg);color:var(--red)}
 .spread-chip.ok{background:var(--green-bg);color:var(--green)}
-/* NAV */
-.nav{display:flex;background:var(--bg2);border-top:1px solid var(--bg3);position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;z-index:100;padding-bottom:env(safe-area-inset-bottom,8px)}
-.nav-btn{flex:1;padding:10px 4px 6px;border:none;background:none;cursor:pointer;font-size:10px;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:4px;transition:color 0.15s}
-.nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:stroke 0.15s}
-.nav-btn.active{color:var(--gold)}
-.nav-btn.active svg{stroke:var(--gold)}
-.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:0;transition:opacity 0.15s}
-.nav-btn.active .nav-dot{opacity:1}
-/* SCREENS */
+
+/* ── SCREENS ── */
+.screens{flex:1;overflow-y:auto}
 .screen{display:none;padding:0 16px 100px}
 .screen.active{display:block}
-/* SECTIONS */
+
+/* ── BOTTOM NAV ── */
+.nav{display:flex;background:var(--bg2);border-top:1px solid var(--bg3);position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;z-index:100;padding-bottom:env(safe-area-inset-bottom,8px)}
+.nav-btn{flex:1;padding:10px 4px 6px;border:none;background:none;cursor:pointer;font-size:10px;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:4px;transition:color 0.15s}
+.nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn.active{color:var(--gold)}
+.nav-btn.active svg{stroke:var(--gold)}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:0}
+.nav-btn.active .nav-dot{opacity:1}
+
+/* ── FAB ── */
+.fab{position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,8px) + 16px);right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(201,168,76,0.4);z-index:99;transition:transform 0.15s,opacity 0.15s}
+.fab:active{transform:scale(0.92)}
+.fab svg{width:24px;height:24px;stroke:#000;fill:none;stroke-width:2.5;stroke-linecap:round}
+
+/* ── FORM OVERLAY ── */
+.form-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.form-overlay.open{display:flex}
+.form-sheet{background:var(--bg2);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:0 0 32px;animation:slideUp 0.25s ease}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.form-top{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px;border-bottom:1px solid var(--bg3);position:sticky;top:0;background:var(--bg2);z-index:1}
+.form-title{font-size:18px;font-weight:700}
+.form-close{width:32px;height:32px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:18px;line-height:1}
+.form-vendedora{padding:10px 20px;background:var(--gold-bg);font-size:12px;color:var(--gold);border-bottom:1px solid var(--bg3)}
+.form-vendedora a{color:var(--gold);text-decoration:underline;cursor:pointer;margin-left:4px}
+.form-body{padding:16px 20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em}
+.form-group input,.form-group select,.form-group textarea{background:var(--bg3);border:1.5px solid transparent;border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;color:var(--text);font-family:inherit;outline:none;transition:border-color 0.15s;width:100%;-webkit-appearance:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--gold)}
+.form-group select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+.form-group textarea{resize:none;line-height:1.5}
+.form-divider{grid-column:1/-1;height:1px;background:var(--bg3);margin:4px 0}
+.form-section-label{grid-column:1/-1;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px}
+
+/* ── SUCCESS TOAST ── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--green);color:#000;font-size:14px;font-weight:700;padding:12px 20px;border-radius:var(--radius-sm);z-index:300;transition:transform 0.3s ease;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── SECTIONS ── */
 .sec-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px}
-/* HERO CARD */
+
+/* ── HERO ── */
 .hero{background:var(--bg2);border-radius:var(--radius);padding:20px;margin-bottom:4px}
 .hero-label{font-size:12px;color:var(--text2);margin-bottom:6px}
-.hero-amount{font-size:36px;font-weight:700;color:var(--text);letter-spacing:-1px;line-height:1}
+.hero-amount{font-size:36px;font-weight:700;letter-spacing:-1px;line-height:1}
 .hero-sub{font-size:13px;color:var(--text2);margin-top:6px}
 .hero-badge{display:inline-flex;align-items:center;gap:4px;background:var(--gold-bg);color:var(--gold);font-size:12px;font-weight:600;padding:3px 8px;border-radius:20px;margin-top:8px}
-/* METRIC GRID */
+
+/* ── METRIC GRID ── */
 .metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
 .metric-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px}
 .metric-label{font-size:11px;color:var(--text3);margin-bottom:6px}
-.metric-value{font-size:22px;font-weight:700;color:var(--text)}
-.metric-value.green{color:var(--green)}
-.metric-value.blue{color:var(--blue)}
-.metric-value.amber{color:var(--amber)}
-.metric-value.red{color:var(--red)}
+.metric-value{font-size:22px;font-weight:700}
+.metric-value.green{color:var(--green)} .metric-value.blue{color:var(--blue)}
+.metric-value.amber{color:var(--amber)} .metric-value.red{color:var(--red)}
 .metric-value.gold{color:var(--gold)}
-/* CARDS */
+
+/* ── CARDS ── */
 .card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:8px}
 .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.card-title{font-size:15px;font-weight:600;color:var(--text)}
+.card-title{font-size:15px;font-weight:600}
 .card-sub{font-size:12px;color:var(--text3)}
-/* ROWS */
+
+/* ── ROWS ── */
 .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg3)}
 .row:last-child{border-bottom:none;padding-bottom:0}
-.row-label{font-size:13px;color:var(--text2)}
-.row-val{font-size:13px;font-weight:600;color:var(--text)}
-.row-val.pos{color:var(--green)}
-.row-val.neg{color:var(--red)}
-.row-val.gold{color:var(--gold)}
+.row-label{font-size:13px;color:var(--text2)} .row-val{font-size:13px;font-weight:600}
+.row-val.pos{color:var(--green)} .row-val.neg{color:var(--red)} .row-val.gold{color:var(--gold)}
 .total-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0 0;border-top:1px solid var(--bg3);margin-top:4px}
-.total-label{font-size:15px;font-weight:600;color:var(--text)}
-.total-val{font-size:20px;font-weight:700}
-/* ORDER ROWS */
+.total-label{font-size:15px;font-weight:600} .total-val{font-size:20px;font-weight:700}
+
+/* ── ORDER ROWS ── */
 .order-row{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bg3);gap:10px}
 .order-row:last-child{border-bottom:none;padding-bottom:0}
-.order-name{font-size:14px;font-weight:600;color:var(--text)}
+.order-name{font-size:14px;font-weight:600}
 .order-detail{font-size:12px;color:var(--text3);margin-top:3px;line-height:1.4}
-/* BADGES */
+
+/* ── BADGES ── */
 .badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
-.badge-prod{background:var(--green-bg);color:var(--green)}
-.badge-pack{background:var(--blue-bg);color:var(--blue)}
-.badge-paid{background:var(--gold-bg);color:var(--gold)}
-.badge-del{background:var(--amber-bg);color:var(--amber)}
-.badge-env{background:var(--blue-bg);color:var(--blue)}
-.badge-ret{background:rgba(167,139,250,0.15);color:#a78bfa}
-/* PROGRESS BAR */
+.badge-prod{background:var(--green-bg);color:var(--green)} .badge-pack{background:var(--blue-bg);color:var(--blue)}
+.badge-paid{background:var(--gold-bg);color:var(--gold)}   .badge-del{background:var(--amber-bg);color:var(--amber)}
+.badge-env{background:var(--blue-bg);color:var(--blue)}    .badge-ret{background:rgba(167,139,250,0.15);color:#a78bfa}
+
+/* ── PROGRESS BAR ── */
 .bar-bg{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin:8px 0 4px}
 .bar-fill{height:100%;border-radius:3px;background:var(--gold);transition:width 0.6s ease}
-/* AVATAR */
+
+/* ── AVATAR ── */
 .avatar{width:42px;height:42px;border-radius:50%;background:var(--gold-bg);border:1.5px solid var(--gold-dim);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
-/* TASA CARDS */
+.vendedora-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+
+/* ── TASA CARDS ── */
 .tasa-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .tasa-card{background:var(--bg3);border-radius:var(--radius-sm);padding:12px}
 .tasa-name{font-size:11px;color:var(--text3);margin-bottom:4px}
-.tasa-val{font-size:18px;font-weight:700;color:var(--text)}
-.tasa-sub{font-size:11px;color:var(--text3);margin-top:2px}
-/* STATES */
+.tasa-val{font-size:18px;font-weight:700} .tasa-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── LOADING / EMPTY ── */
 .loading-msg{text-align:center;color:var(--text3);font-size:13px;padding:40px 0;display:flex;flex-direction:column;align-items:center;gap:12px}
 .spinner{width:28px;height:28px;border:2px solid var(--bg3);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .err-card{background:var(--red-bg);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius);padding:16px;margin:8px 0;font-size:13px;color:var(--red);line-height:1.5}
 .empty-state{text-align:center;padding:40px 16px;color:var(--text3);font-size:13px}
-/* BTN */
+
+/* ── BUTTONS ── */
 .btn{width:100%;margin-top:12px;padding:14px;background:var(--gold);color:#000;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
 .btn:active{opacity:0.8;transform:scale(0.98)}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
 .btn svg{width:16px;height:16px;stroke:#000;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-/* BTN WHATSAPP */
 .btn-wa{width:100%;margin-top:8px;padding:14px;background:var(--wa);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
 .btn-wa:active{opacity:0.8;transform:scale(0.98)}
 .btn-wa svg{width:18px;height:18px;fill:#fff;flex-shrink:0}
+.btn-submit{width:100%;margin-top:20px;padding:16px;background:var(--gold);color:#000;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;transition:opacity 0.15s}
+.btn-submit:active{opacity:0.8} .btn-submit:disabled{opacity:0.5;cursor:not-allowed}
 .wa-hint{text-align:center;font-size:11px;color:var(--text3);margin-top:6px}
 .wa-hint a{color:var(--text3);text-decoration:underline;cursor:pointer}
-/* DATE NAV */
+
+/* ── DATE NAV ── */
 .date-nav{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}
 .date-nav-btn{width:44px;height:44px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .date-nav-center{text-align:center}
-.date-nav-label{font-size:20px;font-weight:700;color:var(--text)}
+.date-nav-label{font-size:20px;font-weight:700}
 .date-nav-sub{font-size:12px;color:var(--text3);margin-top:2px}
-/* DATE CHIP */
-.date-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);color:var(--text2);font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;margin-bottom:12px}
-/* VENDEDORA HEADER */
-.vendedora-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+
+/* ── TABLET RESPONSIVE (≥ 640px) ── */
+@media (min-width:640px){
+  .app{max-width:100%;flex-direction:row}
+  .topbar{display:none}
+
+  /* Side nav */
+  .nav{flex-direction:column;position:fixed;left:0;top:0;bottom:0;right:auto;max-width:none;width:var(--nav-w);border-top:none;border-right:1px solid var(--bg3);padding:24px 0;height:100vh;justify-content:flex-start;gap:4px}
+  .nav-btn{padding:14px 4px;font-size:9px}
+  .nav-btn svg{width:24px;height:24px}
+
+  /* Content */
+  .screens{margin-left:var(--nav-w);flex:1}
+  .screen{padding:24px 32px 60px;max-width:860px}
+
+  /* FAB */
+  .fab{bottom:32px;right:32px;width:56px;height:56px}
+
+  /* Form sheet — modal centered */
+  .form-overlay{align-items:center}
+  .form-sheet{border-radius:var(--radius);max-width:680px;margin:0 auto}
+
+  /* 2-column form already set via grid */
+  .metric-grid{grid-template-columns:repeat(4,1fr)}
+  .tasa-grid{grid-template-columns:repeat(4,1fr)}
+}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <div class="topbar-brand">
-    <div class="topbar-logo">C</div>
-    <div>
-      <div class="topbar-name">Ceniza</div>
-      <div class="topbar-mes" id="topbar-mes">Cargando...</div>
+<div class="app">
+
+  <!-- TOPBAR (mobile only) -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">C</div>
+      <div>
+        <div class="topbar-name">Ceniza</div>
+        <div class="topbar-mes" id="topbar-mes">Cargando...</div>
+      </div>
+    </div>
+    <div class="spread-chip" id="spread-chip" style="display:none"></div>
+  </div>
+
+  <!-- SCREENS -->
+  <div class="screens">
+    <!-- Tablet topbar inside screens -->
+    <div id="tablet-topbar" style="display:none;padding:24px 32px 0;align-items:center;gap:16px">
+      <div class="topbar-logo" style="width:36px;height:36px;font-size:14px">C</div>
+      <div>
+        <div style="font-size:18px;font-weight:700">Ceniza</div>
+        <div style="font-size:13px;color:var(--text2)" id="topbar-mes-tablet">Cargando...</div>
+      </div>
+      <div class="spread-chip" id="spread-chip-tablet" style="display:none;margin-left:auto"></div>
+    </div>
+
+    <div class="screen active" id="screen-dashboard">
+      <div id="dash-content"><div class="loading-msg"><div class="spinner"></div>Conectando...</div></div>
+    </div>
+    <div class="screen" id="screen-produccion">
+      <div id="prod-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div class="screen" id="screen-entregas">
+      <div id="ent-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div class="screen" id="screen-comisiones">
+      <div id="com-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
     </div>
   </div>
-  <div class="spread-chip" id="spread-chip" style="display:none"></div>
-</div>
+</div><!-- end .app -->
 
-<div class="screen active" id="screen-dashboard">
-  <div id="dash-content"><div class="loading-msg"><div class="spinner"></div>Conectando...</div></div>
-</div>
-<div class="screen" id="screen-produccion">
-  <div id="prod-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
-</div>
-<div class="screen" id="screen-entregas">
-  <div id="ent-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
-</div>
-<div class="screen" id="screen-comisiones">
-  <div id="com-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
-</div>
-
+<!-- BOTTOM / SIDE NAV -->
 <nav class="nav">
   <button class="nav-btn active" onclick="show('dashboard',this)">
     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-    inicio
-    <div class="nav-dot"></div>
+    inicio<div class="nav-dot"></div>
   </button>
   <button class="nav-btn" onclick="show('produccion',this)">
     <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-    producción
-    <div class="nav-dot"></div>
+    producción<div class="nav-dot"></div>
   </button>
   <button class="nav-btn" onclick="show('entregas',this)">
     <svg viewBox="0 0 24 24"><path d="M1 3h15l4 8H5L1 3z"/><path d="M5 11v8a1 1 0 001 1h12a1 1 0 001-1v-8"/><line x1="9" y1="21" x2="9" y2="11"/></svg>
-    entregas
-    <div class="nav-dot"></div>
+    entregas<div class="nav-dot"></div>
   </button>
   <button class="nav-btn" onclick="show('comisiones',this)">
     <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
-    comisiones
-    <div class="nav-dot"></div>
+    comisiones<div class="nav-dot"></div>
   </button>
 </nav>
+
+<!-- FAB: Nuevo pedido -->
+<button class="fab" id="fab" onclick="abrirFormulario()" title="Nuevo pedido">
+  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<!-- FORMULARIO OVERLAY -->
+<div class="form-overlay" id="form-overlay" onclick="overlayClick(event)">
+  <div class="form-sheet" id="form-sheet">
+    <div class="form-top">
+      <div class="form-title">Nuevo pedido</div>
+      <button class="form-close" onclick="cerrarFormulario()">✕</button>
+    </div>
+    <div class="form-vendedora" id="form-vendedora-bar">
+      Registrando como: <strong id="form-vendedora-nombre">—</strong>
+      <a onclick="cambiarVendedora()">cambiar</a>
+    </div>
+    <div class="form-body">
+      <div class="form-grid">
+
+        <!-- Cliente -->
+        <div class="form-section-label">Cliente</div>
+        <div class="form-group full">
+          <label>Nombre *</label>
+          <input type="text" id="f-nombre" placeholder="Ej: María García" autocomplete="off" autocorrect="off">
+        </div>
+        <div class="form-group">
+          <label>Teléfono *</label>
+          <input type="tel" id="f-telefono" placeholder="0414-1234567">
+        </div>
+        <div class="form-group">
+          <label>Origen *</label>
+          <select id="f-origen">
+            <option value="">Seleccionar...</option>
+            <option>Orgánico</option><option>Cliente recurrente</option>
+            <option>TikTok</option><option>Instagram</option>
+            <option>WhatsApp</option><option>Referido</option>
+            <option>Ads IG</option><option>Ads FB</option>
+          </select>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- Producto -->
+        <div class="form-section-label">Producto</div>
+        <div class="form-group">
+          <label>Producto *</label>
+          <select id="f-producto">
+            <option value="">Seleccionar...</option>
+            <option>Pantalón Ceniza</option><option>Pantalón Pareo</option>
+            <option>Camisa manga corta</option><option>Camisa manga larga</option>
+            <option>Bolsito</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Color *</label>
+          <select id="f-color">
+            <option value="">Seleccionar...</option>
+            <option>Negro</option><option>Beige</option><option>Azul rey</option>
+            <option>Marrón</option><option>Fucsia</option><option>Terracota</option>
+            <option>Vinotinto</option><option>Verde militar</option><option>Rojo</option>
+            <option>Pistacho</option><option>Azul marino</option><option>Blanco</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Talla *</label>
+          <select id="f-talla">
+            <option value="">Seleccionar...</option>
+            <option>XS</option><option>S</option><option>M</option>
+            <option>L</option><option>XL</option><option>2XL</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ruedo (cm) *</label>
+          <select id="f-ruedo">
+            <option value="">Seleccionar...</option>
+            <option>93</option><option>97</option><option>100</option><option>103</option>
+            <option>105</option><option>108</option><option>110</option><option>113</option>
+          </select>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- Entrega -->
+        <div class="form-section-label">Entrega y pago</div>
+        <div class="form-group">
+          <label>Tipo de entrega *</label>
+          <select id="f-tipo-entrega" onchange="toggleEntrega()">
+            <option value="">Seleccionar...</option>
+            <option>Delivery</option><option>Retiro personal</option>
+            <option>Envío MRW</option><option>Envío ZOOM</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fecha de entrega *</label>
+          <input type="date" id="f-fecha-entrega">
+        </div>
+        <div class="form-group full" id="grupo-direccion" style="display:none">
+          <label>Dirección / Zona</label>
+          <input type="text" id="f-direccion" placeholder="Ej: Las Mercedes, Edif. Centro">
+        </div>
+        <div class="form-group">
+          <label>Monto producto ($) *</label>
+          <input type="number" id="f-monto-producto" placeholder="30" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <div class="form-group" id="grupo-monto-delivery" style="display:none">
+          <label>Monto delivery ($)</label>
+          <input type="number" id="f-monto-delivery" placeholder="3" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Método de pago *</label>
+          <select id="f-metodo-pago">
+            <option value="">Seleccionar...</option>
+            <option>Pago móvil</option><option>Transferencia</option>
+            <option>Efectivo al retirar</option><option>PayPal</option><option>Binance</option>
+          </select>
+        </div>
+
+        <div class="form-divider"></div>
+
+        <!-- Notas -->
+        <div class="form-group full">
+          <label>Notas (opcional)</label>
+          <textarea id="f-notas" placeholder="Instrucciones especiales, cliente difícil de contactar, etc." rows="2"></textarea>
+        </div>
+
+      </div><!-- end form-grid -->
+
+      <button class="btn-submit" id="btn-submit" onclick="submitPedido()">
+        Registrar pedido
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
 
-function show(id, btn) {
+// ── TABLET DETECTION ──────────────────────────────────────────────────────
+function isTablet(){ return window.innerWidth >= 640; }
+function setupTablet(){
+  const tb = document.getElementById('tablet-topbar');
+  if(isTablet()){ tb.style.display='flex'; } else { tb.style.display='none'; }
+}
+window.addEventListener('resize', setupTablet);
+setupTablet();
+
+// ── NAVIGATION ───────────────────────────────────────────────────────────
+function show(id, btn){
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('screen-' + id).classList.add('active');
+  document.getElementById('screen-'+id).classList.add('active');
   btn.classList.add('active');
 }
 
-const fmt$ = n => '$' + parseFloat(n||0).toFixed(2);
+// ── UTILS ─────────────────────────────────────────────────────────────────
+const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
 
-function badgeHTML(tipo) {
-  const map = {
-    'En producción':'badge-prod','Empaquetado':'badge-pack','Pagado':'badge-paid',
-    'Delivery':'badge-del','Envío MRW':'badge-env','Envío ZOOM':'badge-env','Retiro personal':'badge-ret'
-  };
+function badgeHTML(tipo){
+  const map={'En producción':'badge-prod','Empaquetado':'badge-pack','Pagado':'badge-paid',
+    'Delivery':'badge-del','Envío MRW':'badge-env','Envío ZOOM':'badge-env','Retiro personal':'badge-ret'};
   return `<span class="badge ${map[tipo]||'badge-ret'}">${tipo}</span>`;
 }
 
-const refreshIcon = `<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`;
+const refreshIcon=`<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`;
+const arrowLeft=`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+const arrowRight=`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
-const arrowLeft  = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>`;
-const arrowRight = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
-
-async function fetchData(accion, extra='') {
+async function fetchData(accion, extra=''){
   const r = await fetch(`${API}?accion=${accion}${extra}`);
-  if (!r.ok) throw new Error('Error ' + r.status);
+  if(!r.ok) throw new Error('Error '+r.status);
   return r.json();
 }
 
-// ─── UTILIDADES DE FECHA ───────────────────────────────────────────────────
-function fechaStr(d) {
+function fechaStr(d){
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 }
-
-function fechaLabel(d) {
-  const dias  = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-  const hoy    = new Date();
-  const manana = new Date(hoy); manana.setDate(hoy.getDate()+1);
-  const ayer   = new Date(hoy); ayer.setDate(hoy.getDate()-1);
-  if (fechaStr(d) === fechaStr(hoy))    return "Hoy";
-  if (fechaStr(d) === fechaStr(manana)) return "Mañana";
-  if (fechaStr(d) === fechaStr(ayer))   return "Ayer";
+function fechaLabel(d){
+  const dias=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  const meses=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const hoy=new Date(), man=new Date(hoy), ay=new Date(hoy);
+  man.setDate(hoy.getDate()+1); ay.setDate(hoy.getDate()-1);
+  if(fechaStr(d)===fechaStr(hoy)) return "Hoy";
+  if(fechaStr(d)===fechaStr(man)) return "Mañana";
+  if(fechaStr(d)===fechaStr(ay))  return "Ayer";
   return `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]}`;
 }
 
-// ─── DASHBOARD ─────────────────────────────────────────────────────────────
-async function loadDashboard() {
-  document.getElementById('dash-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
-  try {
-    const d = await fetchData('dashboard');
-    document.getElementById('topbar-mes').textContent = d.mes;
-    const spread = parseFloat(d.spread);
-    const chip = document.getElementById('spread-chip');
-    chip.textContent = 'Spread ' + d.spread;
-    chip.className = 'spread-chip' + (spread > 25 ? '' : ' ok');
-    chip.style.display = 'inline-flex';
-    const ganancia = parseFloat(d.finanzas.gananciaNeta);
-    const ganPos = ganancia >= 0;
-    document.getElementById('dash-content').innerHTML = `
+function mostrarToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+function setTopbar(mes, spread){
+  document.getElementById('topbar-mes').textContent=mes;
+  document.getElementById('topbar-mes-tablet').textContent=mes;
+  const s=parseFloat(spread);
+  ['spread-chip','spread-chip-tablet'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.textContent='Spread '+spread;
+    el.className='spread-chip'+(s>25?'':' ok');
+    el.style.display='inline-flex';
+  });
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────
+async function loadDashboard(){
+  document.getElementById('dash-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
+  try{
+    const d=await fetchData('dashboard');
+    setTopbar(d.mes, d.spread);
+    const ganancia=parseFloat(d.finanzas.gananciaNeta), ganPos=ganancia>=0;
+    document.getElementById('dash-content').innerHTML=`
       <div class="hero">
         <div class="hero-label">Ingreso total USDT real</div>
         <div class="hero-amount">${fmt$(d.ventas.totalVendidoUSDT)}</div>
         <div class="hero-sub">${fmt$(d.ventas.totalVendidoBCV)} en BCV · ${d.ventas.totalPedidos} pedidos</div>
-        <div class="hero-badge">${ganPos ? '▲' : '▼'} Ganancia neta ${fmt$(ganancia)}</div>
+        <div class="hero-badge">${ganPos?'▲':'▼'} Ganancia neta ${fmt$(ganancia)}</div>
       </div>
       <div class="sec-title">producción</div>
       <div class="metric-grid">
@@ -265,7 +487,7 @@ async function loadDashboard() {
       <div class="sec-title">finanzas del mes</div>
       <div class="card">
         <div class="row"><span class="row-label">Total vendido BCV</span><span class="row-val">${fmt$(d.ventas.totalVendidoBCV)}</span></div>
-        <div class="row"><span class="row-label">USDT real recibido</span><span class="row-val green">${fmt$(d.ventas.totalVendidoUSDT)}</span></div>
+        <div class="row"><span class="row-label">USDT real recibido</span><span class="row-val pos">${fmt$(d.ventas.totalVendidoUSDT)}</span></div>
         <div class="row"><span class="row-label">Delivery cobrado</span><span class="row-val">${fmt$(d.ventas.ingresoDelivery)}</span></div>
         <div class="row"><span class="row-label">Costo producción</span><span class="row-val neg">− ${fmt$(d.finanzas.costoProduccion)}</span></div>
         <div class="row"><span class="row-label">Comisión vendedora (${d.finanzas.pctComision})</span><span class="row-val neg">− ${fmt$(d.finanzas.comisionVendedora)}</span></div>
@@ -280,46 +502,34 @@ async function loadDashboard() {
         <div class="tasa-card"><div class="tasa-name">Tasa BCV</div><div class="tasa-val">Bs ${parseFloat(d.tasaBCV).toFixed(2)}</div><div class="tasa-sub">$1 USD oficial</div></div>
         <div class="tasa-card"><div class="tasa-name">Tasa USDT</div><div class="tasa-val">Bs ${parseFloat(d.tasaUSDT).toFixed(2)}</div><div class="tasa-sub">$1 paralelo</div></div>
         <div class="tasa-card"><div class="tasa-name">Spread</div><div class="tasa-val" style="color:var(--red)">${d.spread}</div><div class="tasa-sub">diferencia</div></div>
-        <div class="tasa-card"><div class="tasa-name">$30 BCV en USDT</div><div class="tasa-val" style="color:var(--gold)">${fmt$(30*d.tasaBCV/d.tasaUSDT)}</div><div class="tasa-sub">valor real</div></div>
+        <div class="tasa-card"><div class="tasa-name">$30 BCV → USDT</div><div class="tasa-val" style="color:var(--gold)">${fmt$(30*d.tasaBCV/d.tasaUSDT)}</div><div class="tasa-sub">valor real</div></div>
       </div>
-      <button class="btn" onclick="loadDashboard()">${refreshIcon}Actualizar</button>
-    `;
-  } catch(e) {
-    document.getElementById('dash-content').innerHTML = `<div class="err-card">No se pudo conectar con Sheets.<br>Verifica tu conexión.<br><small style="opacity:0.7">${e.message}</small></div><button class="btn" onclick="loadDashboard()">${refreshIcon}Reintentar</button>`;
+      <button class="btn" onclick="loadDashboard()">${refreshIcon}Actualizar</button>`;
+  }catch(e){
+    document.getElementById('dash-content').innerHTML=`<div class="err-card">No se pudo conectar.<br><small>${e.message}</small></div><button class="btn" onclick="loadDashboard()">${refreshIcon}Reintentar</button>`;
   }
 }
 
-// ─── PRODUCCIÓN (con navegación por fecha) ─────────────────────────────────
-let _prodCache = null;
-let fechaProduccionActual = new Date();
+// ── PRODUCCIÓN ───────────────────────────────────────────────────────────
+let _prodCache=null, fechaProduccionActual=new Date();
 
-async function loadProduccion(offset) {
-  // Si hay offset, solo navegar — no re-fetch
-  if (offset !== undefined && _prodCache) {
-    fechaProduccionActual = new Date(fechaProduccionActual);
-    fechaProduccionActual.setDate(fechaProduccionActual.getDate() + offset);
-    renderProduccion();
-    return;
+async function loadProduccion(offset){
+  if(offset!==undefined && _prodCache){
+    fechaProduccionActual=new Date(fechaProduccionActual);
+    fechaProduccionActual.setDate(fechaProduccionActual.getDate()+offset);
+    renderProduccion(); return;
   }
-  // Refresh completo
-  _prodCache = null;
-  fechaProduccionActual = new Date();
-  document.getElementById('prod-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  try {
-    _prodCache = await fetchData('produccion');
-    renderProduccion();
-  } catch(e) {
-    document.getElementById('prod-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadProduccion()">${refreshIcon}Reintentar</button>`;
-  }
+  _prodCache=null; fechaProduccionActual=new Date();
+  document.getElementById('prod-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try{ _prodCache=await fetchData('produccion'); renderProduccion(); }
+  catch(e){ document.getElementById('prod-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadProduccion()">${refreshIcon}Reintentar</button>`; }
 }
 
-function renderProduccion() {
-  const d = _prodCache;
-  const fechaBuscar = fechaStr(fechaProduccionActual);
-  const grupo = d.grupos.find(g => g.fecha === fechaBuscar);
-  const items = grupo ? grupo.items : [];
-
-  let html = `
+function renderProduccion(){
+  const d=_prodCache, fechaBuscar=fechaStr(fechaProduccionActual);
+  const grupo=d.grupos.find(g=>g.fecha===fechaBuscar);
+  const items=grupo?grupo.items:[];
+  let html=`
     <div class="date-nav">
       <button class="date-nav-btn" onclick="loadProduccion(-1)">${arrowLeft}</button>
       <div class="date-nav-center">
@@ -331,52 +541,36 @@ function renderProduccion() {
     <div class="metric-grid">
       <div class="metric-card"><div class="metric-label">Este día</div><div class="metric-value blue">${items.length}</div></div>
       <div class="metric-card"><div class="metric-label">Total pendiente</div><div class="metric-value">${d.total}</div></div>
-    </div>
-  `;
-
-  if (!items.length) {
-    html += '<div class="empty-state">Sin producción para este día</div>';
+    </div>`;
+  if(!items.length){
+    html+='<div class="empty-state">Sin producción para este día</div>';
   } else {
-    html += '<div class="card">';
-    items.forEach(p => {
-      html += `<div class="order-row">
+    html+='<div class="card">';
+    items.forEach(p=>{
+      html+=`<div class="order-row">
         <div style="flex:1;min-width:0">
           <div class="order-name">${p.cliente}</div>
-          <div class="order-detail">${p.producto ? p.producto + ' · ' : ''}${p.color} · ${p.talla} · ${p.ruedo}cm</div>
-        </div>
-        ${badgeHTML(p.estado)}
-      </div>`;
+          <div class="order-detail">${p.producto?p.producto+' · ':''}${p.color} · ${p.talla} · ${p.ruedo}cm</div>
+        </div>${badgeHTML(p.estado)}</div>`;
     });
-    html += '</div>';
+    html+='</div>';
   }
-
-  html += `<button class="btn" onclick="loadProduccion()">${refreshIcon}Actualizar</button>`;
-  document.getElementById('prod-content').innerHTML = html;
+  html+=`<button class="btn" onclick="loadProduccion()">${refreshIcon}Actualizar</button>`;
+  document.getElementById('prod-content').innerHTML=html;
 }
 
-// ─── ENTREGAS ──────────────────────────────────────────────────────────────
-let fechaEntregasActual = new Date();
-let _entPedidos = [];
-let _entFecha   = '';
+// ── ENTREGAS ─────────────────────────────────────────────────────────────
+let fechaEntregasActual=new Date(), _entPedidos=[], _entFecha='';
 
-async function loadEntregas(offset) {
-  if (offset !== undefined) {
-    fechaEntregasActual = new Date(fechaEntregasActual);
-    fechaEntregasActual.setDate(fechaEntregasActual.getDate() + offset);
-  }
-  document.getElementById('ent-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  try {
-    const fecha = fechaStr(fechaEntregasActual);
-    const d = await fetchData('entregas', `&fecha=${fecha}`);
-    _entPedidos = d.pedidos;
-    _entFecha   = fecha;
-
-    // Pedidos que requieren delivery (excluye retiros)
-    const hayDelivery = d.pedidos.some(p =>
-      ['Delivery','Envío MRW','Envío ZOOM'].includes(p.tipoEntrega)
-    );
-
-    let html = `
+async function loadEntregas(offset){
+  if(offset!==undefined){ fechaEntregasActual=new Date(fechaEntregasActual); fechaEntregasActual.setDate(fechaEntregasActual.getDate()+offset); }
+  document.getElementById('ent-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try{
+    const fecha=fechaStr(fechaEntregasActual);
+    const d=await fetchData('entregas',`&fecha=${fecha}`);
+    _entPedidos=d.pedidos; _entFecha=fecha;
+    const hayDel=d.pedidos.some(p=>['Delivery','Envío MRW','Envío ZOOM'].includes(p.tipoEntrega));
+    let html=`
       <div class="date-nav">
         <button class="date-nav-btn" onclick="loadEntregas(-1)">${arrowLeft}</button>
         <div class="date-nav-center">
@@ -390,139 +584,85 @@ async function loadEntregas(offset) {
         <div class="metric-card"><div class="metric-label">Delivery</div><div class="metric-value amber">${d.delivery}</div></div>
         <div class="metric-card"><div class="metric-label">Envíos</div><div class="metric-value blue">${d.envios}</div></div>
         <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
-      </div>
-    `;
-
-    if (!d.pedidos.length) {
-      html += '<div class="empty-state">No hay entregas para este día</div>';
+      </div>`;
+    if(!d.pedidos.length){
+      html+='<div class="empty-state">No hay entregas para este día</div>';
     } else {
-      d.pedidos.forEach(p => {
-        html += `<div class="card">
-          <div class="card-header">
-            <div class="card-title">${p.cliente}</div>
-            ${badgeHTML(p.tipoEntrega)}
-          </div>
+      d.pedidos.forEach(p=>{
+        html+=`<div class="card">
+          <div class="card-header"><div class="card-title">${p.cliente}</div>${badgeHTML(p.tipoEntrega)}</div>
           <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
-          ${p.direccion ? `<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>` : ''}
-          <div class="row">
-            <span class="row-label">Monto</span>
-            <span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span>
-          </div>
+          ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
+          <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
         </div>`;
       });
     }
-
-    // Botón WhatsApp — solo si hay pedidos con delivery/envío
-    if (hayDelivery) {
-      html += `
-        <button class="btn-wa" onclick="enviarADelivery()">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.126 1.534 5.862L0 24l6.29-1.51A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.032-1.386l-.36-.214-3.733.897.938-3.63-.235-.374A9.818 9.818 0 1112 21.818z"/>
-          </svg>
-          Enviar al delivery
-        </button>
-        <div class="wa-hint">
-          Número guardado · <a onclick="cambiarNumeroDelivery()">cambiar</a>
-        </div>
-      `;
+    if(hayDel){
+      html+=`<button class="btn-wa" onclick="enviarADelivery()">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+          <path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.126 1.534 5.862L0 24l6.29-1.51A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.032-1.386l-.36-.214-3.733.897.938-3.63-.235-.374A9.818 9.818 0 1112 21.818z"/>
+        </svg>
+        Enviar al delivery
+      </button>
+      <div class="wa-hint">Número guardado · <a onclick="cambiarNumeroDelivery()">cambiar</a></div>`;
     }
-
-    html += `<button class="btn" onclick="loadEntregas(0)" style="margin-top:${hayDelivery?'8px':'12px'}">${refreshIcon}Actualizar</button>`;
-    document.getElementById('ent-content').innerHTML = html;
-  } catch(e) {
-    document.getElementById('ent-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas(0)">${refreshIcon}Reintentar</button>`;
+    html+=`<button class="btn" onclick="loadEntregas(0)" style="margin-top:8px">${refreshIcon}Actualizar</button>`;
+    document.getElementById('ent-content').innerHTML=html;
+  }catch(e){
+    document.getElementById('ent-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas(0)">${refreshIcon}Reintentar</button>`;
   }
 }
 
-// ─── WHATSAPP DELIVERY ──────────────────────────────────────────────────────
-function generarMensajeDelivery(pedidos, fecha) {
-  const del  = pedidos.filter(p => p.tipoEntrega === 'Delivery');
-  const mrw  = pedidos.filter(p => p.tipoEntrega === 'Envío MRW');
-  const zoom = pedidos.filter(p => p.tipoEntrega === 'Envío ZOOM');
-
-  let msg = `🚚 *Entregas del ${fecha}*\n`;
-  const total = del.length + mrw.length + zoom.length;
-  msg += `_${total} pedido${total !== 1 ? 's' : ''} en total_\n`;
-
-  if (del.length) {
-    msg += `\n*📦 Delivery (${del.length}):*\n`;
-    del.forEach((p, i) => {
-      msg += `${i+1}. *${p.cliente}*\n`;
-      msg += `   ${p.color} · ${p.talla}\n`;
-      if (p.direccion) msg += `   📍 ${p.direccion}\n`;
-      const total = parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0);
-      if (total > 0) msg += `   💵 ${fmt$(total)}\n`;
+// ── WHATSAPP ─────────────────────────────────────────────────────────────
+function generarMensajeDelivery(pedidos, fecha){
+  const del=pedidos.filter(p=>p.tipoEntrega==='Delivery');
+  const mrw=pedidos.filter(p=>p.tipoEntrega==='Envío MRW');
+  const zoom=pedidos.filter(p=>p.tipoEntrega==='Envío ZOOM');
+  const tot=del.length+mrw.length+zoom.length;
+  let msg=`🚚 *Entregas del ${fecha}*\n_${tot} pedido${tot!==1?'s':''} en total_\n`;
+  const bloque=(titulo,arr)=>{
+    if(!arr.length) return;
+    msg+=`\n*${titulo} (${arr.length}):*\n`;
+    arr.forEach((p,i)=>{
+      msg+=`${i+1}. *${p.cliente}*\n   ${p.color} · ${p.talla}\n`;
+      if(p.direccion) msg+=`   📍 ${p.direccion}\n`;
+      const t=parseFloat(p.montoProducto||0)+parseFloat(p.montoDelivery||0);
+      if(t>0) msg+=`   💵 ${fmt$(t)}\n`;
     });
-  }
-
-  if (mrw.length) {
-    msg += `\n*📮 MRW (${mrw.length}):*\n`;
-    mrw.forEach((p, i) => {
-      msg += `${i+1}. *${p.cliente}*\n`;
-      msg += `   ${p.color} · ${p.talla}\n`;
-      if (p.direccion) msg += `   📍 ${p.direccion}\n`;
-    });
-  }
-
-  if (zoom.length) {
-    msg += `\n*📮 ZOOM (${zoom.length}):*\n`;
-    zoom.forEach((p, i) => {
-      msg += `${i+1}. *${p.cliente}*\n`;
-      msg += `   ${p.color} · ${p.talla}\n`;
-      if (p.direccion) msg += `   📍 ${p.direccion}\n`;
-    });
-  }
-
+  };
+  bloque('📦 Delivery',del); bloque('📮 MRW',mrw); bloque('📮 ZOOM',zoom);
   return msg.trim();
 }
-
-function getNumeroDelivery() {
-  let num = localStorage.getItem('delivery_wa_number');
-  if (!num) {
-    num = prompt('Número WhatsApp del delivery\n(con código de país, sin espacios)\nEj: 584141234567');
-    if (!num) return null;
-    num = num.replace(/\D/g, '');
-    localStorage.setItem('delivery_wa_number', num);
-  }
-  return num;
+function enviarADelivery(){
+  let num=localStorage.getItem('delivery_wa_number');
+  if(!num){ num=prompt('Número WhatsApp del delivery\n(con código de país, sin espacios)\nEj: 584141234567'); if(!num) return; num=num.replace(/\D/g,''); localStorage.setItem('delivery_wa_number',num); }
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(generarMensajeDelivery(_entPedidos,_entFecha))}`, '_blank');
 }
+function cambiarNumeroDelivery(){ localStorage.removeItem('delivery_wa_number'); enviarADelivery(); }
 
-function cambiarNumeroDelivery() {
-  localStorage.removeItem('delivery_wa_number');
-  enviarADelivery();
-}
-
-function enviarADelivery() {
-  const num = getNumeroDelivery();
-  if (!num) return;
-  const msg = generarMensajeDelivery(_entPedidos, _entFecha);
-  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
-}
-
-// ─── COMISIONES ─────────────────────────────────────────────────────────────
-async function loadComisiones() {
-  document.getElementById('com-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  try {
-    const d = await fetchData('comisiones');
-    let html = '';
-    if (!d.vendedoras.length) {
-      html += '<div class="empty-state" style="margin-top:20px">Sin datos de vendedoras aún</div>';
-    } else {
-      d.vendedoras.forEach(v => {
-        const max  = v.nivelSiguiente ? v.nivelSiguiente.pants : Math.max(v.pants, 1);
-        const prog = Math.min(100, Math.round(v.pants / max * 100));
-        html += `<div class="card" style="margin-top:4px">
+// ── COMISIONES ───────────────────────────────────────────────────────────
+async function loadComisiones(){
+  document.getElementById('com-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try{
+    const d=await fetchData('comisiones');
+    let html='';
+    if(!d.vendedoras.length){ html='<div class="empty-state" style="margin-top:20px">Sin datos de vendedoras aún</div>'; }
+    else{
+      d.vendedoras.forEach(v=>{
+        const max=v.nivelSiguiente?v.nivelSiguiente.pants:Math.max(v.pants,1);
+        const prog=Math.min(100,Math.round(v.pants/max*100));
+        html+=`<div class="card" style="margin-top:4px">
           <div class="vendedora-header">
             <div class="avatar">${v.nombre.substring(0,2).toUpperCase()}</div>
             <div style="flex:1">
-              <div style="font-size:16px;font-weight:700;color:var(--text)">${v.nombre}</div>
+              <div style="font-size:16px;font-weight:700">${v.nombre}</div>
               <div style="font-size:12px;color:var(--text3);margin-top:2px">${v.pants} pantalones · comisión ${v.pct}</div>
             </div>
           </div>
           <div class="bar-bg"><div class="bar-fill" style="width:${prog}%"></div></div>
           <div style="font-size:12px;color:var(--text3);margin-bottom:14px">
-            ${v.nivelSiguiente ? `Faltan <strong style="color:var(--gold)">${v.faltanParaSiguiente}</strong> pants para nivel ${v.nivelSiguiente.pct}%` : '<span style="color:var(--green)">Nivel máximo alcanzado</span>'}
+            ${v.nivelSiguiente?`Faltan <strong style="color:var(--gold)">${v.faltanParaSiguiente}</strong> pants para nivel ${v.nivelSiguiente.pct}%`:'<span style="color:var(--green)">Nivel máximo alcanzado</span>'}
           </div>
           <div class="row"><span class="row-label">Base fija</span><span class="row-val">${fmt$(v.baseFija)}</span></div>
           <div class="row"><span class="row-label">Comisión escalada (${v.pct})</span><span class="row-val">${fmt$(v.comision)}</span></div>
@@ -533,7 +673,7 @@ async function loadComisiones() {
         </div>`;
       });
     }
-    html += `
+    html+=`
       <div class="sec-title">tabla de niveles</div>
       <div class="card">
         <div class="row"><span class="row-label">0 – 99 pants</span><span class="row-val">Solo base $200</span></div>
@@ -543,15 +683,110 @@ async function loadComisiones() {
         <div class="row"><span class="row-label">300 – 399 pants</span><span class="row-val gold">8%</span></div>
         <div class="row"><span class="row-label">400+ pants</span><span class="row-val gold">10%</span></div>
       </div>
-      <button class="btn" onclick="loadComisiones()">${refreshIcon}Actualizar</button>
-    `;
-    document.getElementById('com-content').innerHTML = html;
-  } catch(e) {
-    document.getElementById('com-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadComisiones()">${refreshIcon}Reintentar</button>`;
+      <button class="btn" onclick="loadComisiones()">${refreshIcon}Actualizar</button>`;
+    document.getElementById('com-content').innerHTML=html;
+  }catch(e){
+    document.getElementById('com-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadComisiones()">${refreshIcon}Reintentar</button>`;
   }
 }
 
-// ─── INIT ───────────────────────────────────────────────────────────────────
+// ── FORMULARIO ───────────────────────────────────────────────────────────
+function getVendedora(){
+  let n=localStorage.getItem('vendedora_nombre');
+  if(!n){ n=prompt('Tu nombre (se guarda para el registro):\nEj: Laura'); if(!n) return null; n=n.trim(); localStorage.setItem('vendedora_nombre',n); }
+  return n;
+}
+function cambiarVendedora(){ localStorage.removeItem('vendedora_nombre'); abrirFormulario(); }
+
+function abrirFormulario(){
+  const v=getVendedora(); if(!v) return;
+  document.getElementById('form-vendedora-nombre').textContent=v;
+  // Set default date: tomorrow
+  const man=new Date(); man.setDate(man.getDate()+2);
+  const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
+  document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
+  document.getElementById('form-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>document.getElementById('f-nombre').focus(), 300);
+}
+function cerrarFormulario(){
+  document.getElementById('form-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+function overlayClick(e){
+  if(e.target===document.getElementById('form-overlay')) cerrarFormulario();
+}
+
+function toggleEntrega(){
+  const tipo=document.getElementById('f-tipo-entrega').value;
+  const needsDir=['Delivery','Envío MRW','Envío ZOOM'].includes(tipo);
+  const needsDel=tipo==='Delivery';
+  document.getElementById('grupo-direccion').style.display=needsDir?'flex':'none';
+  document.getElementById('grupo-monto-delivery').style.display=needsDel?'flex':'none';
+}
+
+function resetForm(){
+  ['f-nombre','f-telefono','f-direccion','f-monto-producto','f-monto-delivery','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['f-producto','f-color','f-talla','f-ruedo','f-tipo-entrega','f-origen','f-metodo-pago'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('grupo-direccion').style.display='none';
+  document.getElementById('grupo-monto-delivery').style.display='none';
+  // Reset date to +2 days
+  const man=new Date(); man.setDate(man.getDate()+2);
+  const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
+  document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
+}
+
+async function submitPedido(){
+  const g=id=>document.getElementById(id).value.trim();
+  const campos={
+    nombre:         g('f-nombre'),
+    telefono:       g('f-telefono'),
+    producto:       g('f-producto'),
+    color:          g('f-color'),
+    talla:          g('f-talla'),
+    ruedo:          g('f-ruedo'),
+    tipoEntrega:    g('f-tipo-entrega'),
+    fechaEntrega:   g('f-fecha-entrega'),
+    direccion:      g('f-direccion'),
+    montoProducto:  g('f-monto-producto'),
+    montoDelivery:  g('f-monto-delivery')||'0',
+    metodoPago:     g('f-metodo-pago'),
+    origen:         g('f-origen'),
+    notas:          g('f-notas'),
+    responsable:    localStorage.getItem('vendedora_nombre')||''
+  };
+
+  const req=['nombre','telefono','producto','color','talla','ruedo','tipoEntrega','fechaEntrega','montoProducto','metodoPago','origen'];
+  for(const f of req){
+    if(!campos[f]){ mostrarToast('⚠ Completa todos los campos obligatorios'); return; }
+  }
+
+  const btn=document.getElementById('btn-submit');
+  btn.textContent='Registrando...'; btn.disabled=true;
+
+  try{
+    const params=new URLSearchParams(campos).toString();
+    const r=await fetch(`${API}?accion=registrar&${params}`);
+    const data=await r.json();
+    if(data.success){
+      cerrarFormulario();
+      mostrarToast(`✓ Pedido de ${campos.nombre} registrado`);
+      resetForm();
+      // Refrescar datos
+      _prodCache=null;
+      loadDashboard();
+      loadProduccion();
+    } else {
+      throw new Error(data.error||'Error desconocido');
+    }
+  }catch(e){
+    mostrarToast('✕ Error: '+e.message);
+  }finally{
+    btn.textContent='Registrar pedido'; btn.disabled=false;
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────
 loadDashboard();
 loadProduccion();
 loadEntregas();
