@@ -51,6 +51,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 /* ── FAB ── */
 .fab{position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,8px) + 16px);right:20px;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(201,168,76,0.4);z-index:99;transition:transform 0.15s,opacity 0.15s}
+.fab.no-nav{bottom:calc(env(safe-area-inset-bottom,8px) + 28px)}
 .fab:active{transform:scale(0.92)}
 .fab svg{width:24px;height:24px;stroke:#000;fill:none;stroke-width:2.5;stroke-linecap:round}
 
@@ -63,7 +64,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .form-title{font-size:18px;font-weight:700}
 .form-close{width:32px;height:32px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:18px;line-height:1}
 .form-vendedora{padding:10px 20px;background:var(--gold-bg);font-size:12px;color:var(--gold);border-bottom:1px solid var(--bg3)}
-.form-vendedora a{color:var(--gold);text-decoration:underline;cursor:pointer;margin-left:4px}
 .form-body{padding:16px 20px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-group{display:flex;flex-direction:column;gap:6px}
@@ -76,8 +76,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .form-divider{grid-column:1/-1;height:1px;background:var(--bg3);margin:4px 0}
 .form-section-label{grid-column:1/-1;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px}
 
-/* ── SUCCESS TOAST ── */
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--green);color:#000;font-size:14px;font-weight:700;padding:12px 20px;border-radius:var(--radius-sm);z-index:300;transition:transform 0.3s ease;white-space:nowrap}
+/* ── TOAST ── */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--green);color:#000;font-size:14px;font-weight:700;padding:12px 20px;border-radius:var(--radius-sm);z-index:400;transition:transform 0.3s ease;white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
 
 /* ── SECTIONS ── */
@@ -103,7 +103,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:8px}
 .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .card-title{font-size:15px;font-weight:600}
-.card-sub{font-size:12px;color:var(--text3)}
 
 /* ── ROWS ── */
 .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg3)}
@@ -166,37 +165,191 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .date-nav-label{font-size:20px;font-weight:700}
 .date-nav-sub{font-size:12px;color:var(--text3);margin-top:2px}
 
+/* ── SWITCH USER BUTTON ── */
+.switch-btn{background:var(--bg2);border:1px solid var(--bg3);border-radius:20px;padding:6px 12px;font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:5px;transition:background 0.15s;white-space:nowrap}
+.switch-btn:active{background:var(--bg3)}
+
+/* ══════════════════════════════════════════════════════════
+   ROLE SELECTOR
+══════════════════════════════════════════════════════════*/
+.role-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+.role-logo{width:72px;height:72px;border-radius:50%;background:var(--gold);color:#000;font-size:28px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:12px;letter-spacing:-1px}
+.role-welcome{font-size:28px;font-weight:800;margin-bottom:4px}
+.role-sub{font-size:14px;color:var(--text2);margin-bottom:48px}
+.role-cards{width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px}
+.role-card{background:var(--bg2);border:1.5px solid var(--bg3);border-radius:var(--radius);padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color 0.15s,background 0.15s;width:100%;text-align:left;-webkit-appearance:none}
+.role-card:active{background:var(--bg3)}
+.role-card.locked{border-color:var(--gold-dim)}
+.role-icon{width:46px;height:46px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.role-card.locked .role-icon{background:var(--gold-bg)}
+.role-card-name{font-size:17px;font-weight:700}
+.role-card-desc{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* ══════════════════════════════════════════════════════════
+   PIN PAD
+══════════════════════════════════════════════════════════*/
+.pin-back{background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;padding:8px;display:flex;align-items:center;gap:6px;position:absolute;top:24px;left:24px}
+.pin-title{font-size:22px;font-weight:700;margin-bottom:28px;text-align:center}
+.pin-dots{display:flex;gap:16px;justify-content:center;margin-bottom:8px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--text3);background:transparent;transition:background 0.1s,border-color 0.1s}
+.pin-dot.filled{background:var(--gold);border-color:var(--gold)}
+.pin-dot.error{background:var(--red);border-color:var(--red)}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+.pin-dots.shake{animation:shake 0.4s ease}
+.pin-error-msg{font-size:13px;color:var(--red);text-align:center;height:20px;margin-top:8px;margin-bottom:16px}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;width:100%}
+.pin-key{aspect-ratio:1;background:var(--bg2);border:none;border-radius:var(--radius);font-size:24px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s;min-height:64px}
+.pin-key:active{background:var(--bg3)}
+.pin-key.del{font-size:16px;color:var(--text2)}
+.pin-key.empty{background:transparent;cursor:default;pointer-events:none}
+
+/* ══════════════════════════════════════════════════════════
+   VENDEDORA APP
+══════════════════════════════════════════════════════════*/
+.vend-app{min-height:100vh;flex-direction:column;max-width:430px;margin:0 auto}
+.vend-header{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.vend-brand{display:flex;align-items:center;gap:10px}
+.vend-body{padding:0 16px 120px;overflow-y:auto}
+
+/* ══════════════════════════════════════════════════════════
+   COSTURERA APP
+══════════════════════════════════════════════════════════*/
+.cost-app{min-height:100vh;flex-direction:column;max-width:430px;margin:0 auto}
+.cost-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bg3);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:10}
+.cost-body{padding:16px;padding-bottom:80px}
+.cost-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px 14px 14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.cost-info{flex:1;min-width:0}
+.cost-name{font-size:14px;font-weight:700;margin-bottom:3px}
+.cost-det{font-size:12px;color:var(--text2)}
+.btn-estado{padding:9px 14px;border-radius:20px;border:none;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity 0.15s}
+.btn-estado:active{opacity:0.6;transform:scale(0.95)}
+.btn-empaquetar{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(96,165,250,0.25)}
+.btn-delivery{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(251,191,36,0.25)}
+
 /* ── TABLET RESPONSIVE (≥ 640px) ── */
 @media (min-width:640px){
   .app{max-width:100%;flex-direction:row}
   .topbar{display:none}
-
-  /* Side nav */
   .nav{flex-direction:column;position:fixed;left:0;top:0;bottom:0;right:auto;max-width:none;width:var(--nav-w);border-top:none;border-right:1px solid var(--bg3);padding:24px 0;height:100vh;justify-content:flex-start;gap:4px}
   .nav-btn{padding:14px 4px;font-size:9px}
   .nav-btn svg{width:24px;height:24px}
-
-  /* Content */
   .screens{margin-left:var(--nav-w);flex:1}
   .screen{padding:24px 32px 60px;max-width:860px}
-
-  /* FAB */
   .fab{bottom:32px;right:32px;width:56px;height:56px}
-
-  /* Form sheet — modal centered */
+  .fab.no-nav{bottom:32px}
   .form-overlay{align-items:center}
   .form-sheet{border-radius:var(--radius);max-width:680px;margin:0 auto}
-
-  /* 2-column form already set via grid */
   .metric-grid{grid-template-columns:repeat(4,1fr)}
   .tasa-grid{grid-template-columns:repeat(4,1fr)}
+  .vend-app,.cost-app{max-width:680px}
 }
 </style>
 </head>
 <body>
-<div class="app">
 
-  <!-- TOPBAR (mobile only) -->
+<!-- ══════════════════════════════════════════════════════════
+     ROLE SELECTOR
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-rol" class="role-screen">
+  <div class="role-logo">C</div>
+  <div class="role-welcome">Ceniza</div>
+  <div class="role-sub">¿Quién eres?</div>
+  <div class="role-cards">
+    <button class="role-card" onclick="selectRole('vendedora')">
+      <div class="role-icon">👩‍💼</div>
+      <div>
+        <div class="role-card-name">Angie</div>
+        <div class="role-card-desc">Vendedora · registrar pedidos</div>
+      </div>
+    </button>
+    <button class="role-card" onclick="selectRole('costurera')">
+      <div class="role-icon">✂️</div>
+      <div>
+        <div class="role-card-name">Costurera</div>
+        <div class="role-card-desc">Cola de producción · cambiar estados</div>
+      </div>
+    </button>
+    <button class="role-card locked" onclick="selectRole('duena')">
+      <div class="role-icon">🔒</div>
+      <div>
+        <div class="role-card-name">Dueña</div>
+        <div class="role-card-desc">Acceso completo · requiere PIN</div>
+      </div>
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PIN SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-pin" class="role-screen" style="display:none">
+  <button class="pin-back" onclick="showScreen('screen-rol')">← Volver</button>
+  <div class="pin-title">PIN de acceso</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error-msg" id="pin-error"></div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="enterDigit('1')">1</button>
+    <button class="pin-key" onclick="enterDigit('2')">2</button>
+    <button class="pin-key" onclick="enterDigit('3')">3</button>
+    <button class="pin-key" onclick="enterDigit('4')">4</button>
+    <button class="pin-key" onclick="enterDigit('5')">5</button>
+    <button class="pin-key" onclick="enterDigit('6')">6</button>
+    <button class="pin-key" onclick="enterDigit('7')">7</button>
+    <button class="pin-key" onclick="enterDigit('8')">8</button>
+    <button class="pin-key" onclick="enterDigit('9')">9</button>
+    <button class="pin-key empty" disabled></button>
+    <button class="pin-key" onclick="enterDigit('0')">0</button>
+    <button class="pin-key del" onclick="deleteDigit()">⌫</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VENDEDORA APP
+═══════════════════════════════════════════════════════════ -->
+<div id="app-v" class="vend-app" style="display:none">
+  <div class="vend-header">
+    <div class="vend-brand">
+      <div class="topbar-logo">C</div>
+      <div>
+        <div class="topbar-name" id="vend-saludo">Mis ventas</div>
+        <div class="topbar-mes" id="vend-mes"></div>
+      </div>
+    </div>
+    <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+  </div>
+  <div class="vend-body">
+    <div id="vend-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     COSTURERA APP
+═══════════════════════════════════════════════════════════ -->
+<div id="app-c" class="cost-app" style="display:none">
+  <div class="cost-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="topbar-logo">C</div>
+      <div>
+        <div style="font-size:16px;font-weight:700">Producción</div>
+        <div style="font-size:12px;color:var(--text2)" id="cost-mes"></div>
+      </div>
+    </div>
+    <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+  </div>
+  <div class="cost-body">
+    <div id="cost-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     DUEÑA APP
+═══════════════════════════════════════════════════════════ -->
+<div class="app" id="app-d" style="display:none">
   <div class="topbar">
     <div class="topbar-brand">
       <div class="topbar-logo">C</div>
@@ -205,12 +358,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div class="topbar-mes" id="topbar-mes">Cargando...</div>
       </div>
     </div>
-    <div class="spread-chip" id="spread-chip" style="display:none"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="spread-chip" id="spread-chip" style="display:none"></div>
+      <button class="switch-btn" onclick="logoutRol()">Salir</button>
+    </div>
   </div>
 
-  <!-- SCREENS -->
   <div class="screens">
-    <!-- Tablet topbar inside screens -->
     <div id="tablet-topbar" style="display:none;padding:24px 32px 0;align-items:center;gap:16px">
       <div class="topbar-logo" style="width:36px;height:36px;font-size:14px">C</div>
       <div>
@@ -218,6 +372,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <div style="font-size:13px;color:var(--text2)" id="topbar-mes-tablet">Cargando...</div>
       </div>
       <div class="spread-chip" id="spread-chip-tablet" style="display:none;margin-left:auto"></div>
+      <button class="switch-btn" onclick="logoutRol()" style="margin-left:8px">Cambiar usuario</button>
     </div>
 
     <div class="screen active" id="screen-dashboard">
@@ -233,10 +388,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div id="com-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
     </div>
   </div>
-</div><!-- end .app -->
+</div>
 
-<!-- BOTTOM / SIDE NAV -->
-<nav class="nav">
+<!-- ══════════════════════════════════════════════════════════
+     NAV (dueña)
+═══════════════════════════════════════════════════════════ -->
+<nav class="nav" id="nav-duena" style="display:none">
   <button class="nav-btn active" onclick="show('dashboard',this)">
     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     inicio<div class="nav-dot"></div>
@@ -255,8 +412,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </button>
 </nav>
 
-<!-- FAB: Nuevo pedido -->
-<button class="fab" id="fab" onclick="abrirFormulario()" title="Nuevo pedido">
+<!-- FAB -->
+<button class="fab" id="fab" onclick="abrirFormulario()" title="Nuevo pedido" style="display:none">
   <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
@@ -269,12 +426,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="form-vendedora" id="form-vendedora-bar">
       Registrando como: <strong id="form-vendedora-nombre">—</strong>
-      <a onclick="cambiarVendedora()">cambiar</a>
     </div>
     <div class="form-body">
       <div class="form-grid">
 
-        <!-- Cliente -->
         <div class="form-section-label">Cliente</div>
         <div class="form-group full">
           <label>Nombre *</label>
@@ -296,9 +451,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
 
         <div class="form-divider"></div>
-
-        <!-- Producto -->
         <div class="form-section-label">Producto</div>
+
         <div class="form-group">
           <label>Producto *</label>
           <select id="f-producto">
@@ -336,9 +490,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
 
         <div class="form-divider"></div>
-
-        <!-- Entrega -->
         <div class="form-section-label">Entrega y pago</div>
+
         <div class="form-group">
           <label>Tipo de entrega *</label>
           <select id="f-tipo-entrega" onchange="toggleEntrega()">
@@ -373,18 +526,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
 
         <div class="form-divider"></div>
-
-        <!-- Notas -->
         <div class="form-group full">
           <label>Notas (opcional)</label>
-          <textarea id="f-notas" placeholder="Instrucciones especiales, cliente difícil de contactar, etc." rows="2"></textarea>
+          <textarea id="f-notas" placeholder="Instrucciones especiales, etc." rows="2"></textarea>
         </div>
 
-      </div><!-- end form-grid -->
-
-      <button class="btn-submit" id="btn-submit" onclick="submitPedido()">
-        Registrar pedido
-      </button>
+      </div>
+      <button class="btn-submit" id="btn-submit" onclick="submitPedido()">Registrar pedido</button>
     </div>
   </div>
 </div>
@@ -394,17 +542,268 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
+const PIN_DUENA = '1234'; // Cambia este PIN según necesites
 
-// ── TABLET DETECTION ──────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ROLE MANAGEMENT
+// ══════════════════════════════════════════════════════════
+let pinActual = '';
+
+function initApp() {
+  const rol = localStorage.getItem('ceniza_rol');
+  if (!rol) {
+    showScreen('screen-rol');
+  } else {
+    showApp(rol);
+  }
+}
+
+function showScreen(id) {
+  ['screen-rol','screen-pin','app-v','app-c'].forEach(s => {
+    document.getElementById(s).style.display = 'none';
+  });
+  document.getElementById('app-d').style.display = 'none';
+  document.getElementById('nav-duena').style.display = 'none';
+  const fab = document.getElementById('fab');
+  fab.style.display = 'none';
+  fab.classList.remove('no-nav');
+
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  if (id === 'app-d') {
+    el.style.display = '';
+    document.getElementById('nav-duena').style.display = '';
+    fab.style.display = 'flex';
+  } else if (id === 'app-v') {
+    el.style.display = 'flex';
+    fab.style.display = 'flex';
+    fab.classList.add('no-nav');
+  } else if (id === 'app-c') {
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'flex';
+  }
+}
+
+function selectRole(rol) {
+  if (rol === 'duena') {
+    pinActual = '';
+    actualizarDots();
+    document.getElementById('pin-error').textContent = '';
+    showScreen('screen-pin');
+  } else {
+    localStorage.setItem('ceniza_rol', rol);
+    showApp(rol);
+  }
+}
+
+function showApp(rol) {
+  if (rol === 'vendedora') {
+    localStorage.setItem('vendedora_nombre', 'Angie');
+    showScreen('app-v');
+    document.getElementById('vend-saludo').textContent = 'Hola, Angie 👋';
+    loadVendedora();
+  } else if (rol === 'costurera') {
+    showScreen('app-c');
+    loadCosturera();
+  } else if (rol === 'duena') {
+    showScreen('app-d');
+    setupTablet();
+    loadDashboard();
+    loadProduccion();
+    loadEntregas();
+    loadComisiones();
+  } else {
+    localStorage.removeItem('ceniza_rol');
+    showScreen('screen-rol');
+  }
+}
+
+function logoutRol() {
+  localStorage.removeItem('ceniza_rol');
+  showScreen('screen-rol');
+}
+
+// ══════════════════════════════════════════════════════════
+// PIN PAD
+// ══════════════════════════════════════════════════════════
+function enterDigit(d) {
+  if (pinActual.length >= 4) return;
+  pinActual += d;
+  actualizarDots();
+  if (pinActual.length === 4) setTimeout(verifyPin, 150);
+}
+
+function deleteDigit() {
+  pinActual = pinActual.slice(0, -1);
+  actualizarDots();
+  document.getElementById('pin-error').textContent = '';
+}
+
+function actualizarDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pd' + i);
+    dot.classList.toggle('filled', i < pinActual.length);
+    dot.classList.remove('error');
+  }
+}
+
+function verifyPin() {
+  if (pinActual === PIN_DUENA) {
+    localStorage.setItem('ceniza_rol', 'duena');
+    showApp('duena');
+  } else {
+    for (let i = 0; i < 4; i++) document.getElementById('pd' + i).classList.add('error');
+    const dotsEl = document.getElementById('pin-dots');
+    dotsEl.classList.add('shake');
+    setTimeout(() => dotsEl.classList.remove('shake'), 500);
+    document.getElementById('pin-error').textContent = 'PIN incorrecto';
+    pinActual = '';
+    setTimeout(actualizarDots, 600);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// VENDEDORA
+// ══════════════════════════════════════════════════════════
+async function loadVendedora() {
+  document.getElementById('vend-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const d = await fetchData('comisiones');
+    document.getElementById('vend-mes').textContent = d.mes || '';
+    const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
+    const vend = d.vendedoras.find(v => v.nombre === nombre);
+
+    let html = '';
+    if (!vend) {
+      html = `<div class="hero" style="margin-top:16px">
+        <div class="hero-label">Tus ventas este mes</div>
+        <div class="hero-amount">0</div>
+        <div class="hero-sub">pantalones vendidos · comisión 0%</div>
+        <div class="hero-badge">💰 Total estimado $200.00</div>
+      </div>
+      <div class="sec-title">Comisión estimada</div>
+      <div class="card">
+        <div class="row"><span class="row-label">Base fija</span><span class="row-val">$200.00</span></div>
+        <div class="row"><span class="row-label">Comisión escalada</span><span class="row-val">$0.00</span></div>
+        <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">$200.00</span></div>
+      </div>`;
+    } else {
+      const max = vend.nivelSiguiente ? vend.nivelSiguiente.pants : Math.max(vend.pants, 1);
+      const prog = Math.min(100, Math.round(vend.pants / max * 100));
+      html = `<div class="hero" style="margin-top:16px">
+        <div class="hero-label">Tus ventas este mes</div>
+        <div class="hero-amount">${vend.pants}</div>
+        <div class="hero-sub">pantalones vendidos · comisión ${vend.pct}</div>
+        <div class="hero-badge">💰 Total estimado ${fmt$(vend.totalAPagar)}</div>
+      </div>
+      <div class="sec-title">Progreso de comisión</div>
+      <div class="card">
+        <div class="bar-bg"><div class="bar-fill" style="width:${prog}%"></div></div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px">
+          ${vend.nivelSiguiente
+            ? `Faltan <strong style="color:var(--gold)">${vend.faltanParaSiguiente}</strong> pantalones para ganar ${vend.nivelSiguiente.pct}% de comisión`
+            : '<span style="color:var(--green)">¡Nivel máximo alcanzado! 🎉</span>'}
+        </div>
+        <div class="row"><span class="row-label">Base fija</span><span class="row-val">$200.00</span></div>
+        <div class="row"><span class="row-label">Comisión (${vend.pct} × ${vend.pants} × $30)</span><span class="row-val">${fmt$(vend.comision)}</span></div>
+        <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">${fmt$(vend.totalAPagar)}</span></div>
+      </div>
+      <div class="sec-title">Niveles de comisión</div>
+      <div class="card">
+        ${[{r:'0–99',p:'Solo base $200',min:0},
+           {r:'100–149',p:'5%',min:100},{r:'150–199',p:'6%',min:150},
+           {r:'200–299',p:'7%',min:200},{r:'300–399',p:'8%',min:300},
+           {r:'400+',p:'10%',min:400}
+          ].map(n=>`<div class="row">
+            <span class="row-label">${n.r} pantalones</span>
+            <span class="row-val ${n.min>0 && vend.pants>=n.min?'gold':''}">${n.p}</span>
+          </div>`).join('')}
+      </div>`;
+    }
+    html += `<button class="btn" onclick="loadVendedora()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
+    document.getElementById('vend-content').innerHTML = html;
+  } catch(e) {
+    document.getElementById('vend-content').innerHTML = `<div class="err-card">Error al cargar datos.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedora()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// COSTURERA
+// ══════════════════════════════════════════════════════════
+async function loadCosturera() {
+  document.getElementById('cost-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando producción...</div>';
+  try {
+    const d = await fetchData('produccion');
+    document.getElementById('cost-mes').textContent = d.mes || '';
+    renderCosturera(d);
+  } catch(e) {
+    document.getElementById('cost-content').innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadCosturera()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+function renderCosturera(d) {
+  const empaquetados = d.grupos.reduce((a,g) => a + g.items.filter(i => i.estado==='Empaquetado').length, 0);
+  const porProducir  = d.total - empaquetados;
+
+  let html = `<div class="metric-grid" style="margin-bottom:16px">
+    <div class="metric-card"><div class="metric-label">Por producir</div><div class="metric-value blue">${porProducir}</div></div>
+    <div class="metric-card"><div class="metric-label">Empaquetados</div><div class="metric-value gold">${empaquetados}</div></div>
+  </div>`;
+
+  if (!d.total) {
+    html += '<div class="empty-state">¡Todo entregado! Sin pedidos pendientes.</div>';
+  } else {
+    d.grupos.forEach(g => {
+      html += `<div class="sec-title">${g.fecha}</div>`;
+      g.items.forEach(p => {
+        const btn = p.estado === 'En producción'
+          ? `<button class="btn-estado btn-empaquetar" onclick="cambiarEstadoPedido(${p.fila},'Empaquetado')">Empaquetar</button>`
+          : p.estado === 'Empaquetado'
+          ? `<button class="btn-estado btn-delivery" onclick="cambiarEstadoPedido(${p.fila},'Entregado a delivery')">→ Delivery</button>`
+          : '';
+        html += `<div class="cost-card">
+          <div class="cost-info">
+            <div class="cost-name">${p.cliente}</div>
+            <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
+          </div>${btn}
+        </div>`;
+      });
+    });
+  }
+  html += `<button class="btn" onclick="loadCosturera()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
+  document.getElementById('cost-content').innerHTML = html;
+}
+
+async function cambiarEstadoPedido(fila, estado) {
+  try {
+    const r = await fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(estado)}`);
+    const data = await r.json();
+    if (data.success) {
+      mostrarToast('✓ ' + estado);
+      loadCosturera();
+    } else {
+      mostrarToast('✕ ' + (data.error || 'Error al actualizar'));
+    }
+  } catch(e) {
+    mostrarToast('✕ Error de conexión');
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// TABLET
+// ══════════════════════════════════════════════════════════
 function isTablet(){ return window.innerWidth >= 640; }
 function setupTablet(){
   const tb = document.getElementById('tablet-topbar');
   if(isTablet()){ tb.style.display='flex'; } else { tb.style.display='none'; }
 }
 window.addEventListener('resize', setupTablet);
-setupTablet();
 
-// ── NAVIGATION ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// NAVEGACIÓN (dueña)
+// ══════════════════════════════════════════════════════════
 function show(id, btn){
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -412,7 +811,9 @@ function show(id, btn){
   btn.classList.add('active');
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════
 const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
 
 function badgeHTML(tipo){
@@ -463,7 +864,9 @@ function setTopbar(mes, spread){
   });
 }
 
-// ── DASHBOARD ────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════
 async function loadDashboard(){
   document.getElementById('dash-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
   try{
@@ -510,7 +913,9 @@ async function loadDashboard(){
   }
 }
 
-// ── PRODUCCIÓN ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// PRODUCCIÓN
+// ══════════════════════════════════════════════════════════
 let _prodCache=null, fechaProduccionActual=new Date();
 
 async function loadProduccion(offset){
@@ -559,7 +964,9 @@ function renderProduccion(){
   document.getElementById('prod-content').innerHTML=html;
 }
 
-// ── ENTREGAS ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// ENTREGAS
+// ══════════════════════════════════════════════════════════
 let fechaEntregasActual=new Date(), _entPedidos=[], _entFecha='';
 
 async function loadEntregas(offset){
@@ -614,7 +1021,9 @@ async function loadEntregas(offset){
   }
 }
 
-// ── WHATSAPP ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// WHATSAPP
+// ══════════════════════════════════════════════════════════
 function generarMensajeDelivery(pedidos, fecha){
   const del=pedidos.filter(p=>p.tipoEntrega==='Delivery');
   const mrw=pedidos.filter(p=>p.tipoEntrega==='Envío MRW');
@@ -641,7 +1050,9 @@ function enviarADelivery(){
 }
 function cambiarNumeroDelivery(){ localStorage.removeItem('delivery_wa_number'); enviarADelivery(); }
 
-// ── COMISIONES ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// COMISIONES
+// ══════════════════════════════════════════════════════════
 async function loadComisiones(){
   document.getElementById('com-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try{
@@ -690,18 +1101,12 @@ async function loadComisiones(){
   }
 }
 
-// ── FORMULARIO ───────────────────────────────────────────────────────────
-function getVendedora(){
-  let n=localStorage.getItem('vendedora_nombre');
-  if(!n){ n=prompt('Tu nombre (se guarda para el registro):\nEj: Laura'); if(!n) return null; n=n.trim(); localStorage.setItem('vendedora_nombre',n); }
-  return n;
-}
-function cambiarVendedora(){ localStorage.removeItem('vendedora_nombre'); abrirFormulario(); }
-
+// ══════════════════════════════════════════════════════════
+// FORMULARIO
+// ══════════════════════════════════════════════════════════
 function abrirFormulario(){
-  const v=getVendedora(); if(!v) return;
-  document.getElementById('form-vendedora-nombre').textContent=v;
-  // Set default date: tomorrow
+  const v = localStorage.getItem('vendedora_nombre') || 'Angie';
+  document.getElementById('form-vendedora-nombre').textContent = v;
   const man=new Date(); man.setDate(man.getDate()+2);
   const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
   document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
@@ -716,7 +1121,6 @@ function cerrarFormulario(){
 function overlayClick(e){
   if(e.target===document.getElementById('form-overlay')) cerrarFormulario();
 }
-
 function toggleEntrega(){
   const tipo=document.getElementById('f-tipo-entrega').value;
   const needsDir=['Delivery','Envío MRW','Envío ZOOM'].includes(tipo);
@@ -724,46 +1128,40 @@ function toggleEntrega(){
   document.getElementById('grupo-direccion').style.display=needsDir?'flex':'none';
   document.getElementById('grupo-monto-delivery').style.display=needsDel?'flex':'none';
 }
-
 function resetForm(){
   ['f-nombre','f-telefono','f-direccion','f-monto-producto','f-monto-delivery','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   ['f-producto','f-color','f-talla','f-ruedo','f-tipo-entrega','f-origen','f-metodo-pago'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('grupo-direccion').style.display='none';
   document.getElementById('grupo-monto-delivery').style.display='none';
-  // Reset date to +2 days
   const man=new Date(); man.setDate(man.getDate()+2);
   const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
   document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
 }
-
 async function submitPedido(){
   const g=id=>document.getElementById(id).value.trim();
   const campos={
-    nombre:         g('f-nombre'),
-    telefono:       g('f-telefono'),
-    producto:       g('f-producto'),
-    color:          g('f-color'),
-    talla:          g('f-talla'),
-    ruedo:          g('f-ruedo'),
-    tipoEntrega:    g('f-tipo-entrega'),
-    fechaEntrega:   g('f-fecha-entrega'),
-    direccion:      g('f-direccion'),
-    montoProducto:  g('f-monto-producto'),
-    montoDelivery:  g('f-monto-delivery')||'0',
-    metodoPago:     g('f-metodo-pago'),
-    origen:         g('f-origen'),
-    notas:          g('f-notas'),
-    responsable:    localStorage.getItem('vendedora_nombre')||''
+    nombre:        g('f-nombre'),
+    telefono:      g('f-telefono'),
+    producto:      g('f-producto'),
+    color:         g('f-color'),
+    talla:         g('f-talla'),
+    ruedo:         g('f-ruedo'),
+    tipoEntrega:   g('f-tipo-entrega'),
+    fechaEntrega:  g('f-fecha-entrega'),
+    direccion:     g('f-direccion'),
+    montoProducto: g('f-monto-producto'),
+    montoDelivery: g('f-monto-delivery')||'0',
+    metodoPago:    g('f-metodo-pago'),
+    origen:        g('f-origen'),
+    notas:         g('f-notas'),
+    responsable:   localStorage.getItem('vendedora_nombre')||''
   };
-
   const req=['nombre','telefono','producto','color','talla','ruedo','tipoEntrega','fechaEntrega','montoProducto','metodoPago','origen'];
   for(const f of req){
     if(!campos[f]){ mostrarToast('⚠ Completa todos los campos obligatorios'); return; }
   }
-
   const btn=document.getElementById('btn-submit');
   btn.textContent='Registrando...'; btn.disabled=true;
-
   try{
     const params=new URLSearchParams(campos).toString();
     const r=await fetch(`${API}?accion=registrar&${params}`);
@@ -772,10 +1170,10 @@ async function submitPedido(){
       cerrarFormulario();
       mostrarToast(`✓ Pedido de ${campos.nombre} registrado`);
       resetForm();
-      // Refrescar datos
       _prodCache=null;
-      loadDashboard();
-      loadProduccion();
+      const rol=localStorage.getItem('ceniza_rol');
+      if(rol==='duena'){ loadDashboard(); loadProduccion(); }
+      if(rol==='vendedora'){ loadVendedora(); }
     } else {
       throw new Error(data.error||'Error desconocido');
     }
@@ -786,11 +1184,10 @@ async function submitPedido(){
   }
 }
 
-// ── INIT ─────────────────────────────────────────────────────────────────
-loadDashboard();
-loadProduccion();
-loadEntregas();
-loadComisiones();
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+initApp();
 </script>
 </body>
 </html>
