@@ -408,10 +408,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
       </div>
     </button>
     <button class="role-card locked" onclick="selectRole('duena')">
-      <div class="role-icon">🔒</div>
+      <div class="role-icon">🔑</div>
       <div>
-        <div class="role-card-name">Dueña</div>
-        <div class="role-card-desc">Acceso completo · requiere PIN</div>
+        <div class="role-card-name">Administración</div>
+        <div class="role-card-desc">Acceso completo</div>
       </div>
     </button>
   </div>
@@ -1016,13 +1016,13 @@ async function loadVendedoraComisiones() {
       html += `<div class="hero" style="margin-top:0">
         <div class="hero-label">Tus ventas esta quincena</div>
         <div class="hero-amount">0</div>
-        <div class="hero-sub">pantalones vendidos · comisión 0%</div>
-        <div class="hero-badge">💰 Total estimado $200.00</div>
+        <div class="hero-sub">pantalones vendidos · comisión 5%</div>
+        <div class="hero-badge">💰 Total estimado $100.00</div>
       </div>
       <div class="card">
-        <div class="row"><span class="row-label">Base fija</span><span class="row-val">$200.00</span></div>
-        <div class="row"><span class="row-label">Comisión escalada</span><span class="row-val">$0.00</span></div>
-        <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">$200.00</span></div>
+        <div class="row"><span class="row-label">Base fija (quincena)</span><span class="row-val">$100.00</span></div>
+        <div class="row"><span class="row-label">Comisión (5% × 0 × $13.29)</span><span class="row-val">$0.00</span></div>
+        <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">$100.00</span></div>
       </div>`;
     } else {
       const max = vend.nivelSiguiente ? vend.nivelSiguiente.pants : Math.max(vend.pants, 1);
@@ -1040,19 +1040,18 @@ async function loadVendedoraComisiones() {
             ? `Faltan <strong style="color:var(--gold)">${vend.faltanParaSiguiente}</strong> pantalones para ganar ${vend.nivelSiguiente.pct}% de comisión`
             : '<span style="color:var(--green)">¡Nivel máximo alcanzado! 🎉</span>'}
         </div>
-        <div class="row"><span class="row-label">Base fija</span><span class="row-val">$200.00</span></div>
-        <div class="row"><span class="row-label">Comisión (${vend.pct} × ${vend.pants} × $30)</span><span class="row-val">${fmt$(vend.comision)}</span></div>
+        <div class="row"><span class="row-label">Base fija (quincena)</span><span class="row-val">$100.00</span></div>
+        <div class="row"><span class="row-label">Comisión (${vend.pct} × ${vend.pants} × $13.29)</span><span class="row-val">${fmt$(vend.comision)}</span></div>
         <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">${fmt$(vend.totalAPagar)}</span></div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">Niveles de comisión</div>
       <div class="card">
-        ${[{r:'0–99',p:'Solo base $200',min:0},
-           {r:'100–149',p:'5%',min:100},{r:'150–199',p:'6%',min:150},
+        ${[{r:'1–149',p:'5%',min:1},{r:'150–199',p:'6%',min:150},
            {r:'200–299',p:'7%',min:200},{r:'300–399',p:'8%',min:300},
            {r:'400+',p:'10%',min:400}
           ].map(n=>`<div class="row">
             <span class="row-label">${n.r} pantalones</span>
-            <span class="row-val ${n.min>0 && vend.pants>=n.min?'gold':''}">${n.p}</span>
+            <span class="row-val ${vend.pants>=n.min?'gold':''}">${n.p}</span>
           </div>`).join('')}
       </div>`;
     }
@@ -1981,7 +1980,6 @@ async function submitPedidos(){
   btn.disabled = true;
   try {
     if (esEdicion) {
-      // ── MODO EDICIÓN: actualizar fila existente ────────────────────────────
       const item = carrito[0] || {};
       const params = new URLSearchParams({
         fila:          filaEdicion,
@@ -2012,7 +2010,6 @@ async function submitPedidos(){
         throw new Error(data.error || 'Error desconocido');
       }
     } else {
-      // ── MODO NUEVO: registrar pedido ───────────────────────────────────────
       const params = new URLSearchParams({
         nombre,
         telefono:      g('f-telefono'),
@@ -2050,5 +2047,6 @@ async function submitPedidos(){
     renderCarrito();
   }
 }
-
-// ═══════════════════════════════════════�
+</script>
+</body>
+</html>
