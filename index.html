@@ -288,7 +288,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .del-stat{background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;box-shadow:var(--shadow-sm);text-align:center}
 .del-stat-n{font-size:22px;font-weight:700}
 .del-stat-l{font-size:11px;color:var(--text3);margin-top:1px}
-.cost-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px 14px 14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm)}
+.cost-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px 14px 14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm);border-left:3px solid transparent}
+.cost-card.entregado{background:var(--amber-bg);border-left-color:var(--amber);opacity:0.7}
 .cost-info{flex:1;min-width:0}
 .cost-name{font-size:14px;font-weight:700;margin-bottom:3px}
 .cost-det{font-size:12px;color:var(--text2)}
@@ -897,9 +898,9 @@ function renderCosturera(d) {
         const entregado = p.estado === 'Entregado a delivery';
         const estados = ['En producción','Empaquetado','Entregado a delivery'];
         const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
-        html += `<div class="cost-card" style="${entregado ? 'opacity:0.38;' : ''}">
+        html += `<div class="cost-card${entregado ? ' entregado' : ''}">
           <div class="cost-info">
-            <div class="cost-name" style="${entregado ? 'text-decoration:line-through;color:var(--text3)' : ''}">${p.cliente}</div>
+            <div class="cost-name">${p.cliente}</div>
             <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
           </div>
           <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)" ${entregado ? 'disabled' : ''}>${opts}</select>
