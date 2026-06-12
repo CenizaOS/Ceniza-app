@@ -284,6 +284,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .del-bill-btn{padding:3px 9px;background:var(--bg3);border:1.5px solid var(--bg4);border-radius:20px;font-size:11px;cursor:pointer;color:var(--text2);transition:all 0.15s}
 .del-bill-btn.active{background:var(--gold);color:#000;border-color:var(--gold)}
 .del-vuelto-res{font-size:12px;color:var(--green);font-weight:600;margin-left:2px}
+.del-phone-row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.del-phone-link{font-size:13px;color:var(--text1);text-decoration:none;font-weight:500}
+.del-wa-mini{padding:2px 9px;background:var(--wa);color:#fff;border-radius:12px;font-size:11px;text-decoration:none;font-weight:600}
+.del-envio-block{margin-top:7px;padding:8px 10px;background:var(--bg3);border-radius:8px;display:flex;flex-direction:column;gap:5px}
+.del-envio-row{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.del-envio-row a{color:var(--text1);text-decoration:none}
+.del-envio-cedula{font-size:13px;font-weight:700;color:var(--text1)}
+.del-copy-btn{align-self:flex-start;margin-top:2px;padding:3px 10px;background:transparent;border:1px solid var(--bg4);border-radius:16px;font-size:11px;color:var(--text3);cursor:pointer;transition:background 0.15s}
+.del-copy-btn:active{background:var(--bg3)}
 .del-check{width:36px;height:36px;border-radius:50%;border:2px solid var(--bg4);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;color:var(--text3)}
 .del-check:active{transform:scale(0.9)}
 .del-check.checked{background:var(--green);border-color:var(--green);color:#fff}
@@ -565,6 +574,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <input type="tel" id="f-telefono" placeholder="0414-1234567">
         </div>
         <div class="form-group">
+          <label>Cédula</label>
+          <input type="text" id="f-cedula" placeholder="V-12.345.678">
+        </div>
+        <div class="form-group">
           <label>Origen *</label>
           <select id="f-origen">
             <option value="">Seleccionar...</option>
@@ -603,7 +616,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <select id="f-metodo-pago">
             <option value="">Seleccionar...</option>
             <option>Pago móvil</option><option>Transferencia</option>
-            <option>Efectivo al retirar</option><option>PayPal</option><option>Binance</option>
+            <option>Efectivo al retirar</option><option>Efectivo al entregar</option>
+            <option>PayPal</option><option>Binance</option>
           </select>
         </div>
 
@@ -1024,12 +1038,17 @@ function renderDelivery(d, fecha) {
         <div class="del-section-title">${t.icono} ${t.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
       clienteGrupos.forEach((cg, idx) => {
         const cardId = `del-card-${t.tipo.replace(/\s/g,'-')}-${idx}`;
+        const tipo = t.tipo;
         const filas = cg.items.map(p => p.fila);
         const done = cg.items.every(p => p.estado === 'Entregado a cliente');
         const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
         const nPants = cg.items.length;
         const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
         const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+        const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
+        const telDisplay = cg.items[0].telefono || '';
+        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+        const cedula = cg.items[0].cedula || '';
         const itemsHtml = cg.items.map(p => {
           const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
           return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
@@ -1041,12 +1060,26 @@ function renderDelivery(d, fecha) {
             ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
             <span class="del-vuelto-res" id="res-${cardId}"></span>
           </div>` : '';
+        // Info section varía según tipo de entrega
+        const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
+        const phoneHtml = telDisplay ? `
+          <div class="del-phone-row">
+            <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
+            ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
+          </div>` : '';
+        const infoHtml = esEnvio ? `
+          <div class="del-envio-block" data-nombre="${cg.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(cg.direccion||'').replace(/"/g,'&quot;')}">
+            ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
+            ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
+            ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
+            <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
+          </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
         html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
           <div class="del-card-info">
             <div class="del-card-name">${cg.cliente}</div>
             <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
             ${itemsHtml}
-            ${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}
+            ${infoHtml}
             ${vueltoHtml}
           </div>
           <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
@@ -1065,12 +1098,17 @@ function renderDelivery(d, fecha) {
         <div class="del-section-title">📋 Sin tipo de entrega <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
       clienteGrupos.forEach((cg, idx) => {
         const cardId = `del-card-extra-${idx}`;
+        const tipo = '';
         const filas = cg.items.map(p => p.fila);
         const done = cg.items.every(p => p.estado === 'Entregado a cliente');
         const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
         const nPants = cg.items.length;
         const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
         const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+        const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
+        const telDisplay = cg.items[0].telefono || '';
+        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+        const cedula = cg.items[0].cedula || '';
         const itemsHtml = cg.items.map(p => {
           const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
           return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
@@ -1082,12 +1120,26 @@ function renderDelivery(d, fecha) {
             ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
             <span class="del-vuelto-res" id="res-${cardId}"></span>
           </div>` : '';
+        // Info section varía según tipo de entrega
+        const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
+        const phoneHtml = telDisplay ? `
+          <div class="del-phone-row">
+            <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
+            ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
+          </div>` : '';
+        const infoHtml = esEnvio ? `
+          <div class="del-envio-block" data-nombre="${cg.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(cg.direccion||'').replace(/"/g,'&quot;')}">
+            ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
+            ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
+            ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
+            <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
+          </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
         html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
           <div class="del-card-info">
             <div class="del-card-name">${cg.cliente}</div>
             <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
             ${itemsHtml}
-            ${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}
+            ${infoHtml}
             ${vueltoHtml}
           </div>
           <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
@@ -1100,6 +1152,24 @@ function renderDelivery(d, fecha) {
   }
   html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
   document.getElementById('del-content').innerHTML = html;
+}
+
+function copiarDatosEnvio(btn) {
+  const bloque = btn.closest('.del-envio-block');
+  if (!bloque) return;
+  const nombre  = bloque.dataset.nombre  || '';
+  const cedula  = bloque.dataset.cedula  || '';
+  const tel     = bloque.dataset.tel     || '';
+  const dir     = bloque.dataset.dir     || '';
+  const texto   = [
+    `Nombre: ${nombre}`,
+    cedula  ? `Cédula: ${cedula}`       : '',
+    tel     ? `Teléfono: ${tel}`        : '',
+    dir     ? `Dirección: ${dir}`       : '',
+  ].filter(Boolean).join('\n');
+  navigator.clipboard.writeText(texto)
+    .then(() => mostrarToast('✓ Datos copiados'))
+    .catch(() => mostrarToast('✕ No se pudo copiar'));
 }
 
 function mostrarVuelto(cardId, bill, monto, btn) {
@@ -1494,9 +1564,8 @@ function seleccionarCliente(idx) {
   if (!c) return;
   document.getElementById('f-nombre').value = c.nombre;
   if (c.telefono) document.getElementById('f-telefono').value = c.telefono;
-  if (c.direccion) {
-    document.getElementById('f-direccion').value = c.direccion;
-  }
+  if (c.cedula)   document.getElementById('f-cedula').value   = c.cedula;
+  if (c.direccion) document.getElementById('f-direccion').value = c.direccion;
   lista.classList.remove('open');
   mostrarClienteBadge(c);
 }
@@ -1651,6 +1720,7 @@ async function submitPedidos(){
     const params = new URLSearchParams({
       nombre,
       telefono:      g('f-telefono'),
+      cedula:        g('f-cedula'),
       tipoEntrega,
       fechaEntrega,
       direccion:     g('f-direccion'),
