@@ -899,13 +899,13 @@ function renderCosturera(d) {
         const estados = ['En producción','Empaquetado','Entregado a delivery'];
         const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
         const entregaIcono = {'Delivery':'🛵','Retiro personal':'🏪','Envío MRW':'📦','Envío ZOOM':'📦'}[p.tipoEntrega] || '📦';
-        html += `<div class="cost-card${entregado ? ' entregado' : ''}">
+        html += `<div class="cost-card${entregado ? ' entregado' : ''}" id="cost-card-${p.fila}">
           <div class="cost-info">
             <div class="cost-name">${p.cliente}</div>
             <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
             ${p.tipoEntrega ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${entregaIcono} ${p.tipoEntrega}</div>` : ''}
           </div>
-          <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)" ${entregado ? 'disabled' : ''}>${opts}</select>
+          <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)">${opts}</select>
         </div>`;
       });
     });
@@ -918,10 +918,9 @@ async function cambiarEstadoPedido(fila, estado, sel) {
   const estadoAnterior = sel ? [...sel.options].find(o => !o.selected && o.defaultSelected)?.value || sel.value : estado;
   // Actualizar UI al instante (optimistic)
   if (sel) {
-    const card = sel.closest('.cost-card');
+    const card = document.getElementById('cost-card-' + fila);
     if (estado === 'Entregado a delivery') {
       if (card) card.classList.add('entregado');
-      sel.disabled = true;
     } else {
       if (card) card.classList.remove('entregado');
     }
@@ -932,15 +931,16 @@ async function cambiarEstadoPedido(fila, estado, sel) {
     .then(data => {
       if (!data.success) {
         mostrarToast('✕ ' + (data.error || 'Error al guardar'));
-        // Revertir
-        if (sel) { sel.value = estadoAnterior; sel.disabled = false; }
-        const card = sel?.closest('.cost-card');
+        if (sel) sel.value = estadoAnterior;
+        const card = document.getElementById('cost-card-' + fila);
         if (card) card.classList.toggle('entregado', estadoAnterior === 'Entregado a delivery');
       }
     })
     .catch(() => {
       mostrarToast('✕ Sin conexión — reintentando...');
-      if (sel) { sel.value = estadoAnterior; sel.disabled = false; }
+      if (sel) sel.value = estadoAnterior;
+      const card = document.getElementById('cost-card-' + fila);
+      if (card) card.classList.toggle('entregado', estadoAnterior === 'Entregado a delivery');
     });
 }
 
