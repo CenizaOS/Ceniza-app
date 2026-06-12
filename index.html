@@ -1023,39 +1023,53 @@ function renderDelivery(d, fecha) {
   document.getElementById('del-content').innerHTML = html;
 }
 
-async function marcarEntregado(fila, btn) {
-  btn.disabled = true;
-  btn.style.opacity = '0.5';
-  try {
-    const r = await fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent('Entregado a cliente')}`);
-    const data = await r.json();
-    if (data.success) {
-      mostrarToast('✓ Entregado a cliente');
-      // Marcar visualmente sin recargar toda la lista
-      btn.classList.add('checked');
-      btn.disabled = true;
-      btn.style.opacity = '';
-      const card = document.getElementById('del-card-' + fila);
-      if (card) card.classList.add('done');
-      // Actualizar contadores
-      const fecha = fechaStr(fechaDeliveryActual);
-      const d = await fetchData('entregas', `&fecha=${fecha}`);
-      const pend = document.querySelector('.del-stat-n');
-      const entregados = d.pedidos.filter(p => p.estado === 'Entregado a cliente').length;
-      const pendientes = d.pedidos.filter(p => p.estado !== 'Entregado a cliente').length;
-      const stats = document.querySelectorAll('.del-stat-n');
-      if (stats[0]) stats[0].textContent = pendientes;
-      if (stats[1]) stats[1].textContent = entregados;
-    } else {
-      mostrarToast('✕ ' + (data.error || 'Error'));
-      btn.disabled = false;
-      btn.style.opacity = '';
-    }
-  } catch(e) {
-    mostrarToast('✕ Error de conexión');
-    btn.disabled = false;
-    btn.style.opacity = '';
+function marcarEntregado(fila, btn) {
+  const yaEntregado = btn.classList.contains('checked');
+  const nuevoEstado = yaEntregado ? 'Entregado a delivery' : 'Entregado a cliente';
+  const card = document.getElementById('del-card-' + fila);
+  const stats = document.querySelectorAll('.del-stat-n');
+  // Actualizar UI al instante
+  if (yaEntregado) {
+    btn.classList.remove('checked');
+    if (card) card.classList.remove('done');
+    if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent || 0) + 1;
+    if (stats[1]) stats[1].textContent = Math.max(0, parseInt(stats[1].textContent) - 1);
+  } else {
+    btn.classList.add('checked');
+    if (card) card.classList.add('done');
+    if (stats[0]) stats[0].textContent = Math.max(0, parseInt(stats[0].textContent) - 1);
+    if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent || 0) + 1;
   }
+  // API en el fondo
+  fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(nuevoEstado)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        mostrarToast('✕ ' + (data.error || 'Error al guardar'));
+        // Revertir
+        if (yaEntregado) {
+          btn.classList.add('checked');
+          if (card) card.classList.add('done');
+          if (stats[0]) stats[0].textContent = Math.max(0, parseInt(stats[0].textContent) - 1);
+          if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent || 0) + 1;
+        } else {
+          btn.classList.remove('checked');
+          if (card) card.classList.remove('done');
+          if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent || 0) + 1;
+          if (stats[1]) stats[1].textContent = Math.max(0, parseInt(stats[1].textContent) - 1);
+        }
+      }
+    })
+    .catch(() => {
+      mostrarToast('✕ Sin conexión');
+      if (yaEntregado) {
+        btn.classList.add('checked');
+        if (card) card.classList.add('done');
+      } else {
+        btn.classList.remove('checked');
+        if (card) card.classList.remove('done');
+      }
+    });
 }
 
 // ══════════════════════════════════════════════════════════
