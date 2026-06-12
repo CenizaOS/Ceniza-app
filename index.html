@@ -317,15 +317,27 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* ── VENDEDORA LANDSCAPE ── */
 @media (orientation:landscape) and (max-height:520px){
   #app-v .vend-header{padding:8px 16px 6px}
-  #app-v .vend-body{padding:8px 12px 16px;overflow-y:auto;height:calc(100vh - 52px)}
-  #vend-content{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
-  #vend-content .hero{grid-column:1/-1;margin-top:0;padding:14px 16px}
-  #vend-content .hero .hero-amount{font-size:28px}
-  #vend-content .sec-title{display:none}
-  #vend-content .card:nth-of-type(1){margin-bottom:0}
-  #vend-content .card:nth-of-type(2){margin-bottom:0}
-  #vend-content .btn{grid-column:1/-1;margin-top:4px;margin-bottom:0}
-  #vend-content .bar-bg{margin:6px 0 3px}
+  #app-v .vend-tabs{display:flex;border-bottom:1px solid var(--bg3);background:var(--bg1)}
+  #app-v .vend-tab{flex:1;padding:10px 4px 9px;font-size:13px;font-weight:600;color:var(--text3);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+  #app-v .vend-tab svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+  #app-v .vend-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+  #app-v .vend-body{padding:8px 12px 16px;overflow-y:auto;height:calc(100vh - 52px - 42px)}
+  #vend-com-content{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+  #vend-com-content .hero{grid-column:1/-1;margin-top:0;padding:14px 16px}
+  #vend-com-content .hero .hero-amount{font-size:28px}
+  #vend-com-content .sec-title{display:none}
+  #vend-com-content .card:nth-of-type(1){margin-bottom:0}
+  #vend-com-content .card:nth-of-type(2){margin-bottom:0}
+  #vend-com-content .btn{grid-column:1/-1;margin-top:4px;margin-bottom:0}
+  #vend-com-content .bar-bg{margin:6px 0 3px}
+  .vend-quincena-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;background:var(--gold-bg);color:var(--gold);padding:3px 9px;border-radius:20px;margin-bottom:10px}
+  .vend-order-card{background:var(--bg2);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .vend-order-date{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px}
+  .vend-order-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bg3)}
+  .vend-order-row:last-child{border-bottom:none;padding-bottom:0}
+  .vend-order-client{font-size:13px;font-weight:600}
+  .vend-order-detail{font-size:12px;color:var(--text2);margin-top:2px}
+  .vend-empty-pedidos{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
   .fab.no-nav{bottom:12px;right:14px}
 }
 
@@ -432,8 +444,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
   </div>
+  <!-- ── Tab bar ── -->
+  <div class="vend-tabs">
+    <button class="vend-tab active" id="vtab-pedidos" onclick="showVendTab('pedidos')">
+      <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      Pedidos
+    </button>
+    <button class="vend-tab" id="vtab-comisiones" onclick="showVendTab('comisiones')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Comisiones
+    </button>
+  </div>
   <div class="vend-body">
-    <div id="vend-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    <div id="vend-screen-pedidos">
+      <div id="vend-pedidos-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div id="vend-screen-comisiones" style="display:none">
+      <div id="vend-com-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
   </div>
 </div>
 
@@ -621,10 +649,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
         <div class="form-group" id="grupo-monto-efectivo" style="display:none">
           <label>El cliente paga con ($)</label>
-          <input type="number" id="f-monto-efectivo" placeholder="20" min="0" step="0.01" inputmode="decimal" oninput="calcularVueltoForm()">
-          <div id="vuelto-form-preview" style="display:none;margin-top:6px;font-size:13px;padding:6px 10px;border-radius:8px;background:var(--bg3)">
-            Vuelto: <span id="vuelto-form-val" style="font-weight:700"></span>
-          </div>
+          <input type="number" id="f-monto-efectivo" placeholder="Ej: 100" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <div class="form-group" id="grupo-vuelto" style="display:none">
+          <label>Vuelto a dar ($)</label>
+          <input type="number" id="f-vuelto" placeholder="Ej: 25" min="0" step="0.01" inputmode="decimal">
         </div>
 
         <!-- ── PANTALONES (carrito) ── -->
@@ -759,7 +788,8 @@ function showApp(rol) {
     localStorage.setItem('vendedora_nombre', 'Angie');
     showScreen('app-v');
     document.getElementById('vend-saludo').textContent = 'Hola, Angie 👋';
-    loadVendedora();
+    showVendTab('pedidos');
+    loadVendedoraPedidos();
     cargarClientes();
   } else if (rol === 'costurera') {
     showScreen('app-c');
@@ -826,25 +856,121 @@ function verifyPin() {
 }
 
 // ══════════════════════════════════════════════════════════
-// VENDEDORA
+// VENDEDORA — helpers de quincena
 // ══════════════════════════════════════════════════════════
-async function loadVendedora() {
-  document.getElementById('vend-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+function quincenaActual() {
+  return new Date().getDate() <= 15 ? '1' : '2';
+}
+
+// ══════════════════════════════════════════════════════════
+// VENDEDORA — tab switcher
+// ══════════════════════════════════════════════════════════
+function showVendTab(tab) {
+  document.getElementById('vend-screen-pedidos').style.display    = tab === 'pedidos'    ? '' : 'none';
+  document.getElementById('vend-screen-comisiones').style.display = tab === 'comisiones' ? '' : 'none';
+  document.getElementById('vtab-pedidos').classList.toggle('active',    tab === 'pedidos');
+  document.getElementById('vtab-comisiones').classList.toggle('active', tab === 'comisiones');
+  // FAB solo en pestaña Pedidos
+  document.getElementById('fab').style.display = tab === 'pedidos' ? 'flex' : 'none';
+  // Lazy-load comisiones la primera vez
+  if (tab === 'comisiones') {
+    const el = document.getElementById('vend-com-content');
+    if (el.querySelector('.loading-msg')) loadVendedoraComisiones();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// VENDEDORA — pestaña Pedidos
+// ══════════════════════════════════════════════════════════
+async function loadVendedoraPedidos() {
+  const el = document.getElementById('vend-pedidos-content');
+  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
-    const d = await fetchData('comisiones');
+    const d = await fetchData('produccion');
+    document.getElementById('vend-mes').textContent = d.mes || '';
+    const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
+
+    // Recolectar todos los pedidos de esta vendedora
+    const misOrdenes = [];
+    (d.grupos || []).forEach(g => {
+      g.items.forEach(p => {
+        if ((p.responsable || '').trim() === nombre) misOrdenes.push({ ...p, _fecha: g.fecha });
+      });
+    });
+
+    if (!misOrdenes.length) {
+      el.innerHTML = `<div class="vend-empty-pedidos">
+        <div style="font-size:32px;margin-bottom:10px">📋</div>
+        <div style="font-weight:600;margin-bottom:6px">Sin pedidos en producción</div>
+        <div style="font-size:12px">Toca ＋ para registrar un pedido nuevo</div>
+      </div>`;
+      return;
+    }
+
+    // Agrupar por fecha de entrega
+    const porFecha = {};
+    misOrdenes.forEach(p => {
+      const k = p._fecha || 'Sin fecha';
+      if (!porFecha[k]) porFecha[k] = [];
+      porFecha[k].push(p);
+    });
+
+    const estadoColor = {
+      'En producción':        'var(--gold)',
+      'Pagado':               'var(--text2)',
+      'Empaquetado':          'var(--green)',
+      'Entregado a delivery': '#3b82f6',
+    };
+
+    let html = `<div style="font-size:12px;color:var(--text2);margin-bottom:10px">${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''} en producción</div>`;
+
+    Object.entries(porFecha).forEach(([fecha, items]) => {
+      html += `<div class="vend-order-date">📅 Entrega: ${fecha}</div>`;
+      html += `<div class="vend-order-card">`;
+      items.forEach(p => {
+        const talla  = p.talla ? p.talla.replace(/^T/i,'') : '';
+        const detalle = [p.color, talla ? `T${talla}` : '', p.ruedo ? `ruedo ${p.ruedo}` : ''].filter(Boolean).join(' · ');
+        const color  = estadoColor[p.estado] || 'var(--text3)';
+        html += `<div class="vend-order-row">
+          <div>
+            <div class="vend-order-client">${p.cliente}</div>
+            <div class="vend-order-detail">${detalle}</div>
+          </div>
+          <div style="font-size:11px;font-weight:700;color:${color};text-align:right;white-space:nowrap;margin-left:10px">${p.estado}</div>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+
+    html += `<button class="btn" onclick="loadVendedoraPedidos()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraPedidos()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// VENDEDORA — pestaña Comisiones
+// ══════════════════════════════════════════════════════════
+async function loadVendedoraComisiones() {
+  const el = document.getElementById('vend-com-content');
+  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const q = quincenaActual();
+    const d = await fetchData('comisiones&quincena=' + q);
     document.getElementById('vend-mes').textContent = d.mes || '';
     const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
     const vend = d.vendedoras.find(v => v.nombre === nombre);
+    const qLabel = d.quincenaLabel || '';
 
-    let html = '';
+    let html = `<div class="vend-quincena-chip">🗓 ${qLabel}</div>`;
     if (!vend) {
-      html = `<div class="hero" style="margin-top:16px">
-        <div class="hero-label">Tus ventas este mes</div>
+      html += `<div class="hero" style="margin-top:0">
+        <div class="hero-label">Tus ventas esta quincena</div>
         <div class="hero-amount">0</div>
         <div class="hero-sub">pantalones vendidos · comisión 0%</div>
         <div class="hero-badge">💰 Total estimado $200.00</div>
       </div>
-      <div class="sec-title">Comisión estimada</div>
       <div class="card">
         <div class="row"><span class="row-label">Base fija</span><span class="row-val">$200.00</span></div>
         <div class="row"><span class="row-label">Comisión escalada</span><span class="row-val">$0.00</span></div>
@@ -853,13 +979,12 @@ async function loadVendedora() {
     } else {
       const max = vend.nivelSiguiente ? vend.nivelSiguiente.pants : Math.max(vend.pants, 1);
       const prog = Math.min(100, Math.round(vend.pants / max * 100));
-      html = `<div class="hero" style="margin-top:16px">
-        <div class="hero-label">Tus ventas este mes</div>
+      html += `<div class="hero" style="margin-top:0">
+        <div class="hero-label">Tus ventas esta quincena</div>
         <div class="hero-amount">${vend.pants}</div>
         <div class="hero-sub">pantalones vendidos · comisión ${vend.pct}</div>
         <div class="hero-badge">💰 Total estimado ${fmt$(vend.totalAPagar)}</div>
       </div>
-      <div class="sec-title">Progreso de comisión</div>
       <div class="card">
         <div class="bar-bg"><div class="bar-fill" style="width:${prog}%"></div></div>
         <div style="font-size:13px;color:var(--text2);margin-bottom:14px">
@@ -871,7 +996,7 @@ async function loadVendedora() {
         <div class="row"><span class="row-label">Comisión (${vend.pct} × ${vend.pants} × $30)</span><span class="row-val">${fmt$(vend.comision)}</span></div>
         <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">${fmt$(vend.totalAPagar)}</span></div>
       </div>
-      <div class="sec-title">Niveles de comisión</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">Niveles de comisión</div>
       <div class="card">
         ${[{r:'0–99',p:'Solo base $200',min:0},
            {r:'100–149',p:'5%',min:100},{r:'150–199',p:'6%',min:150},
@@ -883,10 +1008,10 @@ async function loadVendedora() {
           </div>`).join('')}
       </div>`;
     }
-    html += `<button class="btn" onclick="loadVendedora()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
-    document.getElementById('vend-content').innerHTML = html;
+    html += `<button class="btn" onclick="loadVendedoraComisiones()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
+    el.innerHTML = html;
   } catch(e) {
-    document.getElementById('vend-content').innerHTML = `<div class="err-card">Error al cargar datos.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedora()">${refreshIcon}Reintentar</button>`;
+    el.innerHTML = `<div class="err-card">Error al cargar datos.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraComisiones()">${refreshIcon}Reintentar</button>`;
   }
 }
 
@@ -1052,6 +1177,7 @@ function renderDelivery(d, fecha) {
         const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
         const esCobrar = metodoPago.includes('efectivo') && monto > 0;
         const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
+        const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
         const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
         const telDisplay = cg.items[0].telefono || '';
         const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
@@ -1062,18 +1188,8 @@ function renderDelivery(d, fecha) {
         }).join('');
         const vueltoHtml = esCobrar ? `
           <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
-          ${montoEfectivo > 0 ? `
-            <div style="font-size:12px;color:var(--text3);margin-top:3px">
-              Paga con ${fmt$(montoEfectivo)} →
-              <span style="color:${montoEfectivo>=monto?'var(--green)':'var(--red)'};font-weight:700">
-                ${montoEfectivo>=monto?'Vuelto: '+fmt$(montoEfectivo-monto):'⚠ Monto insuficiente'}
-              </span>
-            </div>` : `
-          <div class="del-vuelto" id="vuelto-${cardId}">
-            <span style="font-size:11px;color:var(--text3)">Paga con:</span>
-            ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
-            <span class="del-vuelto-res" id="res-${cardId}"></span>
-          </div>`}` : '';
+          ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
+          ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
         // Info section varía según tipo de entrega
         const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
         const phoneHtml = telDisplay ? `
@@ -1120,6 +1236,7 @@ function renderDelivery(d, fecha) {
         const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
         const esCobrar = metodoPago.includes('efectivo') && monto > 0;
         const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
+        const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
         const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
         const telDisplay = cg.items[0].telefono || '';
         const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
@@ -1130,18 +1247,8 @@ function renderDelivery(d, fecha) {
         }).join('');
         const vueltoHtml = esCobrar ? `
           <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
-          ${montoEfectivo > 0 ? `
-            <div style="font-size:12px;color:var(--text3);margin-top:3px">
-              Paga con ${fmt$(montoEfectivo)} →
-              <span style="color:${montoEfectivo>=monto?'var(--green)':'var(--red)'};font-weight:700">
-                ${montoEfectivo>=monto?'Vuelto: '+fmt$(montoEfectivo-monto):'⚠ Monto insuficiente'}
-              </span>
-            </div>` : `
-          <div class="del-vuelto" id="vuelto-${cardId}">
-            <span style="font-size:11px;color:var(--text3)">Paga con:</span>
-            ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
-            <span class="del-vuelto-res" id="res-${cardId}"></span>
-          </div>`}` : '';
+          ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
+          ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
         // Info section varía según tipo de entrega
         const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
         const phoneHtml = telDisplay ? `
@@ -1725,41 +1832,19 @@ function toggleMetodoPago(){
   const mp=document.getElementById('f-metodo-pago').value.toLowerCase();
   const esEf=mp.includes('efectivo');
   document.getElementById('grupo-monto-efectivo').style.display=esEf?'flex':'none';
+  document.getElementById('grupo-vuelto').style.display=esEf?'flex':'none';
   if(!esEf){
     document.getElementById('f-monto-efectivo').value='';
-    document.getElementById('vuelto-form-preview').style.display='none';
-  }
-}
-function calcularVueltoForm(){
-  const ef=parseFloat(document.getElementById('f-monto-efectivo').value)||0;
-  const del=parseFloat(document.getElementById('f-monto-delivery').value)||0;
-  const totalItems=carrito.reduce((s,i)=>s+parseFloat(i.montoProducto||0),0);
-  const total=totalItems+del;
-  const preview=document.getElementById('vuelto-form-preview');
-  const val=document.getElementById('vuelto-form-val');
-  if(ef>0&&total>0){
-    preview.style.display='block';
-    const cambio=ef-total;
-    if(cambio>=0){
-      val.textContent='$'+cambio.toFixed(2);
-      val.style.color='var(--green)';
-      preview.style.background='rgba(34,197,94,0.08)';
-    } else {
-      val.textContent='Monto insuficiente';
-      val.style.color='var(--red)';
-      preview.style.background='rgba(239,68,68,0.08)';
-    }
-  } else {
-    preview.style.display='none';
+    document.getElementById('f-vuelto').value='';
   }
 }
 function resetForm(){
-  ['f-nombre','f-telefono','f-cedula','f-direccion','f-monto-delivery','f-monto-efectivo','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['f-nombre','f-telefono','f-cedula','f-direccion','f-monto-delivery','f-monto-efectivo','f-vuelto','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   ['f-tipo-entrega','f-origen','f-metodo-pago'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('grupo-direccion').style.display='none';
   document.getElementById('grupo-monto-delivery').style.display='none';
   document.getElementById('grupo-monto-efectivo').style.display='none';
-  document.getElementById('vuelto-form-preview').style.display='none';
+  document.getElementById('grupo-vuelto').style.display='none';
   document.getElementById('cliente-badge-wrap').style.display='none';
   carrito = [];
   renderCarrito();
@@ -1796,6 +1881,7 @@ async function submitPedidos(){
       origen,
       notas:         g('f-notas'),
       montoEfectivo: g('f-monto-efectivo') || '0',
+      vuelto:        g('f-vuelto') || '0',
       responsable:   localStorage.getItem('vendedora_nombre') || '',
       items:         JSON.stringify(carrito)
     });
