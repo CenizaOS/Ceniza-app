@@ -894,14 +894,15 @@ function renderCosturera(d) {
     d.grupos.forEach(g => {
       html += `<div class="sec-title">${g.fecha}</div>`;
       g.items.forEach(p => {
+        const entregado = p.estado === 'Entregado a delivery';
         const estados = ['En producción','Empaquetado','Entregado a delivery'];
         const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
-        html += `<div class="cost-card">
+        html += `<div class="cost-card" style="${entregado ? 'opacity:0.38;' : ''}">
           <div class="cost-info">
-            <div class="cost-name">${p.cliente}</div>
+            <div class="cost-name" style="${entregado ? 'text-decoration:line-through;color:var(--text3)' : ''}">${p.cliente}</div>
             <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
           </div>
-          <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)">${opts}</select>
+          <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)" ${entregado ? 'disabled' : ''}>${opts}</select>
         </div>`;
       });
     });
