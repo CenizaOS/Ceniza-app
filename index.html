@@ -158,6 +158,35 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .err-card{background:var(--red-bg);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius);padding:16px;margin:8px 0;font-size:13px;color:var(--red);line-height:1.5}
 .empty-state{text-align:center;padding:40px 16px;color:var(--text3);font-size:13px}
 
+/* ── AUTOCOMPLETE ── */
+.autocomplete-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg2);border:1.5px solid var(--gold);border-radius:var(--radius-sm);z-index:20;max-height:220px;overflow-y:auto;box-shadow:var(--shadow);display:none}
+.autocomplete-list.open{display:block}
+.autocomplete-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bg3);display:flex;flex-direction:column;gap:3px}
+.autocomplete-item:last-child{border-bottom:none}
+.autocomplete-item:active{background:var(--bg3)}
+.autocomplete-item-name{font-size:14px;font-weight:600}
+.autocomplete-item-det{font-size:11px;color:var(--text3)}
+.autocomplete-recurrente{font-size:10px;font-weight:700;color:var(--green);background:var(--green-bg);padding:2px 6px;border-radius:10px;align-self:flex-start;margin-bottom:1px}
+
+/* ── CLIENT BADGE ── */
+.cliente-badge{padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;line-height:1.3}
+.cliente-badge.nuevo{background:var(--blue-bg);color:var(--blue)}
+.cliente-badge.recurrente{background:var(--green-bg);color:var(--green)}
+
+/* ── CART ── */
+.cart-item{background:var(--bg3);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cart-item-info{flex:1;min-width:0}
+.cart-item-title{font-size:13px;font-weight:700}
+.cart-item-det{font-size:11px;color:var(--text2);margin-top:2px}
+.cart-item-del{width:28px;height:28px;border-radius:50%;background:var(--red-bg);color:var(--red);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;line-height:1}
+.add-item-box{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px}
+.add-item-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.add-item-actions{display:flex;gap:8px}
+.btn-add-confirm{flex:1;padding:10px;background:var(--gold);color:#000;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer}
+.btn-add-cancel{padding:10px 16px;background:var(--bg4);color:var(--text2);border:none;border-radius:var(--radius-sm);font-size:13px;cursor:pointer}
+.btn-add-open{width:100%;padding:11px;background:transparent;border:1.5px dashed var(--bg4);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;transition:border-color 0.15s,color 0.15s}
+.btn-add-open:active{border-color:var(--gold);color:var(--gold)}
+
 /* ── BUTTONS ── */
 .btn{width:100%;margin-top:12px;padding:14px;background:var(--gold);color:#000;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
 .btn:active{opacity:0.8;transform:scale(0.98)}
@@ -516,13 +545,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="form-body">
       <div class="form-grid">
 
+        <!-- ── CLIENTE ── -->
         <div class="form-section-label">Cliente</div>
-        <div class="form-group full">
+        <div class="form-group full" style="position:relative">
           <label>Nombre *</label>
-          <input type="text" id="f-nombre" placeholder="Ej: María García" autocomplete="off" autocorrect="off">
+          <input type="text" id="f-nombre" placeholder="Buscar o escribir nombre..." autocomplete="off" autocorrect="off" oninput="onNombreInput(this.value)" onfocus="onNombreInput(this.value)">
+          <div id="autocomplete-list" class="autocomplete-list"></div>
+        </div>
+        <div id="cliente-badge-wrap" class="form-group full" style="display:none">
+          <div id="cliente-badge" class="cliente-badge"></div>
         </div>
         <div class="form-group">
-          <label>Teléfono *</label>
+          <label>Teléfono</label>
           <input type="tel" id="f-telefono" placeholder="0414-1234567">
         </div>
         <div class="form-group">
@@ -536,48 +570,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           </select>
         </div>
 
-        <div class="form-divider"></div>
-        <div class="form-section-label">Producto</div>
-
-        <div class="form-group">
-          <label>Producto *</label>
-          <select id="f-producto">
-            <option value="">Seleccionar...</option>
-            <option>Pantalón Ceniza</option><option>Pantalón Pareo</option>
-            <option>Camisa manga corta</option><option>Camisa manga larga</option>
-            <option>Bolsito</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Color *</label>
-          <select id="f-color">
-            <option value="">Seleccionar...</option>
-            <option>Negro</option><option>Beige</option><option>Azul rey</option>
-            <option>Marrón</option><option>Fucsia</option><option>Terracota</option>
-            <option>Vinotinto</option><option>Verde militar</option><option>Rojo</option>
-            <option>Pistacho</option><option>Azul marino</option><option>Blanco</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Talla *</label>
-          <select id="f-talla">
-            <option value="">Seleccionar...</option>
-            <option>XS</option><option>S</option><option>M</option>
-            <option>L</option><option>XL</option><option>2XL</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Ruedo (cm) *</label>
-          <select id="f-ruedo">
-            <option value="">Seleccionar...</option>
-            <option>93</option><option>97</option><option>100</option><option>103</option>
-            <option>105</option><option>108</option><option>110</option><option>113</option>
-          </select>
-        </div>
-
+        <!-- ── ENTREGA Y PAGO ── -->
         <div class="form-divider"></div>
         <div class="form-section-label">Entrega y pago</div>
-
         <div class="form-group">
           <label>Tipo de entrega *</label>
           <select id="f-tipo-entrega" onchange="toggleEntrega()">
@@ -594,10 +589,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <label>Dirección / Zona</label>
           <input type="text" id="f-direccion" placeholder="Ej: Las Mercedes, Edif. Centro">
         </div>
-        <div class="form-group">
-          <label>Monto producto ($) *</label>
-          <input type="number" id="f-monto-producto" placeholder="30" min="0" step="0.01" inputmode="decimal">
-        </div>
         <div class="form-group" id="grupo-monto-delivery" style="display:none">
           <label>Monto delivery ($)</label>
           <input type="number" id="f-monto-delivery" placeholder="3" min="0" step="0.01" inputmode="decimal">
@@ -611,6 +602,62 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           </select>
         </div>
 
+        <!-- ── PANTALONES (carrito) ── -->
+        <div class="form-divider"></div>
+        <div class="form-section-label" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center">
+          <span>Pantalones <span id="cart-count" style="color:var(--gold)">(0)</span></span>
+        </div>
+        <div class="form-group full" id="cart-container">
+          <div id="cart-list"></div>
+
+          <!-- Formulario inline agregar ítem -->
+          <div id="add-item-form" class="add-item-box" style="display:none">
+            <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">Nuevo pantalón</div>
+            <div class="add-item-grid">
+              <div class="form-group">
+                <label>Color *</label>
+                <select id="ai-color">
+                  <option value="">Color...</option>
+                  <option>Negro</option><option>Beige</option><option>Azul rey</option>
+                  <option>Marrón</option><option>Fucsia</option><option>Terracota</option>
+                  <option>Vinotinto</option><option>Verde militar</option><option>Rojo</option>
+                  <option>Pistacho</option><option>Azul marino</option><option>Blanco</option>
+                  <option>Puntos</option><option>Estampado</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Talla *</label>
+                <select id="ai-talla">
+                  <option value="">Talla...</option>
+                  <option>XS</option><option>S</option><option>M</option>
+                  <option>L</option><option>XL</option><option>2XL</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Ruedo (cm) *</label>
+                <select id="ai-ruedo">
+                  <option value="">Ruedo...</option>
+                  <option>93</option><option>97</option><option>100</option><option>103</option>
+                  <option>105</option><option>108</option><option>110</option><option>113</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Monto ($) *</label>
+                <input type="number" id="ai-monto" placeholder="30" min="0" step="0.01" inputmode="decimal">
+              </div>
+            </div>
+            <div class="add-item-actions">
+              <button type="button" class="btn-add-confirm" onclick="agregarItem()">Agregar ✓</button>
+              <button type="button" class="btn-add-cancel" onclick="ocultarAddItem()">Cancelar</button>
+            </div>
+          </div>
+
+          <button type="button" id="btn-add-item" class="btn-add-open" onclick="mostrarAddItem()">
+            + Agregar pantalón
+          </button>
+        </div>
+
+        <!-- ── NOTAS ── -->
         <div class="form-divider"></div>
         <div class="form-group full">
           <label>Notas (opcional)</label>
@@ -618,7 +665,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
 
       </div>
-      <button class="btn-submit" id="btn-submit" onclick="submitPedido()">Registrar pedido</button>
+      <button class="btn-submit" id="btn-submit" onclick="submitPedidos()" disabled style="opacity:0.45">Registrar pedido (0)</button>
     </div>
   </div>
 </div>
@@ -688,6 +735,7 @@ function showApp(rol) {
     showScreen('app-v');
     document.getElementById('vend-saludo').textContent = 'Hola, Angie 👋';
     loadVendedora();
+    cargarClientes();
   } else if (rol === 'costurera') {
     showScreen('app-c');
     loadCosturera();
@@ -1305,6 +1353,134 @@ async function loadComisiones(){
 }
 
 // ══════════════════════════════════════════════════════════
+// CLIENTES — autocomplete
+// ══════════════════════════════════════════════════════════
+let clientesCache = [];
+
+async function cargarClientes() {
+  try {
+    const d = await fetchData('getClientes');
+    clientesCache = d.clientes || [];
+  } catch(e) { clientesCache = []; }
+}
+
+function onNombreInput(val) {
+  const lista = document.getElementById('autocomplete-list');
+  if (!lista) return;
+  if (!val || val.length < 2) { lista.classList.remove('open'); return; }
+  const q = val.toLowerCase();
+  const matches = clientesCache.filter(c =>
+    c.nombre.toLowerCase().includes(q) || (c.telefono && c.telefono.includes(q))
+  ).slice(0, 6);
+  if (!matches.length) { lista.classList.remove('open'); return; }
+  lista._matches = matches;
+  lista.innerHTML = matches.map((c, i) => `
+    <div class="autocomplete-item" onclick="seleccionarCliente(${i})">
+      ${c.totalPedidos >= 1 ? '<span class="autocomplete-recurrente">⟳ Recurrente</span>' : ''}
+      <span class="autocomplete-item-name">${c.nombre}</span>
+      <span class="autocomplete-item-det">${c.telefono || ''}${c.direccion ? ' · ' + c.direccion : ''} · ${c.totalPedidos} pedido${c.totalPedidos !== 1 ? 's' : ''}</span>
+    </div>`).join('');
+  lista.classList.add('open');
+}
+
+function seleccionarCliente(idx) {
+  const lista = document.getElementById('autocomplete-list');
+  const c = lista._matches && lista._matches[idx];
+  if (!c) return;
+  document.getElementById('f-nombre').value = c.nombre;
+  if (c.telefono) document.getElementById('f-telefono').value = c.telefono;
+  if (c.direccion) {
+    document.getElementById('f-direccion').value = c.direccion;
+  }
+  lista.classList.remove('open');
+  mostrarClienteBadge(c);
+}
+
+function mostrarClienteBadge(c) {
+  const wrap = document.getElementById('cliente-badge-wrap');
+  const badge = document.getElementById('cliente-badge');
+  wrap.style.display = 'block';
+  if (c && c.totalPedidos >= 1) {
+    badge.className = 'cliente-badge recurrente';
+    badge.innerHTML = `✓ Cliente recurrente · ${c.totalPedidos} pedido${c.totalPedidos !== 1 ? 's' : ''}`;
+  } else {
+    badge.className = 'cliente-badge nuevo';
+    badge.innerHTML = '✦ Cliente nuevo';
+  }
+}
+
+document.addEventListener('click', e => {
+  const lista = document.getElementById('autocomplete-list');
+  if (lista && !lista.contains(e.target) && e.target.id !== 'f-nombre') {
+    lista.classList.remove('open');
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// CARRITO
+// ══════════════════════════════════════════════════════════
+let carrito = [];
+
+function mostrarAddItem() {
+  document.getElementById('add-item-form').style.display = 'block';
+  document.getElementById('btn-add-item').style.display = 'none';
+  setTimeout(() => document.getElementById('ai-color').focus(), 100);
+}
+
+function ocultarAddItem() {
+  document.getElementById('add-item-form').style.display = 'none';
+  document.getElementById('btn-add-item').style.display = 'block';
+  ['ai-color','ai-talla','ai-ruedo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ai-monto').value = '';
+}
+
+function agregarItem() {
+  const color = document.getElementById('ai-color').value;
+  const talla = document.getElementById('ai-talla').value;
+  const ruedo = document.getElementById('ai-ruedo').value;
+  const monto = document.getElementById('ai-monto').value;
+  if (!color || !talla || !ruedo || !monto) {
+    mostrarToast('⚠ Completa todos los campos del pantalón');
+    return;
+  }
+  carrito.push({ color, talla, ruedo, montoProducto: monto });
+  ocultarAddItem();
+  renderCarrito();
+}
+
+function eliminarItem(idx) {
+  carrito.splice(idx, 1);
+  renderCarrito();
+}
+
+function renderCarrito() {
+  const lista = document.getElementById('cart-list');
+  const btn   = document.getElementById('btn-submit');
+  const count = document.getElementById('cart-count');
+  if (!lista) return;
+  count.textContent = `(${carrito.length})`;
+  if (!carrito.length) {
+    lista.innerHTML = '';
+    btn.disabled = true;
+    btn.style.opacity = '0.45';
+    btn.textContent = 'Registrar pedido (0)';
+    return;
+  }
+  lista.innerHTML = carrito.map((item, i) => `
+    <div class="cart-item">
+      <div class="cart-item-info">
+        <div class="cart-item-title">${item.color}</div>
+        <div class="cart-item-det">Talla ${item.talla} · ${item.ruedo}cm · $${parseFloat(item.montoProducto).toFixed(2)}</div>
+      </div>
+      <button class="cart-item-del" onclick="eliminarItem(${i})" title="Eliminar">✕</button>
+    </div>`).join('');
+  const total = carrito.reduce((s, i) => s + parseFloat(i.montoProducto || 0), 0);
+  btn.disabled = false;
+  btn.style.opacity = '';
+  btn.textContent = `Registrar ${carrito.length} pantalón${carrito.length !== 1 ? 'es' : ''} · $${total.toFixed(2)}`;
+}
+
+// ══════════════════════════════════════════════════════════
 // FORMULARIO
 // ══════════════════════════════════════════════════════════
 function abrirFormulario(){
@@ -1313,8 +1489,15 @@ function abrirFormulario(){
   const man=new Date(); man.setDate(man.getDate()+2);
   const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
   document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
+  carrito = [];
+  renderCarrito();
+  ocultarAddItem();
+  document.getElementById('cliente-badge-wrap').style.display = 'none';
+  const lista = document.getElementById('autocomplete-list');
+  if (lista) lista.classList.remove('open');
   document.getElementById('form-overlay').classList.add('open');
   document.body.style.overflow='hidden';
+  if (!clientesCache.length) cargarClientes();
   setTimeout(()=>document.getElementById('f-nombre').focus(), 300);
 }
 function cerrarFormulario(){
@@ -1332,58 +1515,65 @@ function toggleEntrega(){
   document.getElementById('grupo-monto-delivery').style.display=needsDel?'flex':'none';
 }
 function resetForm(){
-  ['f-nombre','f-telefono','f-direccion','f-monto-producto','f-monto-delivery','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  ['f-producto','f-color','f-talla','f-ruedo','f-tipo-entrega','f-origen','f-metodo-pago'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['f-nombre','f-telefono','f-direccion','f-monto-delivery','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['f-tipo-entrega','f-origen','f-metodo-pago'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('grupo-direccion').style.display='none';
   document.getElementById('grupo-monto-delivery').style.display='none';
+  document.getElementById('cliente-badge-wrap').style.display='none';
+  carrito = [];
+  renderCarrito();
+  ocultarAddItem();
   const man=new Date(); man.setDate(man.getDate()+2);
   const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
   document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
 }
-async function submitPedido(){
-  const g=id=>document.getElementById(id).value.trim();
-  const campos={
-    nombre:        g('f-nombre'),
-    telefono:      g('f-telefono'),
-    producto:      g('f-producto'),
-    color:         g('f-color'),
-    talla:         g('f-talla'),
-    ruedo:         g('f-ruedo'),
-    tipoEntrega:   g('f-tipo-entrega'),
-    fechaEntrega:  g('f-fecha-entrega'),
-    direccion:     g('f-direccion'),
-    montoProducto: g('f-monto-producto'),
-    montoDelivery: g('f-monto-delivery')||'0',
-    metodoPago:    g('f-metodo-pago'),
-    origen:        g('f-origen'),
-    notas:         g('f-notas'),
-    responsable:   localStorage.getItem('vendedora_nombre')||''
-  };
-  const req=['nombre','telefono','producto','color','talla','ruedo','tipoEntrega','fechaEntrega','montoProducto','metodoPago','origen'];
-  for(const f of req){
-    if(!campos[f]){ mostrarToast('⚠ Completa todos los campos obligatorios'); return; }
-  }
-  const btn=document.getElementById('btn-submit');
-  btn.textContent='Registrando...'; btn.disabled=true;
-  try{
-    const params=new URLSearchParams(campos).toString();
-    const r=await fetch(`${API}?accion=registrar&${params}`);
-    const data=await r.json();
-    if(data.success){
+async function submitPedidos(){
+  if (!carrito.length) { mostrarToast('⚠ Agrega al menos un pantalón'); return; }
+  const g = id => document.getElementById(id).value.trim();
+  const nombre      = g('f-nombre');
+  const tipoEntrega = g('f-tipo-entrega');
+  const fechaEntrega= g('f-fecha-entrega');
+  const metodoPago  = g('f-metodo-pago');
+  const origen      = g('f-origen');
+  if (!nombre)       { mostrarToast('⚠ Ingresa el nombre del cliente'); return; }
+  if (!tipoEntrega)  { mostrarToast('⚠ Selecciona el tipo de entrega'); return; }
+  if (!fechaEntrega) { mostrarToast('⚠ Selecciona la fecha de entrega'); return; }
+  if (!metodoPago)   { mostrarToast('⚠ Selecciona el método de pago'); return; }
+  if (!origen)       { mostrarToast('⚠ Selecciona el origen'); return; }
+  const btn = document.getElementById('btn-submit');
+  btn.textContent = 'Registrando...'; btn.disabled = true;
+  try {
+    const params = new URLSearchParams({
+      nombre,
+      telefono:      g('f-telefono'),
+      tipoEntrega,
+      fechaEntrega,
+      direccion:     g('f-direccion'),
+      montoDelivery: g('f-monto-delivery') || '0',
+      metodoPago,
+      origen,
+      notas:         g('f-notas'),
+      responsable:   localStorage.getItem('vendedora_nombre') || '',
+      items:         JSON.stringify(carrito)
+    });
+    const r = await fetch(`${API}?accion=registrarPedidos&${params}`);
+    const data = await r.json();
+    if (data.success) {
       cerrarFormulario();
-      mostrarToast(`✓ Pedido de ${campos.nombre} registrado`);
+      mostrarToast(`✓ ${data.total} pantalón${data.total !== 1 ? 'es' : ''} registrado${data.total !== 1 ? 's' : ''} para ${nombre}`);
       resetForm();
-      _prodCache=null;
-      const rol=localStorage.getItem('ceniza_rol');
-      if(rol==='duena'){ loadDashboard(); loadProduccion(); }
-      if(rol==='vendedora'){ loadVendedora(); }
+      _prodCache = null;
+      cargarClientes();
+      const rol = localStorage.getItem('ceniza_rol');
+      if (rol === 'duena')    { loadDashboard(); loadProduccion(); }
+      if (rol === 'vendedora') { loadVendedora(); }
     } else {
-      throw new Error(data.error||'Error desconocido');
+      throw new Error(data.error || 'Error desconocido');
     }
-  }catch(e){
-    mostrarToast('✕ Error: '+e.message);
-  }finally{
-    btn.textContent='Registrar pedido'; btn.disabled=false;
+  } catch(e) {
+    mostrarToast('✕ Error: ' + e.message);
+  } finally {
+    renderCarrito();
   }
 }
 
