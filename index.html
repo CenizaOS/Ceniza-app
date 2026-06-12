@@ -1011,7 +1011,7 @@ function renderDelivery(d, fecha) {
             ${p.direccion ? `<div class="del-card-dir">📍 ${p.direccion}</div>` : ''}
             ${monto > 0 ? `<div class="del-card-monto">Cobrar ${fmt$(monto)}</div>` : ''}
           </div>
-          <button class="del-check ${done ? 'checked' : ''}" onclick="marcarEntregado(${p.fila}, this)" ${done ? 'disabled' : ''} title="${done ? 'Entregado' : 'Marcar como entregado'}">
+          <button class="del-check ${done ? 'checked' : ''}" onclick="marcarEntregado(${p.fila}, this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
             ${checkSVG}
           </button>
         </div>`;
