@@ -9,16 +9,29 @@
 <title>Ceniza</title>
 <style>
 :root{
-  --bg:#0f0f0f; --bg2:#1a1a1a; --bg3:#242424; --bg4:#2e2e2e;
-  --gold:#C9A84C; --gold-dim:#8a6f2e; --gold-bg:rgba(201,168,76,0.12);
-  --text:#f0f0f0; --text2:#999; --text3:#666;
-  --green:#4ade80; --green-bg:rgba(74,222,128,0.12);
-  --red:#f87171;   --red-bg:rgba(248,113,113,0.12);
-  --blue:#60a5fa;  --blue-bg:rgba(96,165,250,0.12);
-  --amber:#fbbf24; --amber-bg:rgba(251,191,36,0.12);
+  --bg:#f5f3ef;       /* fondo crema cálido */
+  --bg2:#ffffff;      /* tarjetas y paneles */
+  --bg3:#edeae4;      /* inputs y superficies secundarias */
+  --bg4:#ddd8ce;      /* bordes y divisores */
+  --gold:#9a6f1a;     /* dorado oscuro legible sobre blanco */
+  --gold-dim:#c9a84c;
+  --gold-bg:rgba(154,111,26,0.1);
+  --text:#1c1917;     /* texto principal casi negro */
+  --text2:#6b6560;    /* texto secundario */
+  --text3:#a09890;    /* texto terciario / placeholder */
+  --green:#166534;
+  --green-bg:rgba(22,101,52,0.1);
+  --red:#b91c1c;
+  --red-bg:rgba(185,28,28,0.1);
+  --blue:#1d4ed8;
+  --blue-bg:rgba(29,78,216,0.1);
+  --amber:#92400e;
+  --amber-bg:rgba(146,64,14,0.1);
   --wa:#25D366;    --wa-bg:rgba(37,211,102,0.12);
   --radius:16px; --radius-sm:10px;
   --nav-h:64px; --nav-w:72px;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.05);
+  --shadow:0 2px 8px rgba(0,0,0,0.08),0 1px 3px rgba(0,0,0,0.05);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;min-height:100vh;overflow-x:hidden}
@@ -41,7 +54,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .screen.active{display:block}
 
 /* ── BOTTOM NAV ── */
-.nav{display:flex;background:var(--bg2);border-top:1px solid var(--bg3);position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;z-index:100;padding-bottom:env(safe-area-inset-bottom,8px)}
+.nav{display:flex;background:var(--bg2);border-top:1px solid var(--bg4);box-shadow:0 -2px 12px rgba(0,0,0,0.06);position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;z-index:100;padding-bottom:env(safe-area-inset-bottom,8px)}
 .nav-btn{flex:1;padding:10px 4px 6px;border:none;background:none;cursor:pointer;font-size:10px;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:4px;transition:color 0.15s}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .nav-btn.active{color:var(--gold)}
@@ -69,7 +82,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .form-group{display:flex;flex-direction:column;gap:6px}
 .form-group.full{grid-column:1/-1}
 .form-group label{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em}
-.form-group input,.form-group select,.form-group textarea{background:var(--bg3);border:1.5px solid transparent;border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;color:var(--text);font-family:inherit;outline:none;transition:border-color 0.15s;width:100%;-webkit-appearance:none}
+.form-group input,.form-group select,.form-group textarea{background:var(--bg3);border:1.5px solid var(--bg4);border-radius:var(--radius-sm);padding:12px 14px;font-size:15px;color:var(--text);font-family:inherit;outline:none;transition:border-color 0.15s;width:100%;-webkit-appearance:none}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--gold)}
 .form-group select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
 .form-group textarea{resize:none;line-height:1.5}
@@ -77,14 +90,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .form-section-label{grid-column:1/-1;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px}
 
 /* ── TOAST ── */
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--green);color:#000;font-size:14px;font-weight:700;padding:12px 20px;border-radius:var(--radius-sm);z-index:400;transition:transform 0.3s ease;white-space:nowrap}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--green);color:#fff;font-size:14px;font-weight:700;padding:12px 20px;border-radius:var(--radius-sm);z-index:400;transition:transform 0.3s ease;white-space:nowrap;box-shadow:var(--shadow)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 
 /* ── SECTIONS ── */
 .sec-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px}
 
 /* ── HERO ── */
-.hero{background:var(--bg2);border-radius:var(--radius);padding:20px;margin-bottom:4px}
+.hero{background:var(--bg2);border-radius:var(--radius);padding:20px;margin-bottom:4px;box-shadow:var(--shadow)}
 .hero-label{font-size:12px;color:var(--text2);margin-bottom:6px}
 .hero-amount{font-size:36px;font-weight:700;letter-spacing:-1px;line-height:1}
 .hero-sub{font-size:13px;color:var(--text2);margin-top:6px}
@@ -92,7 +105,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 /* ── METRIC GRID ── */
 .metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px}
-.metric-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px}
+.metric-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow-sm)}
 .metric-label{font-size:11px;color:var(--text3);margin-bottom:6px}
 .metric-value{font-size:22px;font-weight:700}
 .metric-value.green{color:var(--green)} .metric-value.blue{color:var(--blue)}
@@ -100,7 +113,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .metric-value.gold{color:var(--gold)}
 
 /* ── CARDS ── */
-.card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:8px}
+.card{background:var(--bg2);border-radius:var(--radius);padding:16px;margin-bottom:8px;box-shadow:var(--shadow-sm)}
 .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .card-title{font-size:15px;font-weight:600}
 
@@ -122,7 +135,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
 .badge-prod{background:var(--green-bg);color:var(--green)} .badge-pack{background:var(--blue-bg);color:var(--blue)}
 .badge-paid{background:var(--gold-bg);color:var(--gold)}   .badge-del{background:var(--amber-bg);color:var(--amber)}
-.badge-env{background:var(--blue-bg);color:var(--blue)}    .badge-ret{background:rgba(167,139,250,0.15);color:#a78bfa}
+.badge-env{background:var(--blue-bg);color:var(--blue)}    .badge-ret{background:rgba(109,40,217,0.1);color:#6d28d9}
 
 /* ── PROGRESS BAR ── */
 .bar-bg{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin:8px 0 4px}
@@ -177,7 +190,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .role-welcome{font-size:28px;font-weight:800;margin-bottom:4px}
 .role-sub{font-size:14px;color:var(--text2);margin-bottom:48px}
 .role-cards{width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px}
-.role-card{background:var(--bg2);border:1.5px solid var(--bg3);border-radius:var(--radius);padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color 0.15s,background 0.15s;width:100%;text-align:left;-webkit-appearance:none}
+.role-card{background:var(--bg2);border:1.5px solid var(--bg4);border-radius:var(--radius);padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:border-color 0.15s,background 0.15s;width:100%;text-align:left;-webkit-appearance:none;box-shadow:var(--shadow-sm)}
 .role-card:active{background:var(--bg3)}
 .role-card.locked{border-color:var(--gold-dim)}
 .role-icon{width:46px;height:46px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
@@ -191,14 +204,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pin-back{background:none;border:none;color:var(--text2);font-size:14px;cursor:pointer;padding:8px;display:flex;align-items:center;gap:6px;position:absolute;top:24px;left:24px}
 .pin-title{font-size:22px;font-weight:700;margin-bottom:28px;text-align:center}
 .pin-dots{display:flex;gap:16px;justify-content:center;margin-bottom:8px}
-.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--text3);background:transparent;transition:background 0.1s,border-color 0.1s}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--bg4);background:transparent;transition:background 0.1s,border-color 0.1s}
 .pin-dot.filled{background:var(--gold);border-color:var(--gold)}
 .pin-dot.error{background:var(--red);border-color:var(--red)}
 @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
 .pin-dots.shake{animation:shake 0.4s ease}
 .pin-error-msg{font-size:13px;color:var(--red);text-align:center;height:20px;margin-top:8px;margin-bottom:16px}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;width:100%}
-.pin-key{aspect-ratio:1;background:var(--bg2);border:none;border-radius:var(--radius);font-size:24px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s;min-height:64px}
+.pin-key{aspect-ratio:1;background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);font-size:24px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s;min-height:64px;box-shadow:var(--shadow-sm)}
 .pin-key:active{background:var(--bg3)}
 .pin-key.del{font-size:16px;color:var(--text2)}
 .pin-key.empty{background:transparent;cursor:default;pointer-events:none}
@@ -215,9 +228,38 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
    COSTURERA APP
 ══════════════════════════════════════════════════════════*/
 .cost-app{min-height:100vh;flex-direction:column;max-width:430px;margin:0 auto}
-.cost-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bg3);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:10}
+.cost-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bg4);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
 .cost-body{padding:16px;padding-bottom:80px}
-.cost-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px 14px 14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+
+/* ══════════════════════════════════════════════════════════
+   DELIVERY APP
+══════════════════════════════════════════════════════════*/
+.del-app{min-height:100vh;flex-direction:column;max-width:430px;margin:0 auto}
+.del-header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bg4);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.del-body{padding:12px 16px 80px;overflow-y:auto}
+.del-date-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;box-shadow:var(--shadow-sm)}
+.del-date-btn{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.1s}
+.del-date-btn:active{background:var(--bg4)}
+.del-date-label{font-size:18px;font-weight:700;text-align:center}
+.del-date-sub{font-size:11px;color:var(--text3);text-align:center;margin-top:1px}
+.del-section{margin-bottom:16px}
+.del-section-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;padding:0 2px}
+.del-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px;margin-bottom:6px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm);transition:opacity 0.2s}
+.del-card.done{opacity:0.45}
+.del-card-info{flex:1;min-width:0}
+.del-card-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.del-card-det{font-size:12px;color:var(--text2);line-height:1.4}
+.del-card-dir{font-size:11px;color:var(--text3);margin-top:3px}
+.del-card-monto{font-size:12px;font-weight:700;color:var(--gold);margin-top:2px}
+.del-check{width:36px;height:36px;border-radius:50%;border:2px solid var(--bg4);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;color:var(--text3)}
+.del-check:active{transform:scale(0.9)}
+.del-check.checked{background:var(--green);border-color:var(--green);color:#fff}
+.del-check svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.del-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.del-stat{background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;box-shadow:var(--shadow-sm);text-align:center}
+.del-stat-n{font-size:22px;font-weight:700}
+.del-stat-l{font-size:11px;color:var(--text3);margin-top:1px}
+.cost-card{background:var(--bg2);border-radius:var(--radius-sm);padding:14px 14px 14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm)}
 .cost-info{flex:1;min-width:0}
 .cost-name{font-size:14px;font-weight:700;margin-bottom:3px}
 .cost-det{font-size:12px;color:var(--text2)}
@@ -225,6 +267,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn-estado:active{opacity:0.6;transform:scale(0.95)}
 .btn-empaquetar{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(96,165,250,0.25)}
 .btn-delivery{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(251,191,36,0.25)}
+.estado-select{background:var(--bg3);border:1.5px solid var(--bg4);border-radius:20px;padding:7px 28px 7px 12px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;flex-shrink:0;min-width:140px;transition:border-color 0.15s}
+.estado-select:focus{outline:none;border-color:var(--gold)}
+.estado-select:disabled{opacity:0.5}
+
+/* ── VENDEDORA LANDSCAPE ── */
+@media (orientation:landscape) and (max-height:520px){
+  #app-v .vend-header{padding:8px 16px 6px}
+  #app-v .vend-body{padding:8px 12px 16px;overflow-y:auto;height:calc(100vh - 52px)}
+  #vend-content{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+  #vend-content .hero{grid-column:1/-1;margin-top:0;padding:14px 16px}
+  #vend-content .hero .hero-amount{font-size:28px}
+  #vend-content .sec-title{display:none}
+  #vend-content .card:nth-of-type(1){margin-bottom:0}
+  #vend-content .card:nth-of-type(2){margin-bottom:0}
+  #vend-content .btn{grid-column:1/-1;margin-top:4px;margin-bottom:0}
+  #vend-content .bar-bg{margin:6px 0 3px}
+  .fab.no-nav{bottom:12px;right:14px}
+}
 
 /* ── TABLET RESPONSIVE (≥ 640px) ── */
 @media (min-width:640px){
@@ -267,6 +327,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div>
         <div class="role-card-name">Costurera</div>
         <div class="role-card-desc">Cola de producción · cambiar estados</div>
+      </div>
+    </button>
+    <button class="role-card" onclick="selectRole('delivery')">
+      <div class="role-icon">🛵</div>
+      <div>
+        <div class="role-card-name">Delivery</div>
+        <div class="role-card-desc">Entregas del día · marcar entregado</div>
       </div>
     </button>
     <button class="role-card locked" onclick="selectRole('duena')">
@@ -324,6 +391,25 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
   <div class="vend-body">
     <div id="vend-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     DELIVERY APP
+═══════════════════════════════════════════════════════════ -->
+<div id="app-del" class="del-app" style="display:none">
+  <div class="del-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="topbar-logo">C</div>
+      <div>
+        <div style="font-size:16px;font-weight:700">Entregas</div>
+        <div style="font-size:12px;color:var(--text2)" id="del-mes"></div>
+      </div>
+    </div>
+    <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+  </div>
+  <div class="del-body">
+    <div id="del-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
   </div>
 </div>
 
@@ -559,7 +645,7 @@ function initApp() {
 }
 
 function showScreen(id) {
-  ['screen-rol','screen-pin','app-v','app-c'].forEach(s => {
+  ['screen-rol','screen-pin','app-v','app-c','app-del'].forEach(s => {
     document.getElementById(s).style.display = 'none';
   });
   document.getElementById('app-d').style.display = 'none';
@@ -579,8 +665,6 @@ function showScreen(id) {
     el.style.display = 'flex';
     fab.style.display = 'flex';
     fab.classList.add('no-nav');
-  } else if (id === 'app-c') {
-    el.style.display = 'flex';
   } else {
     el.style.display = 'flex';
   }
@@ -607,6 +691,10 @@ function showApp(rol) {
   } else if (rol === 'costurera') {
     showScreen('app-c');
     loadCosturera();
+  } else if (rol === 'delivery') {
+    showScreen('app-del');
+    fechaDeliveryActual = new Date();
+    loadDelivery();
   } else if (rol === 'duena') {
     showScreen('app-d');
     setupTablet();
@@ -758,16 +846,14 @@ function renderCosturera(d) {
     d.grupos.forEach(g => {
       html += `<div class="sec-title">${g.fecha}</div>`;
       g.items.forEach(p => {
-        const btn = p.estado === 'En producción'
-          ? `<button class="btn-estado btn-empaquetar" onclick="cambiarEstadoPedido(${p.fila},'Empaquetado')">Empaquetar</button>`
-          : p.estado === 'Empaquetado'
-          ? `<button class="btn-estado btn-delivery" onclick="cambiarEstadoPedido(${p.fila},'Entregado a delivery')">→ Delivery</button>`
-          : '';
+        const estados = ['En producción','Empaquetado','Entregado a delivery'];
+        const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
         html += `<div class="cost-card">
           <div class="cost-info">
             <div class="cost-name">${p.cliente}</div>
             <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
-          </div>${btn}
+          </div>
+          <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)">${opts}</select>
         </div>`;
       });
     });
@@ -776,7 +862,8 @@ function renderCosturera(d) {
   document.getElementById('cost-content').innerHTML = html;
 }
 
-async function cambiarEstadoPedido(fila, estado) {
+async function cambiarEstadoPedido(fila, estado, sel) {
+  if (sel) sel.disabled = true;
   try {
     const r = await fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(estado)}`);
     const data = await r.json();
@@ -785,9 +872,125 @@ async function cambiarEstadoPedido(fila, estado) {
       loadCosturera();
     } else {
       mostrarToast('✕ ' + (data.error || 'Error al actualizar'));
+      if (sel) sel.disabled = false;
     }
   } catch(e) {
     mostrarToast('✕ Error de conexión');
+    if (sel) sel.disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// DELIVERY
+// ══════════════════════════════════════════════════════════
+let fechaDeliveryActual = new Date();
+
+async function loadDelivery(offset) {
+  if (offset !== undefined) {
+    fechaDeliveryActual = new Date(fechaDeliveryActual);
+    fechaDeliveryActual.setDate(fechaDeliveryActual.getDate() + offset);
+  }
+  document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const fecha = fechaStr(fechaDeliveryActual);
+    const d = await fetchData('entregas', `&fecha=${fecha}`);
+    document.getElementById('del-mes').textContent = d.fecha || '';
+    renderDelivery(d, fecha);
+  } catch(e) {
+    document.getElementById('del-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadDelivery(0)">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+function renderDelivery(d, fecha) {
+  const checkSVG = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+  const arrowSVG_L = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+  const arrowSVG_R = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+  const pendientes = d.pedidos.filter(p => p.estado !== 'Entregado a cliente').length;
+  const entregados = d.pedidos.filter(p => p.estado === 'Entregado a cliente').length;
+
+  let html = `
+    <div class="del-date-nav">
+      <button class="del-date-btn" onclick="loadDelivery(-1)">${arrowSVG_L}</button>
+      <div>
+        <div class="del-date-label">${fechaLabel(fechaDeliveryActual)}</div>
+        <div class="del-date-sub">${fecha}</div>
+      </div>
+      <button class="del-date-btn" onclick="loadDelivery(+1)">${arrowSVG_R}</button>
+    </div>
+    <div class="del-stats">
+      <div class="del-stat"><div class="del-stat-n" style="color:var(--amber)">${pendientes}</div><div class="del-stat-l">Pendientes</div></div>
+      <div class="del-stat"><div class="del-stat-n" style="color:var(--green)">${entregados}</div><div class="del-stat-l">Entregados</div></div>
+    </div>`;
+
+  if (!d.pedidos.length) {
+    html += '<div class="empty-state">Sin entregas para este día</div>';
+  } else {
+    const grupos = [
+      { tipo: 'Delivery',          icono: '🛵', label: 'Delivery' },
+      { tipo: 'Retiro personal',   icono: '🏪', label: 'Retiro personal' },
+      { tipo: 'Envío MRW',         icono: '📦', label: 'Envío MRW' },
+      { tipo: 'Envío ZOOM',        icono: '📦', label: 'Envío ZOOM' },
+    ];
+    grupos.forEach(g => {
+      const items = d.pedidos.filter(p => p.tipoEntrega === g.tipo);
+      if (!items.length) return;
+      html += `<div class="del-section">
+        <div class="del-section-title">${g.icono} ${g.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${items.length})</span></div>`;
+      items.forEach(p => {
+        const done = p.estado === 'Entregado a cliente';
+        const monto = parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0);
+        html += `<div class="del-card ${done ? 'done' : ''}" id="del-card-${p.fila}">
+          <div class="del-card-info">
+            <div class="del-card-name">${p.cliente}</div>
+            <div class="del-card-det">${p.color||''} · Talla ${p.talla||''}${p.producto?' · '+p.producto:''}</div>
+            ${p.direccion ? `<div class="del-card-dir">📍 ${p.direccion}</div>` : ''}
+            ${monto > 0 ? `<div class="del-card-monto">Cobrar ${fmt$(monto)}</div>` : ''}
+          </div>
+          <button class="del-check ${done ? 'checked' : ''}" onclick="marcarEntregado(${p.fila}, this)" ${done ? 'disabled' : ''} title="${done ? 'Entregado' : 'Marcar como entregado'}">
+            ${checkSVG}
+          </button>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+  }
+  html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
+  document.getElementById('del-content').innerHTML = html;
+}
+
+async function marcarEntregado(fila, btn) {
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+  try {
+    const r = await fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent('Entregado a cliente')}`);
+    const data = await r.json();
+    if (data.success) {
+      mostrarToast('✓ Entregado a cliente');
+      // Marcar visualmente sin recargar toda la lista
+      btn.classList.add('checked');
+      btn.disabled = true;
+      btn.style.opacity = '';
+      const card = document.getElementById('del-card-' + fila);
+      if (card) card.classList.add('done');
+      // Actualizar contadores
+      const fecha = fechaStr(fechaDeliveryActual);
+      const d = await fetchData('entregas', `&fecha=${fecha}`);
+      const pend = document.querySelector('.del-stat-n');
+      const entregados = d.pedidos.filter(p => p.estado === 'Entregado a cliente').length;
+      const pendientes = d.pedidos.filter(p => p.estado !== 'Entregado a cliente').length;
+      const stats = document.querySelectorAll('.del-stat-n');
+      if (stats[0]) stats[0].textContent = pendientes;
+      if (stats[1]) stats[1].textContent = entregados;
+    } else {
+      mostrarToast('✕ ' + (data.error || 'Error'));
+      btn.disabled = false;
+      btn.style.opacity = '';
+    }
+  } catch(e) {
+    mostrarToast('✕ Error de conexión');
+    btn.disabled = false;
+    btn.style.opacity = '';
   }
 }
 
