@@ -319,7 +319,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   #app-v .vend-header{padding:8px 16px 6px}
   #app-v .vend-tabs{display:flex;border-bottom:1px solid var(--bg3);background:var(--bg1)}
   #app-v .vend-tab{flex:1;padding:10px 4px 9px;font-size:13px;font-weight:600;color:var(--text3);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:6px}
-  #app-v .vend-tab svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+  #app-v .vend-tab svg{width:16px;height:16px}
   #app-v .vend-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
   #app-v .vend-body{padding:8px 12px 16px;overflow-y:auto;height:calc(100vh - 52px - 42px)}
   #vend-com-content{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
@@ -449,11 +449,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <!-- ── Tab bar ── -->
   <div class="vend-tabs">
     <button class="vend-tab active" id="vtab-pedidos" onclick="showVendTab('pedidos')">
-      <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" fill="none"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
       Pedidos
     </button>
     <button class="vend-tab" id="vtab-comisiones" onclick="showVendTab('comisiones')">
-      <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
       Comisiones
     </button>
   </div>
