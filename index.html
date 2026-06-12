@@ -901,7 +901,7 @@ async function loadVendedoraPedidos() {
     const misOrdenes = [];
     (d.grupos || []).forEach(g => {
       g.items.forEach(p => {
-        if ((p.responsable || '').trim() === nombre) misOrdenes.push({ ...p, _fecha: g.fecha });
+        if ((p.responsable || '').trim() === nombre) misOrdenes.push(p);
       });
     });
 
@@ -921,13 +921,16 @@ async function loadVendedoraPedidos() {
       return;
     }
 
-    // Agrupar por fecha de entrega
+    // Agrupar por fecha de REGISTRO (más reciente primero)
     const porFecha = {};
     misOrdenes.forEach(p => {
-      const k = p._fecha || 'Sin fecha';
-      if (!porFecha[k]) porFecha[k] = [];
-      porFecha[k].push(p);
+      const k = p.fechaRegistro || 'Sin fecha';
+      if (!porFecha[k]) porFecha[k] = { items: [], sort: p.fechaRegSort || '000000' };
+      porFecha[k].items.push(p);
     });
+    // Ordenar fechas descendente (más reciente primero)
+    const fechasOrdenadas = Object.entries(porFecha)
+      .sort((a, b) => b[1].sort.localeCompare(a[1].sort));
 
     const estadoColor = {
       'En producción':        'var(--gold)',
@@ -946,8 +949,9 @@ async function loadVendedoraPedidos() {
       </button>
       <div class="vend-cola-label">En producción · ${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''}</div>`;
 
-    Object.entries(porFecha).forEach(([fecha, items]) => {
-      html += `<div class="vend-order-date">📅 Entrega: ${fecha}</div>`;
+    fechasOrdenadas.forEach(([fecha, grupo]) => {
+      const items = grupo.items;
+      html += `<div class="vend-order-date">📆 Registrado: ${fecha}</div>`;
       html += `<div class="vend-order-card">`;
       items.forEach(p => {
         const talla  = p.talla ? p.talla.replace(/^T/i,'') : '';
