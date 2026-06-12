@@ -1008,9 +1008,13 @@ function renderDelivery(d, fecha) {
       { tipo: 'Envío MRW',       icono: '📦', label: 'Envío MRW' },
       { tipo: 'Envío ZOOM',      icono: '📦', label: 'Envío ZOOM' },
     ];
+    const tiposConocidos = tiposEntrega.map(t => t.tipo);
+    const mostrados = new Set();
+
     tiposEntrega.forEach(t => {
       const rawItems = d.pedidos.filter(p => p.tipoEntrega === t.tipo);
       if (!rawItems.length) return;
+      rawItems.forEach(p => mostrados.add(p.fila));
       const clienteGrupos = agruparPorCliente(rawItems);
       html += `<div class="del-section">
         <div class="del-section-title">${t.icono} ${t.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
@@ -1035,6 +1039,34 @@ function renderDelivery(d, fecha) {
       });
       html += `</div>`;
     });
+
+    // Catch-all: pedidos que no encajan en ningún grupo conocido
+    const extras = d.pedidos.filter(p => !mostrados.has(p.fila));
+    if (extras.length) {
+      const clienteGrupos = agruparPorCliente(extras);
+      html += `<div class="del-section">
+        <div class="del-section-title">📋 Sin tipo de entrega <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
+      clienteGrupos.forEach((cg, idx) => {
+        const cardId = `del-card-extra-${idx}`;
+        const filas = cg.items.map(p => p.fila);
+        const done = cg.items.every(p => p.estado === 'Entregado a cliente');
+        const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0), 0);
+        const nPants = cg.items.length;
+        const detalle = cg.items.map(p => `${p.color||''}${p.talla?' T'+p.talla:''}`).join(' · ');
+        html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
+          <div class="del-card-info">
+            <div class="del-card-name">${cg.cliente}</div>
+            <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}: ${detalle}</div>
+            ${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}
+            ${monto > 0 ? `<div class="del-card-monto">Cobrar ${fmt$(monto)}</div>` : ''}
+          </div>
+          <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
+            ${checkSVG}
+          </button>
+        </div>`;
+      });
+      html += `</div>`;
+    }
   }
   html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
   document.getElementById('del-content').innerHTML = html;
