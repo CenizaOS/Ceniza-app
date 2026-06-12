@@ -898,10 +898,12 @@ function renderCosturera(d) {
         const entregado = p.estado === 'Entregado a delivery';
         const estados = ['En producción','Empaquetado','Entregado a delivery'];
         const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
+        const entregaIcono = {'Delivery':'🛵','Retiro personal':'🏪','Envío MRW':'📦','Envío ZOOM':'📦'}[p.tipoEntrega] || '📦';
         html += `<div class="cost-card${entregado ? ' entregado' : ''}">
           <div class="cost-info">
             <div class="cost-name">${p.cliente}</div>
             <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
+            ${p.tipoEntrega ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${entregaIcono} ${p.tipoEntrega}</div>` : ''}
           </div>
           <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)" ${entregado ? 'disabled' : ''}>${opts}</select>
         </div>`;
@@ -913,21 +915,33 @@ function renderCosturera(d) {
 }
 
 async function cambiarEstadoPedido(fila, estado, sel) {
-  if (sel) sel.disabled = true;
-  try {
-    const r = await fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(estado)}`);
-    const data = await r.json();
-    if (data.success) {
-      mostrarToast('✓ ' + estado);
-      loadCosturera();
+  const estadoAnterior = sel ? [...sel.options].find(o => !o.selected && o.defaultSelected)?.value || sel.value : estado;
+  // Actualizar UI al instante (optimistic)
+  if (sel) {
+    const card = sel.closest('.cost-card');
+    if (estado === 'Entregado a delivery') {
+      if (card) card.classList.add('entregado');
+      sel.disabled = true;
     } else {
-      mostrarToast('✕ ' + (data.error || 'Error al actualizar'));
-      if (sel) sel.disabled = false;
+      if (card) card.classList.remove('entregado');
     }
-  } catch(e) {
-    mostrarToast('✕ Error de conexión');
-    if (sel) sel.disabled = false;
   }
+  // API en el fondo — sin bloquear
+  fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(estado)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        mostrarToast('✕ ' + (data.error || 'Error al guardar'));
+        // Revertir
+        if (sel) { sel.value = estadoAnterior; sel.disabled = false; }
+        const card = sel?.closest('.cost-card');
+        if (card) card.classList.toggle('entregado', estadoAnterior === 'Entregado a delivery');
+      }
+    })
+    .catch(() => {
+      mostrarToast('✕ Sin conexión — reintentando...');
+      if (sel) { sel.value = estadoAnterior; sel.disabled = false; }
+    });
 }
 
 // ══════════════════════════════════════════════════════════
