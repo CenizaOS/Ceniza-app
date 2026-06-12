@@ -279,7 +279,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .del-card-name{font-size:14px;font-weight:700;margin-bottom:2px}
 .del-card-det{font-size:12px;color:var(--text2);line-height:1.4}
 .del-card-dir{font-size:11px;color:var(--text3);margin-top:3px}
-.del-card-monto{font-size:12px;font-weight:700;color:var(--gold);margin-top:2px}
+.del-card-monto{font-size:12px;font-weight:700;color:var(--gold);margin-top:4px}
+.del-vuelto{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px}
+.del-bill-btn{padding:3px 9px;background:var(--bg3);border:1.5px solid var(--bg4);border-radius:20px;font-size:11px;cursor:pointer;color:var(--text2);transition:all 0.15s}
+.del-bill-btn.active{background:var(--gold);color:#000;border-color:var(--gold)}
+.del-vuelto-res{font-size:12px;color:var(--green);font-weight:600;margin-left:2px}
 .del-check{width:36px;height:36px;border-radius:50%;border:2px solid var(--bg4);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;color:var(--text3)}
 .del-check:active{transform:scale(0.9)}
 .del-check.checked{background:var(--green);border-color:var(--green);color:#fff}
@@ -1022,19 +1026,28 @@ function renderDelivery(d, fecha) {
         const cardId = `del-card-${t.tipo.replace(/\s/g,'-')}-${idx}`;
         const filas = cg.items.map(p => p.fila);
         const done = cg.items.every(p => p.estado === 'Entregado a cliente');
-        const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0), 0);
+        const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
         const nPants = cg.items.length;
+        const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
+        const esCobrar = metodoPago.includes('efectivo') && monto > 0;
         const itemsHtml = cg.items.map(p => {
           const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
           return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
         }).join('');
+        const vueltoHtml = esCobrar ? `
+          <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+          <div class="del-vuelto" id="vuelto-${cardId}">
+            <span style="font-size:11px;color:var(--text3)">Paga con:</span>
+            ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
+            <span class="del-vuelto-res" id="res-${cardId}"></span>
+          </div>` : '';
         html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
           <div class="del-card-info">
             <div class="del-card-name">${cg.cliente}</div>
             <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
             ${itemsHtml}
             ${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}
-            ${monto > 0 ? `<div class="del-card-monto">Cobrar ${fmt$(monto)}</div>` : ''}
+            ${vueltoHtml}
           </div>
           <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
             ${checkSVG}
@@ -1054,19 +1067,28 @@ function renderDelivery(d, fecha) {
         const cardId = `del-card-extra-${idx}`;
         const filas = cg.items.map(p => p.fila);
         const done = cg.items.every(p => p.estado === 'Entregado a cliente');
-        const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0), 0);
+        const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
         const nPants = cg.items.length;
+        const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
+        const esCobrar = metodoPago.includes('efectivo') && monto > 0;
         const itemsHtml = cg.items.map(p => {
           const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
           return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
         }).join('');
+        const vueltoHtml = esCobrar ? `
+          <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+          <div class="del-vuelto" id="vuelto-${cardId}">
+            <span style="font-size:11px;color:var(--text3)">Paga con:</span>
+            ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
+            <span class="del-vuelto-res" id="res-${cardId}"></span>
+          </div>` : '';
         html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
           <div class="del-card-info">
             <div class="del-card-name">${cg.cliente}</div>
             <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
             ${itemsHtml}
             ${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}
-            ${monto > 0 ? `<div class="del-card-monto">Cobrar ${fmt$(monto)}</div>` : ''}
+            ${vueltoHtml}
           </div>
           <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
             ${checkSVG}
@@ -1078,6 +1100,14 @@ function renderDelivery(d, fecha) {
   }
   html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
   document.getElementById('del-content').innerHTML = html;
+}
+
+function mostrarVuelto(cardId, bill, monto, btn) {
+  document.querySelectorAll(`#vuelto-${cardId} .del-bill-btn`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const cambio = bill - monto;
+  const res = document.getElementById('res-' + cardId);
+  if (res) res.textContent = cambio >= 0 ? `Vuelto: ${fmt$(cambio)}` : '⚠ Insuficiente';
 }
 
 async function marcarGrupoEntregado(cardId, filas, btn) {
