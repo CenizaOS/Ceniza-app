@@ -330,6 +330,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .vend-order-detail{font-size:12px;color:var(--text2);margin-top:2px}
 .vend-order-status{font-size:11px;font-weight:700;white-space:nowrap;padding-top:2px}
 .vend-empty-pedidos{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
+.vend-nuevo-btn{display:flex;align-items:center;gap:14px;background:var(--gold);color:#fff;border:none;border-radius:16px;padding:18px 22px;width:100%;cursor:pointer;margin-bottom:20px;text-align:left;transition:opacity .15s}
+.vend-nuevo-btn:active{opacity:0.85}
+.vend-nuevo-btn .vend-nuevo-plus{width:44px;height:44px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:300;flex-shrink:0;line-height:1}
+.vend-nuevo-btn .vend-nuevo-label{font-size:16px;font-weight:700;line-height:1.2}
+.vend-nuevo-btn .vend-nuevo-sub{font-size:12px;opacity:0.8;margin-top:3px}
+.vend-cola-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .fab.no-nav{bottom:12px;right:14px}
 
 /* ── VENDEDORA LANDSCAPE ── */
@@ -768,8 +774,7 @@ function showScreen(id) {
     fab.style.display = 'flex';
   } else if (id === 'app-v') {
     el.style.display = 'flex';
-    fab.style.display = 'flex';
-    fab.classList.add('no-nav');
+    // FAB no se usa en vendedora — hay botón inline en el tab de Pedidos
   } else {
     el.style.display = 'flex';
   }
@@ -874,8 +879,6 @@ function showVendTab(tab) {
   document.getElementById('vend-screen-comisiones').style.display = tab === 'comisiones' ? '' : 'none';
   document.getElementById('vtab-pedidos').classList.toggle('active',    tab === 'pedidos');
   document.getElementById('vtab-comisiones').classList.toggle('active', tab === 'comisiones');
-  // FAB solo en pestaña Pedidos
-  document.getElementById('fab').style.display = tab === 'pedidos' ? 'flex' : 'none';
   // Lazy-load comisiones la primera vez
   if (tab === 'comisiones') {
     const el = document.getElementById('vend-com-content');
@@ -903,11 +906,18 @@ async function loadVendedoraPedidos() {
     });
 
     if (!misOrdenes.length) {
-      el.innerHTML = `<div class="vend-empty-pedidos">
-        <div style="font-size:32px;margin-bottom:10px">📋</div>
-        <div style="font-weight:600;margin-bottom:6px">Sin pedidos en producción</div>
-        <div style="font-size:12px">Toca ＋ para registrar un pedido nuevo</div>
-      </div>`;
+      el.innerHTML = `
+        <button class="vend-nuevo-btn" onclick="abrirFormulario()">
+          <div class="vend-nuevo-plus">＋</div>
+          <div>
+            <div class="vend-nuevo-label">Registrar nuevo pedido</div>
+            <div class="vend-nuevo-sub">Toca para abrir el formulario</div>
+          </div>
+        </button>
+        <div class="vend-empty-pedidos">
+          <div style="font-size:28px;margin-bottom:8px">📋</div>
+          <div style="font-weight:600">Sin pedidos en producción</div>
+        </div>`;
       return;
     }
 
@@ -926,7 +936,15 @@ async function loadVendedoraPedidos() {
       'Entregado a delivery': '#3b82f6',
     };
 
-    let html = `<div style="font-size:12px;color:var(--text2);margin-bottom:10px">${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''} en producción</div>`;
+    let html = `
+      <button class="vend-nuevo-btn" onclick="abrirFormulario()">
+        <div class="vend-nuevo-plus">＋</div>
+        <div>
+          <div class="vend-nuevo-label">Registrar nuevo pedido</div>
+          <div class="vend-nuevo-sub">Toca para abrir el formulario</div>
+        </div>
+      </button>
+      <div class="vend-cola-label">En producción · ${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''}</div>`;
 
     Object.entries(porFecha).forEach(([fecha, items]) => {
       html += `<div class="vend-order-date">📅 Entrega: ${fecha}</div>`;
