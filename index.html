@@ -604,7 +604,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <input type="date" id="f-fecha-entrega">
         </div>
         <div class="form-group full" id="grupo-direccion" style="display:none">
-          <label>Dirección / Zona</label>
+          <label id="label-direccion">Dirección / Zona</label>
           <input type="text" id="f-direccion" placeholder="Ej: Las Mercedes, Edif. Centro">
         </div>
         <div class="form-group" id="grupo-monto-delivery" style="display:none">
@@ -613,12 +613,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
         <div class="form-group">
           <label>Método de pago *</label>
-          <select id="f-metodo-pago">
+          <select id="f-metodo-pago" onchange="toggleMetodoPago()">
             <option value="">Seleccionar...</option>
             <option>Pago móvil</option><option>Transferencia</option>
             <option>Efectivo al retirar</option><option>Efectivo al entregar</option>
             <option>PayPal</option><option>Binance</option>
           </select>
+        </div>
+        <div class="form-group" id="grupo-monto-efectivo" style="display:none">
+          <label>El cliente paga con ($)</label>
+          <input type="number" id="f-monto-efectivo" placeholder="20" min="0" step="0.01" inputmode="decimal">
         </div>
 
         <!-- ── PANTALONES (carrito) ── -->
@@ -1045,6 +1049,7 @@ function renderDelivery(d, fecha) {
         const nPants = cg.items.length;
         const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
         const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+        const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
         const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
         const telDisplay = cg.items[0].telefono || '';
         const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
@@ -1055,11 +1060,18 @@ function renderDelivery(d, fecha) {
         }).join('');
         const vueltoHtml = esCobrar ? `
           <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+          ${montoEfectivo > 0 ? `
+            <div style="font-size:12px;color:var(--text3);margin-top:3px">
+              Paga con ${fmt$(montoEfectivo)} →
+              <span style="color:${montoEfectivo>=monto?'var(--green)':'var(--red)'};font-weight:700">
+                ${montoEfectivo>=monto?'Vuelto: '+fmt$(montoEfectivo-monto):'⚠ Monto insuficiente'}
+              </span>
+            </div>` : `
           <div class="del-vuelto" id="vuelto-${cardId}">
             <span style="font-size:11px;color:var(--text3)">Paga con:</span>
             ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
             <span class="del-vuelto-res" id="res-${cardId}"></span>
-          </div>` : '';
+          </div>`}` : '';
         // Info section varía según tipo de entrega
         const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
         const phoneHtml = telDisplay ? `
@@ -1105,6 +1117,7 @@ function renderDelivery(d, fecha) {
         const nPants = cg.items.length;
         const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
         const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+        const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
         const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
         const telDisplay = cg.items[0].telefono || '';
         const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
@@ -1115,11 +1128,18 @@ function renderDelivery(d, fecha) {
         }).join('');
         const vueltoHtml = esCobrar ? `
           <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+          ${montoEfectivo > 0 ? `
+            <div style="font-size:12px;color:var(--text3);margin-top:3px">
+              Paga con ${fmt$(montoEfectivo)} →
+              <span style="color:${montoEfectivo>=monto?'var(--green)':'var(--red)'};font-weight:700">
+                ${montoEfectivo>=monto?'Vuelto: '+fmt$(montoEfectivo-monto):'⚠ Monto insuficiente'}
+              </span>
+            </div>` : `
           <div class="del-vuelto" id="vuelto-${cardId}">
             <span style="font-size:11px;color:var(--text3)">Paga con:</span>
             ${[1,5,10,20,50].map(b=>`<button class="del-bill-btn" onclick="mostrarVuelto('${cardId}',${b},${monto},this)">$${b}</button>`).join('')}
             <span class="del-vuelto-res" id="res-${cardId}"></span>
-          </div>` : '';
+          </div>`}` : '';
         // Info section varía según tipo de entrega
         const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
         const phoneHtml = telDisplay ? `
@@ -1683,16 +1703,34 @@ function overlayClick(e){
 }
 function toggleEntrega(){
   const tipo=document.getElementById('f-tipo-entrega').value;
+  const esEnvio=tipo==='Envío MRW'||tipo==='Envío ZOOM';
   const needsDir=['Delivery','Envío MRW','Envío ZOOM'].includes(tipo);
   const needsDel=tipo==='Delivery';
   document.getElementById('grupo-direccion').style.display=needsDir?'flex':'none';
   document.getElementById('grupo-monto-delivery').style.display=needsDel?'flex':'none';
+  // Cambiar label/placeholder dirección según tipo
+  const lbl=document.getElementById('label-direccion');
+  const inp=document.getElementById('f-direccion');
+  if(esEnvio){
+    lbl.textContent='Agencia de envío';
+    inp.placeholder='Ej: MRW Chacao, Av. Francisco de Miranda';
+  } else {
+    lbl.textContent='Dirección de entrega';
+    inp.placeholder='Ej: Las Mercedes, Edif. Centro';
+  }
+}
+function toggleMetodoPago(){
+  const mp=document.getElementById('f-metodo-pago').value.toLowerCase();
+  const esEf=mp.includes('efectivo');
+  document.getElementById('grupo-monto-efectivo').style.display=esEf?'flex':'none';
+  if(!esEf) document.getElementById('f-monto-efectivo').value='';
 }
 function resetForm(){
-  ['f-nombre','f-telefono','f-direccion','f-monto-delivery','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['f-nombre','f-telefono','f-cedula','f-direccion','f-monto-delivery','f-monto-efectivo','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   ['f-tipo-entrega','f-origen','f-metodo-pago'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('grupo-direccion').style.display='none';
   document.getElementById('grupo-monto-delivery').style.display='none';
+  document.getElementById('grupo-monto-efectivo').style.display='none';
   document.getElementById('cliente-badge-wrap').style.display='none';
   carrito = [];
   renderCarrito();
@@ -1728,6 +1766,7 @@ async function submitPedidos(){
       metodoPago,
       origen,
       notas:         g('f-notas'),
+      montoEfectivo: g('f-monto-efectivo') || '0',
       responsable:   localStorage.getItem('vendedora_nombre') || '',
       items:         JSON.stringify(carrito)
     });
