@@ -581,10 +581,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
           <label>Origen *</label>
           <select id="f-origen">
             <option value="">Seleccionar...</option>
-            <option>Orgánico</option><option>Cliente recurrente</option>
-            <option>TikTok</option><option>Instagram</option>
-            <option>WhatsApp</option><option>Referido</option>
-            <option>Ads IG</option><option>Ads FB</option>
+            <option>Cliente recurrente</option>
+            <option>Orgánico</option>
+            <option>Ads</option>
           </select>
         </div>
 
@@ -622,7 +621,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         </div>
         <div class="form-group" id="grupo-monto-efectivo" style="display:none">
           <label>El cliente paga con ($)</label>
-          <input type="number" id="f-monto-efectivo" placeholder="20" min="0" step="0.01" inputmode="decimal">
+          <input type="number" id="f-monto-efectivo" placeholder="20" min="0" step="0.01" inputmode="decimal" oninput="calcularVueltoForm()">
+          <div id="vuelto-form-preview" style="display:none;margin-top:6px;font-size:13px;padding:6px 10px;border-radius:8px;background:var(--bg3)">
+            Vuelto: <span id="vuelto-form-val" style="font-weight:700"></span>
+          </div>
         </div>
 
         <!-- ── PANTALONES (carrito) ── -->
@@ -1723,7 +1725,33 @@ function toggleMetodoPago(){
   const mp=document.getElementById('f-metodo-pago').value.toLowerCase();
   const esEf=mp.includes('efectivo');
   document.getElementById('grupo-monto-efectivo').style.display=esEf?'flex':'none';
-  if(!esEf) document.getElementById('f-monto-efectivo').value='';
+  if(!esEf){
+    document.getElementById('f-monto-efectivo').value='';
+    document.getElementById('vuelto-form-preview').style.display='none';
+  }
+}
+function calcularVueltoForm(){
+  const ef=parseFloat(document.getElementById('f-monto-efectivo').value)||0;
+  const del=parseFloat(document.getElementById('f-monto-delivery').value)||0;
+  const totalItems=carrito.reduce((s,i)=>s+parseFloat(i.montoProducto||0),0);
+  const total=totalItems+del;
+  const preview=document.getElementById('vuelto-form-preview');
+  const val=document.getElementById('vuelto-form-val');
+  if(ef>0&&total>0){
+    preview.style.display='block';
+    const cambio=ef-total;
+    if(cambio>=0){
+      val.textContent='$'+cambio.toFixed(2);
+      val.style.color='var(--green)';
+      preview.style.background='rgba(34,197,94,0.08)';
+    } else {
+      val.textContent='Monto insuficiente';
+      val.style.color='var(--red)';
+      preview.style.background='rgba(239,68,68,0.08)';
+    }
+  } else {
+    preview.style.display='none';
+  }
 }
 function resetForm(){
   ['f-nombre','f-telefono','f-cedula','f-direccion','f-monto-delivery','f-monto-efectivo','f-notas'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
@@ -1731,6 +1759,7 @@ function resetForm(){
   document.getElementById('grupo-direccion').style.display='none';
   document.getElementById('grupo-monto-delivery').style.display='none';
   document.getElementById('grupo-monto-efectivo').style.display='none';
+  document.getElementById('vuelto-form-preview').style.display='none';
   document.getElementById('cliente-badge-wrap').style.display='none';
   carrito = [];
   renderCarrito();
