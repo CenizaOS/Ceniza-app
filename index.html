@@ -336,8 +336,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .vend-order-detail{font-size:12px;color:var(--text2);margin-top:2px}
 .vend-order-status{font-size:11px;font-weight:600;white-space:nowrap;padding-top:2px}
 .vend-order-actions{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
-.vend-edit-btn{background:none;border:1px solid var(--bg3);border-radius:6px;font-size:10px;font-weight:500;color:var(--text2);padding:3px 8px;cursor:pointer;white-space:nowrap;transition:background 0.1s}
+.vend-edit-btn{background:none;border:1px solid var(--bg3);border-radius:6px;font-size:10px;font-weight:500;color:var(--text2);padding:3px 8px;cursor:pointer;white-space:nowrap;transition:all 0.1s}
 .vend-edit-btn:active{background:var(--bg3)}
+.vend-del-btn{background:none;border:1px solid var(--bg3);border-radius:6px;font-size:10px;font-weight:500;color:var(--red);padding:3px 8px;cursor:pointer;white-space:nowrap;transition:all 0.2s}
+.vend-del-btn:active{background:var(--red-bg)}
+.vend-del-btn.confirmando{border-color:var(--red);background:var(--red-bg);font-weight:700}
 .vend-empty-pedidos{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
 .vend-nuevo-btn{display:flex;align-items:center;gap:14px;background:var(--gold);color:#fff;border:none;border-radius:16px;padding:18px 22px;width:100%;cursor:pointer;margin-bottom:20px;text-align:left;transition:opacity .15s}
 .vend-nuevo-btn:active{opacity:0.85}
@@ -985,7 +988,10 @@ async function loadVendedoraPedidos() {
           </div>
           <div class="vend-order-actions">
             <div class="vend-order-status" style="color:${color}">${p.estado}</div>
-            <button class="vend-edit-btn" onclick="abrirEdicion(${p.fila})">✏️ Editar</button>
+            <div style="display:flex;gap:5px;justify-content:flex-end">
+              <button class="vend-edit-btn" onclick="abrirEdicion(${p.fila})">✏️ Editar</button>
+              <button id="del-btn-${p.fila}" class="vend-del-btn" onclick="confirmarEliminar(${p.fila},'${p.cliente.replace(/'/g,"\\'")}')">🗑</button>
+            </div>
           </div>
         </div>`;
       });
@@ -1991,6 +1997,56 @@ function abrirEdicion(fila) {
   document.querySelector('.form-title').textContent = 'Editar pedido';
 }
 
+// ── ELIMINAR PEDIDO ────────────────────────────────────────
+let _delConfirmFila = null;
+let _delConfirmTimer = null;
+
+function confirmarEliminar(fila, cliente) {
+  const btn = document.getElementById('del-btn-' + fila);
+  if (!btn) return;
+  if (_delConfirmFila === fila) {
+    // Segunda pulsación → ejecutar borrado
+    clearTimeout(_delConfirmTimer);
+    _delConfirmFila = null;
+    btn.textContent = '⏳';
+    btn.disabled = true;
+    eliminarPedido(fila, cliente);
+  } else {
+    // Primera pulsación → pedir confirmación
+    if (_delConfirmTimer) {
+      clearTimeout(_delConfirmTimer);
+      // Resetear botón anterior si había otro pendiente
+      const prev = document.getElementById('del-btn-' + _delConfirmFila);
+      if (prev) { prev.textContent = '🗑'; prev.classList.remove('confirmando'); }
+    }
+    _delConfirmFila = fila;
+    btn.textContent = '¿Borrar?';
+    btn.classList.add('confirmando');
+    _delConfirmTimer = setTimeout(() => {
+      btn.textContent = '🗑';
+      btn.classList.remove('confirmando');
+      _delConfirmFila = null;
+    }, 3000);
+  }
+}
+
+async function eliminarPedido(fila, cliente) {
+  try {
+    const r = await fetch(`${API}?accion=eliminarPedido&fila=${fila}`);
+    const data = await r.json();
+    if (data.success) {
+      mostrarToast(`✓ Pedido de ${cliente} eliminado`);
+      _prodCache = null;
+      loadVendedoraPedidos();
+    } else {
+      throw new Error(data.error || 'Error');
+    }
+  } catch(e) {
+    mostrarToast('✕ Error: ' + e.message);
+    loadVendedoraPedidos();
+  }
+}
+
 async function submitPedidos(){
   if (!carrito.length) { mostrarToast('⚠ Agrega al menos un pantalón'); return; }
   const g = id => document.getElementById(id).value.trim();
@@ -2033,6 +2089,9 @@ async function submitPedidos(){
       const data = await r.json();
       if (data.success) {
         cerrarFormulario();
+        carrito = [];
+        renderCarrito();
+        resetForm();
         mostrarToast(`✓ Pedido de ${nombre} actualizado`);
         _prodCache = null;
         loadVendedoraPedidos();
