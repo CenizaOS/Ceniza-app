@@ -6,6 +6,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Ceniza">
+<meta name="theme-color" content="#b39c2f">
+<link rel="manifest" href="manifest.json">
 <title>Ceniza</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -452,6 +454,26 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     NOMBRE VENDEDORA SCREEN
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-nombre" class="role-screen" style="display:none">
+  <button class="pin-back" onclick="showScreen('screen-rol')">← Volver</button>
+  <div style="font-size:28px;margin-bottom:8px">👋</div>
+  <div class="pin-title" style="margin-bottom:8px">¿Cuál es tu nombre?</div>
+  <div style="font-size:14px;color:var(--text2);margin-bottom:32px;text-align:center">Solo la primera vez — se guardará en tu teléfono</div>
+  <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px">
+    <input id="nombre-input" type="text" placeholder="Tu nombre" autocomplete="given-name"
+      style="background:var(--bg2);border:1.5px solid var(--bg4);border-radius:var(--radius-sm);padding:16px 18px;font-size:18px;font-family:inherit;color:var(--text);outline:none;text-align:center;width:100%"
+      onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--bg4)'"
+      onkeydown="if(event.key==='Enter')guardarNombreVendedora()">
+    <button onclick="guardarNombreVendedora()"
+      style="width:100%;padding:16px;background:var(--gold);color:#fff;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer">
+      Entrar
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
      VENDEDORA APP
 ═══════════════════════════════════════════════════════════ -->
 <div id="app-v" class="vend-app" style="display:none">
@@ -463,7 +485,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
         <div class="topbar-mes" id="vend-mes"></div>
       </div>
     </div>
-    <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+      <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+      <button onclick="cambiarNombreVendedora()" style="background:none;border:none;font-size:10px;color:var(--text3);cursor:pointer;padding:0 2px">¿No eres tú?</button>
+    </div>
   </div>
   <!-- ── Tab bar ── -->
   <div class="vend-tabs">
@@ -475,6 +500,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
       Comisiones
     </button>
+    <button class="vend-tab" id="vtab-historial" onclick="showVendTab('historial')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4H1"/><polyline points="1 3 1 7 5 7"/></svg>
+      Historial
+    </button>
   </div>
   <div class="vend-body">
     <div id="vend-screen-pedidos">
@@ -482,6 +511,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="vend-screen-comisiones" style="display:none">
       <div id="vend-com-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div id="vend-screen-historial" style="display:none">
+      <div id="vend-hist-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
     </div>
   </div>
 </div>
@@ -814,12 +846,14 @@ function selectRole(rol) {
 
 function showApp(rol) {
   if (rol === 'vendedora') {
-    localStorage.setItem('vendedora_nombre', 'Angie');
-    showScreen('app-v');
-    document.getElementById('vend-saludo').textContent = 'Hola, Angie 👋';
-    showVendTab('pedidos');
-    loadVendedoraPedidos();
-    cargarClientes();
+    const nombre = localStorage.getItem('vendedora_nombre');
+    if (!nombre) {
+      // Primera vez en este dispositivo — pedir nombre
+      showScreen('screen-nombre');
+      setTimeout(() => document.getElementById('nombre-input').focus(), 300);
+      return;
+    }
+    abrirAppVendedora(nombre);
   } else if (rol === 'costurera') {
     showScreen('app-c');
     loadCosturera();
@@ -838,6 +872,31 @@ function showApp(rol) {
     localStorage.removeItem('ceniza_rol');
     showScreen('screen-rol');
   }
+}
+
+function abrirAppVendedora(nombre) {
+  showScreen('app-v');
+  document.getElementById('vend-saludo').textContent = 'Hola, ' + nombre + ' 👋';
+  showVendTab('pedidos');
+  loadVendedoraPedidos();
+  cargarClientes();
+}
+
+function guardarNombreVendedora() {
+  const nombre = document.getElementById('nombre-input').value.trim();
+  if (!nombre) {
+    document.getElementById('nombre-input').style.borderColor = 'var(--red)';
+    return;
+  }
+  localStorage.setItem('vendedora_nombre', nombre);
+  abrirAppVendedora(nombre);
+}
+
+function cambiarNombreVendedora() {
+  localStorage.removeItem('vendedora_nombre');
+  document.getElementById('nombre-input').value = '';
+  showScreen('screen-nombre');
+  setTimeout(() => document.getElementById('nombre-input').focus(), 300);
 }
 
 function logoutRol() {
@@ -895,75 +954,47 @@ function quincenaActual() {
 // VENDEDORA — tab switcher
 // ══════════════════════════════════════════════════════════
 function showVendTab(tab) {
-  document.getElementById('vend-screen-pedidos').style.display    = tab === 'pedidos'    ? '' : 'none';
-  document.getElementById('vend-screen-comisiones').style.display = tab === 'comisiones' ? '' : 'none';
-  document.getElementById('vtab-pedidos').classList.toggle('active',    tab === 'pedidos');
-  document.getElementById('vtab-comisiones').classList.toggle('active', tab === 'comisiones');
-  // Lazy-load comisiones la primera vez
+  ['pedidos','comisiones','historial'].forEach(t => {
+    document.getElementById('vend-screen-' + t).style.display = tab === t ? '' : 'none';
+    document.getElementById('vtab-' + t).classList.toggle('active', tab === t);
+  });
   if (tab === 'comisiones') {
     const el = document.getElementById('vend-com-content');
     if (el.querySelector('.loading-msg')) loadVendedoraComisiones();
+  }
+  if (tab === 'historial') {
+    const el = document.getElementById('vend-hist-content');
+    if (el.querySelector('.loading-msg')) loadVendedoraHistorial();
   }
 }
 
 // ══════════════════════════════════════════════════════════
 // VENDEDORA — pestaña Pedidos
 // ══════════════════════════════════════════════════════════
-async function loadVendedoraPedidos() {
+let _misOrdenes = []; // cache local para búsqueda sin re-fetch
+
+function renderVendPedidos(misOrdenes) {
   const el = document.getElementById('vend-pedidos-content');
-  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  try {
-    const d = await fetchData('produccion');
-    document.getElementById('vend-mes').textContent = d.mes || '';
-    const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
+  const q = (document.getElementById('vend-buscar-input')?.value || '').toLowerCase().trim();
+  const ordenes = q ? misOrdenes.filter(p => (p.cliente||'').toLowerCase().includes(q)) : misOrdenes;
 
-    // Recolectar todos los pedidos de esta vendedora
-    const misOrdenes = [];
-    pedidosMap = {};
-    (d.grupos || []).forEach(g => {
-      g.items.forEach(p => {
-        if ((p.responsable || '').trim() === nombre) {
-          misOrdenes.push(p);
-          pedidosMap[p.fila] = p;
-        }
-      });
-    });
+  const estadoColor = {
+    'En producción':        'var(--gold)',
+    'Pagado':               'var(--text2)',
+    'Empaquetado':          'var(--green)',
+    'Entregado a delivery': '#3b82f6',
+  };
 
-    if (!misOrdenes.length) {
-      el.innerHTML = `
-        <button class="vend-nuevo-btn" onclick="abrirFormulario()">
-          <div class="vend-nuevo-plus">＋</div>
-          <div>
-            <div class="vend-nuevo-label">Registrar nuevo pedido</div>
-            <div class="vend-nuevo-sub">Toca para abrir el formulario</div>
-          </div>
-        </button>
-        <div class="vend-empty-pedidos">
-          <div style="font-size:28px;margin-bottom:8px">📋</div>
-          <div style="font-weight:600">Sin pedidos en producción</div>
-        </div>`;
-      return;
-    }
+  const searchBar = `
+    <div style="position:relative;margin-bottom:8px">
+      <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text3)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="vend-buscar-input" type="search" placeholder="Buscar cliente…" value="${q}"
+        style="width:100%;box-sizing:border-box;padding:9px 12px 9px 32px;border:1px solid var(--bg3);border-radius:10px;font-size:14px;background:var(--bg2);color:var(--text);outline:none"
+        oninput="renderVendPedidos(_misOrdenes)">
+    </div>`;
 
-    // Agrupar por fecha de REGISTRO (más reciente primero)
-    const porFecha = {};
-    misOrdenes.forEach(p => {
-      const k = p.fechaRegistro || 'Sin fecha';
-      if (!porFecha[k]) porFecha[k] = { items: [], sort: p.fechaRegSort || '000000' };
-      porFecha[k].items.push(p);
-    });
-    // Ordenar fechas descendente (más reciente primero)
-    const fechasOrdenadas = Object.entries(porFecha)
-      .sort((a, b) => b[1].sort.localeCompare(a[1].sort));
-
-    const estadoColor = {
-      'En producción':        'var(--gold)',
-      'Pagado':               'var(--text2)',
-      'Empaquetado':          'var(--green)',
-      'Entregado a delivery': '#3b82f6',
-    };
-
-    let html = `
+  if (!ordenes.length && !q) {
+    el.innerHTML = `
       <button class="vend-nuevo-btn" onclick="abrirFormulario()">
         <div class="vend-nuevo-plus">＋</div>
         <div>
@@ -971,8 +1002,37 @@ async function loadVendedoraPedidos() {
           <div class="vend-nuevo-sub">Toca para abrir el formulario</div>
         </div>
       </button>
-      <div class="vend-cola-label">En producción · ${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''}</div>`;
+      <div class="vend-empty-pedidos">
+        <div style="font-size:28px;margin-bottom:8px">📋</div>
+        <div style="font-weight:600">Sin pedidos en producción</div>
+      </div>`;
+    return;
+  }
 
+  // Agrupar por fecha de REGISTRO (más reciente primero)
+  const porFecha = {};
+  ordenes.forEach(p => {
+    const k = p.fechaRegistro || 'Sin fecha';
+    if (!porFecha[k]) porFecha[k] = { items: [], sort: p.fechaRegSort || '000000' };
+    porFecha[k].items.push(p);
+  });
+  const fechasOrdenadas = Object.entries(porFecha)
+    .sort((a, b) => b[1].sort.localeCompare(a[1].sort));
+
+  let html = `
+    <button class="vend-nuevo-btn" onclick="abrirFormulario()">
+      <div class="vend-nuevo-plus">＋</div>
+      <div>
+        <div class="vend-nuevo-label">Registrar nuevo pedido</div>
+        <div class="vend-nuevo-sub">Toca para abrir el formulario</div>
+      </div>
+    </button>
+    ${searchBar}
+    <div class="vend-cola-label">${q ? `${ordenes.length} resultado${ordenes.length!==1?'s':''} para "${q}"` : `En producción · ${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''}`}</div>`;
+
+  if (!ordenes.length && q) {
+    html += `<div class="vend-empty-pedidos"><div style="font-size:22px;margin-bottom:6px">🔍</div><div>Sin resultados para "${q}"</div></div>`;
+  } else {
     fechasOrdenadas.forEach(([fecha, grupo]) => {
       const items = grupo.items;
       html += `<div class="vend-order-date">📆 Registrado: ${fecha}</div>`;
@@ -997,11 +1057,77 @@ async function loadVendedoraPedidos() {
       });
       html += `</div>`;
     });
+  }
 
-    html += `<button class="btn" onclick="loadVendedoraPedidos()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
-    el.innerHTML = html;
+  html += `<button class="btn" onclick="loadVendedoraPedidos()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
+  el.innerHTML = html;
+  // Restaurar foco si el usuario estaba buscando
+  if (q) { const inp = document.getElementById('vend-buscar-input'); if(inp){ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length); } }
+}
+
+async function loadVendedoraPedidos() {
+  const el = document.getElementById('vend-pedidos-content');
+  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const d = await fetchData('produccion');
+    document.getElementById('vend-mes').textContent = d.mes || '';
+    const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
+
+    // Recolectar todos los pedidos de esta vendedora
+    const misOrdenes = [];
+    pedidosMap = {};
+    (d.grupos || []).forEach(g => {
+      g.items.forEach(p => {
+        if ((p.responsable || '').trim() === nombre) {
+          misOrdenes.push(p);
+          pedidosMap[p.fila] = p;
+        }
+      });
+    });
+    _misOrdenes = misOrdenes;
+
+    renderVendPedidos(misOrdenes);
   } catch(e) {
     el.innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraPedidos()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// VENDEDORA — pestaña Historial
+// ══════════════════════════════════════════════════════════
+async function loadVendedoraHistorial() {
+  const el = document.getElementById('vend-hist-content');
+  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  try {
+    const nombre = localStorage.getItem('vendedora_nombre') || '';
+    const d = await fetchData('historial', '&responsable=' + encodeURIComponent(nombre));
+    if (!d.pedidos || !d.pedidos.length) {
+      el.innerHTML = `<div class="vend-empty-pedidos"><div style="font-size:28px;margin-bottom:8px">📦</div><div style="font-weight:600">Sin entregas registradas aún</div></div>`;
+      return;
+    }
+    let html = `<div class="vend-quincena-chip" style="margin-top:8px">✅ ${d.total} pantalón${d.total!==1?'es':''} entregado${d.total!==1?'s':''}</div>`;
+    d.pedidos.forEach(p => {
+      const talla = p.talla ? p.talla.replace(/^T/i,'') : '';
+      const detalle = [p.color, talla ? `T${talla}` : '', p.ruedo ? `ruedo ${p.ruedo}` : ''].filter(Boolean).join(' · ');
+      const colorEstado = p.estado === 'Entregado a cliente' ? 'var(--green)' : 'var(--blue)';
+      html += `<div class="vend-order-card">
+        <div class="vend-order-row" style="border-bottom:none;padding-bottom:0">
+          <div>
+            <div class="vend-order-client">${p.cliente}</div>
+            <div class="vend-order-detail">${detalle}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:3px">📅 ${p.fechaRegistro}</div>
+          </div>
+          <div class="vend-order-actions">
+            <div class="vend-order-status" style="color:${colorEstado}">${p.estado}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--gold);margin-top:2px">${fmt$(p.montoProducto)}</div>
+          </div>
+        </div>
+      </div>`;
+    });
+    html += `<button class="btn" onclick="loadVendedoraHistorial()" style="margin-top:8px;margin-bottom:8px">${refreshIcon}Actualizar</button>`;
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraHistorial()">${refreshIcon}Reintentar</button>`;
   }
 }
 
@@ -1600,6 +1726,29 @@ async function loadEntregas(offset, forzar=false){
 function renderEntregas(d, fecha){
   _entPedidos=d.pedidos; _entFecha=fecha;
   const hayDel=d.pedidos.some(p=>['Delivery','Envío MRW','Envío ZOOM'].includes(p.tipoEntrega));
+
+  // Resumen de caja
+  let totalEfectivo=0, totalVuelto=0, totalTransf=0;
+  d.pedidos.forEach(p=>{
+    const metodo=(p.metodoPago||'').toLowerCase();
+    const monto=parseFloat(p.montoProducto||0)+parseFloat(p.montoDelivery||0);
+    if(metodo==='efectivo'||metodo==='mixto'){
+      totalEfectivo+=parseFloat(p.montoEfectivo||0)||monto;
+      totalVuelto+=parseFloat(p.vuelto||0);
+    } else {
+      totalTransf+=monto;
+    }
+  });
+  const resumenCaja = (totalEfectivo>0||totalVuelto>0||totalTransf>0) ? `
+    <div class="card" style="margin-bottom:8px;border-left:3px solid var(--gold)">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">💰 Resumen de caja</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr${totalTransf>0?'  1fr':''};gap:8px;text-align:center">
+        <div><div style="font-size:10px;color:var(--text3)">Cobrar efectivo</div><div style="font-size:18px;font-weight:700;color:var(--text)">${fmt$(totalEfectivo)}</div></div>
+        <div><div style="font-size:10px;color:var(--text3)">Llevar de vuelto</div><div style="font-size:18px;font-weight:700;color:var(--red)">${fmt$(totalVuelto)}</div></div>
+        ${totalTransf>0?`<div><div style="font-size:10px;color:var(--text3)">Transferencia</div><div style="font-size:18px;font-weight:700;color:var(--blue)">${fmt$(totalTransf)}</div></div>`:''}
+      </div>
+    </div>` : '';
+
   let html=`
     <div class="date-nav">
       <button class="date-nav-btn" onclick="loadEntregas(-1)">${arrowLeft}</button>
@@ -1615,6 +1764,7 @@ function renderEntregas(d, fecha){
       <div class="metric-card"><div class="metric-label">Envíos</div><div class="metric-value blue">${d.envios}</div></div>
       <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
     </div>`;
+  html += resumenCaja;
   if(!d.pedidos.length){
     html+='<div class="empty-state">No hay entregas para este día</div>';
   } else {
