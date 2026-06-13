@@ -2042,7 +2042,8 @@ async function eliminarPedido(fila, cliente) {
     const data = await r.json();
     if (data.success) {
       mostrarToast(`✓ Pedido de ${cliente} eliminado`);
-      _prodCache = null;
+      _prodCache = null;   // invalida vista costurera
+      _entCache  = {};     // invalida todos los días del delivery
       loadVendedoraPedidos();
     } else {
       throw new Error(data.error || 'Error');
