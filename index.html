@@ -1581,58 +1581,64 @@ function renderProduccion(){
 // ══════════════════════════════════════════════════════════
 // ENTREGAS
 // ══════════════════════════════════════════════════════════
-let fechaEntregasActual=new Date(), _entPedidos=[], _entFecha='';
+let fechaEntregasActual=new Date(), _entPedidos=[], _entFecha='', _entCache={};
 
-async function loadEntregas(offset){
+async function loadEntregas(offset, forzar=false){
   if(offset!==undefined){ fechaEntregasActual=new Date(fechaEntregasActual); fechaEntregasActual.setDate(fechaEntregasActual.getDate()+offset); }
+  const fecha=fechaStr(fechaEntregasActual);
+  if(!forzar && _entCache[fecha]){ renderEntregas(_entCache[fecha],fecha); return; }
   document.getElementById('ent-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try{
-    const fecha=fechaStr(fechaEntregasActual);
     const d=await fetchData('entregas',`&fecha=${fecha}`);
-    _entPedidos=d.pedidos; _entFecha=fecha;
-    const hayDel=d.pedidos.some(p=>['Delivery','Envío MRW','Envío ZOOM'].includes(p.tipoEntrega));
-    let html=`
-      <div class="date-nav">
-        <button class="date-nav-btn" onclick="loadEntregas(-1)">${arrowLeft}</button>
-        <div class="date-nav-center">
-          <div class="date-nav-label">${fechaLabel(fechaEntregasActual)}</div>
-          <div class="date-nav-sub">${fecha}</div>
-        </div>
-        <button class="date-nav-btn" onclick="loadEntregas(+1)">${arrowRight}</button>
-      </div>
-      <div class="metric-grid">
-        <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value gold">${d.total}</div></div>
-        <div class="metric-card"><div class="metric-label">Delivery</div><div class="metric-value amber">${d.delivery}</div></div>
-        <div class="metric-card"><div class="metric-label">Envíos</div><div class="metric-value blue">${d.envios}</div></div>
-        <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
-      </div>`;
-    if(!d.pedidos.length){
-      html+='<div class="empty-state">No hay entregas para este día</div>';
-    } else {
-      d.pedidos.forEach(p=>{
-        html+=`<div class="card">
-          <div class="card-header"><div class="card-title">${p.cliente}</div>${badgeHTML(p.tipoEntrega)}</div>
-          <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
-          ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
-          <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
-        </div>`;
-      });
-    }
-    if(hayDel){
-      html+=`<button class="btn-wa" onclick="enviarADelivery()">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-          <path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.126 1.534 5.862L0 24l6.29-1.51A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.032-1.386l-.36-.214-3.733.897.938-3.63-.235-.374A9.818 9.818 0 1112 21.818z"/>
-        </svg>
-        Enviar al delivery
-      </button>
-      <div class="wa-hint">Número guardado · <a onclick="cambiarNumeroDelivery()">cambiar</a></div>`;
-    }
-    html+=`<button class="btn" onclick="loadEntregas(0)" style="margin-top:8px">${refreshIcon}Actualizar</button>`;
-    document.getElementById('ent-content').innerHTML=html;
+    _entCache[fecha]=d;
+    renderEntregas(d, fecha);
   }catch(e){
-    document.getElementById('ent-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas(0)">${refreshIcon}Reintentar</button>`;
+    document.getElementById('ent-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas(undefined,true)">${refreshIcon}Reintentar</button>`;
   }
+}
+
+function renderEntregas(d, fecha){
+  _entPedidos=d.pedidos; _entFecha=fecha;
+  const hayDel=d.pedidos.some(p=>['Delivery','Envío MRW','Envío ZOOM'].includes(p.tipoEntrega));
+  let html=`
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="loadEntregas(-1)">${arrowLeft}</button>
+      <div class="date-nav-center">
+        <div class="date-nav-label">${fechaLabel(fechaEntregasActual)}</div>
+        <div class="date-nav-sub">${fecha}</div>
+      </div>
+      <button class="date-nav-btn" onclick="loadEntregas(+1)">${arrowRight}</button>
+    </div>
+    <div class="metric-grid">
+      <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value gold">${d.total}</div></div>
+      <div class="metric-card"><div class="metric-label">Delivery</div><div class="metric-value amber">${d.delivery}</div></div>
+      <div class="metric-card"><div class="metric-label">Envíos</div><div class="metric-value blue">${d.envios}</div></div>
+      <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
+    </div>`;
+  if(!d.pedidos.length){
+    html+='<div class="empty-state">No hay entregas para este día</div>';
+  } else {
+    d.pedidos.forEach(p=>{
+      html+=`<div class="card">
+        <div class="card-header"><div class="card-title">${p.cliente}</div>${badgeHTML(p.tipoEntrega)}</div>
+        <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
+        ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
+        <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
+      </div>`;
+    });
+  }
+  if(hayDel){
+    html+=`<button class="btn-wa" onclick="enviarADelivery()">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.126 1.534 5.862L0 24l6.29-1.51A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.032-1.386l-.36-.214-3.733.897.938-3.63-.235-.374A9.818 9.818 0 1112 21.818z"/>
+      </svg>
+      Enviar al delivery
+    </button>
+    <div class="wa-hint">Número guardado · <a onclick="cambiarNumeroDelivery()">cambiar</a></div>`;
+  }
+  html+=`<button class="btn" onclick="loadEntregas(undefined,true)" style="margin-top:8px">${refreshIcon}Actualizar</button>`;
+  document.getElementById('ent-content').innerHTML=html;
 }
 
 // ══════════════════════════════════════════════════════════
