@@ -183,6 +183,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .cart-item-title{font-size:13px;font-weight:600}
 .cart-item-det{font-size:11px;color:var(--text2);margin-top:2px}
 .cart-item-del{width:28px;height:28px;border-radius:50%;background:var(--red-bg);color:var(--red);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;line-height:1}
+.cart-item-edit{width:28px;height:28px;border-radius:50%;background:var(--gold-bg);color:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;line-height:1}
+.cart-item-btns{display:flex;gap:5px;flex-shrink:0}
 .add-item-box{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:8px}
 .add-item-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .add-item-actions{display:flex;gap:8px}
@@ -192,7 +194,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .btn-add-open:active{border-color:var(--gold);color:var(--gold)}
 
 /* ── BUTTONS ── */
-.btn{width:100%;margin-top:12px;padding:14px;background:var(--gold);color:var(--brand-cream);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
+.btn{width:100%;margin-top:12px;padding:14px;background:var(--gold);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
 .btn:active{opacity:0.8;transform:scale(0.98)}
 .btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
 .btn svg{width:16px;height:16px;stroke:var(--brand-cream);fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
@@ -1011,50 +1013,54 @@ async function loadVendedoraComisiones() {
     const vend = d.vendedoras.find(v => v.nombre === nombre);
     const qLabel = d.quincenaLabel || '';
 
-    let html = `<div class="vend-quincena-chip">🗓 ${qLabel}</div>`;
-    if (!vend) {
-      html += `<div class="hero" style="margin-top:0">
-        <div class="hero-label">Tus ventas esta quincena</div>
-        <div class="hero-amount">0</div>
-        <div class="hero-sub">pantalones vendidos · comisión 5%</div>
-        <div class="hero-badge">💰 Total estimado $100.00</div>
+    const pantsVal   = vend ? vend.pants    : 0;
+    const comisionVal = vend ? vend.comision : '0.00';
+    const totalVal    = vend ? vend.totalAPagar : '100.00';
+    const nivelSig    = vend ? vend.nivelSiguiente : { pants: 150, pct: 6 };
+    const faltan      = vend ? vend.faltanParaSiguiente : 150;
+    const max         = nivelSig ? nivelSig.pants : Math.max(pantsVal, 1);
+    const prog        = Math.min(100, Math.round(pantsVal / max * 100));
+
+    let html = `<div class="vend-quincena-chip">🗓 ${qLabel}</div>
+
+    <!-- Dos métricas principales lado a lado -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="card" style="text-align:center;padding:18px 10px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Pantalones</div>
+        <div style="font-size:42px;font-weight:700;color:var(--text);line-height:1">${pantsVal}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:5px">vendidos</div>
       </div>
-      <div class="card">
-        <div class="row"><span class="row-label">Base fija (quincena)</span><span class="row-val">$100.00</span></div>
-        <div class="row"><span class="row-label">Comisión (5% × 0 × $13.29)</span><span class="row-val">$0.00</span></div>
-        <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">$100.00</span></div>
-      </div>`;
-    } else {
-      const max = vend.nivelSiguiente ? vend.nivelSiguiente.pants : Math.max(vend.pants, 1);
-      const prog = Math.min(100, Math.round(vend.pants / max * 100));
-      html += `<div class="hero" style="margin-top:0">
-        <div class="hero-label">Tus ventas esta quincena</div>
-        <div class="hero-amount">${vend.pants}</div>
-        <div class="hero-sub">pantalones vendidos · comisión ${vend.pct}</div>
-        <div class="hero-badge">💰 Total estimado ${fmt$(vend.totalAPagar)}</div>
+      <div class="card" style="text-align:center;padding:18px 10px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Comisión</div>
+        <div style="font-size:42px;font-weight:700;color:var(--gold);line-height:1">${fmt$(comisionVal)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:5px">esta quincena</div>
       </div>
-      <div class="card">
-        <div class="bar-bg"><div class="bar-fill" style="width:${prog}%"></div></div>
-        <div style="font-size:13px;color:var(--text2);margin-bottom:14px">
-          ${vend.nivelSiguiente
-            ? `Faltan <strong style="color:var(--gold)">${vend.faltanParaSiguiente}</strong> pantalones para ganar ${vend.nivelSiguiente.pct}% de comisión`
-            : '<span style="color:var(--green)">¡Nivel máximo alcanzado! 🎉</span>'}
-        </div>
-        <div class="row"><span class="row-label">Base fija (quincena)</span><span class="row-val">$100.00</span></div>
-        <div class="row"><span class="row-label">Comisión (${vend.pct} × ${vend.pants} × $13.29)</span><span class="row-val">${fmt$(vend.comision)}</span></div>
-        <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">${fmt$(vend.totalAPagar)}</span></div>
+    </div>
+
+    <!-- Progreso y resumen -->
+    <div class="card">
+      <div class="bar-bg"><div class="bar-fill" style="width:${prog}%"></div></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px">
+        ${nivelSig
+          ? `Faltan <strong style="color:var(--gold)">${faltan}</strong> pantalones para ganar ${nivelSig.pct}% de comisión`
+          : '<span style="color:var(--green)">¡Nivel máximo alcanzado! 🎉</span>'}
       </div>
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">Niveles de comisión</div>
-      <div class="card">
-        ${[{r:'1–149',p:'5%',min:1},{r:'150–199',p:'6%',min:150},
-           {r:'200–299',p:'7%',min:200},{r:'300–399',p:'8%',min:300},
-           {r:'400+',p:'10%',min:400}
-          ].map(n=>`<div class="row">
-            <span class="row-label">${n.r} pantalones</span>
-            <span class="row-val ${vend.pants>=n.min?'gold':''}">${n.p}</span>
-          </div>`).join('')}
-      </div>`;
-    }
+      <div class="row"><span class="row-label">Base fija (quincena)</span><span class="row-val">$100.00</span></div>
+      <div class="row"><span class="row-label">Comisión</span><span class="row-val">${fmt$(comisionVal)}</span></div>
+      <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">${fmt$(totalVal)}</span></div>
+    </div>
+
+    <!-- Tabla de niveles -->
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">Niveles de comisión</div>
+    <div class="card">
+      ${[{r:'1–149',p:'5%',min:1},{r:'150–199',p:'6%',min:150},
+         {r:'200–299',p:'7%',min:200},{r:'300–399',p:'8%',min:300},
+         {r:'400+',p:'10%',min:400}
+        ].map(n=>`<div class="row">
+          <span class="row-label">${n.r} pantalones</span>
+          <span class="row-val ${pantsVal>=n.min?'gold':''}">${n.p}</span>
+        </div>`).join('')}
+    </div>`;
     html += `<button class="btn" onclick="loadVendedoraComisiones()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
     el.innerHTML = html;
   } catch(e) {
@@ -1785,6 +1791,8 @@ function ocultarAddItem() {
   document.getElementById('btn-add-item').style.display = 'block';
   ['ai-color','ai-talla','ai-ruedo'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('ai-monto').value = '';
+  const lbl = document.querySelector('#add-item-form div');
+  if (lbl) lbl.textContent = 'Nuevo pantalón';
 }
 
 function agregarItem() {
@@ -1806,6 +1814,25 @@ function eliminarItem(idx) {
   renderCarrito();
 }
 
+function editarItem(idx) {
+  const item = carrito[idx];
+  if (!item) return;
+  // Pre-llenar el formulario de agregar pantalón
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  set('ai-color', item.color);
+  set('ai-talla', item.talla);
+  set('ai-ruedo', item.ruedo);
+  document.getElementById('ai-monto').value = item.montoProducto || '';
+  // Cambiar el título del cuadro a "Editar pantalón"
+  const lbl = document.querySelector('#add-item-form [style*="Nuevo"]') ||
+              document.querySelector('#add-item-form div');
+  if (lbl && lbl.textContent.trim().startsWith('Nuevo')) lbl.textContent = 'Editar pantalón';
+  // Quitar el ítem del carrito y abrir el formulario
+  carrito.splice(idx, 1);
+  renderCarrito();
+  mostrarAddItem();
+}
+
 function renderCarrito() {
   const lista = document.getElementById('cart-list');
   const btn   = document.getElementById('btn-submit');
@@ -1825,7 +1852,10 @@ function renderCarrito() {
         <div class="cart-item-title">${item.color}</div>
         <div class="cart-item-det">Talla ${item.talla} · ${item.ruedo}cm · $${parseFloat(item.montoProducto).toFixed(2)}</div>
       </div>
-      <button class="cart-item-del" onclick="eliminarItem(${i})" title="Eliminar">✕</button>
+      <div class="cart-item-btns">
+        <button class="cart-item-edit" onclick="editarItem(${i})" title="Editar">✏️</button>
+        <button class="cart-item-del" onclick="eliminarItem(${i})" title="Eliminar">✕</button>
+      </div>
     </div>`).join('');
   const total = carrito.reduce((s, i) => s + parseFloat(i.montoProducto || 0), 0);
   btn.disabled = false;
