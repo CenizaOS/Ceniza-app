@@ -771,7 +771,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
           <select id="f-metodo-pago" onchange="toggleMetodoPago()">
             <option value="">Seleccionar...</option>
             <option>Pago móvil</option><option>Transferencia</option>
-            <option>Efectivo al retirar</option><option>Efectivo al entregar</option>
+            <option>Efectivo al retirar</option>
             <option>PayPal</option><option>Binance</option>
           </select>
         </div>
@@ -2531,6 +2531,7 @@ function renderEntregas(d, fecha){
         ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
         <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
         <div class="row"><span class="row-label">Estado</span><span class="row-val" style="color:var(--amber)">${p.estado}</span></div>
+        ${p.notas?`<div style="margin-top:8px;padding:8px 10px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:6px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`:''}
       </div>`;
     });
   }
@@ -2545,6 +2546,7 @@ function renderEntregas(d, fecha){
         <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
         ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
         <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
+        ${p.notas?`<div style="margin-top:8px;padding:8px 10px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:6px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`:''}
       </div>`;
     });
   }
@@ -3049,7 +3051,7 @@ async function submitPedidos(){
       const data = await r.json();
       if (data.success) {
         cerrarFormulario();
-        mostrarToast(`✓ ${data.total} pantalón${data.total !== 1 ? 'es' : ''} registrado${data.total !== 1 ? 's' : ''} para ${nombre}`);
+        mostrarToast(`Pedido guardado para ${nombre}`);
         resetForm();
         _prodCache = null;
         cargarClientes();
