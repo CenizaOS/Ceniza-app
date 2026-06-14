@@ -2522,6 +2522,12 @@ function renderEntregas(d, fecha){
     </div>`;
   html += resumenCaja;
   // ── Rezagadas (entregas vencidas pendientes) ──
+  // Si el servidor NO devuelve el campo `rezagadas`, el script viejo está corriendo
+  if (d.rezagadas === undefined) {
+    html += `<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:12px;color:var(--red);font-weight:600">
+      ⚠️ Apps Script desactualizado — redespliega una nueva versión para ver rezagadas
+    </div>`;
+  }
   const rezagadas = d.rezagadas || [];
   if (rezagadas.length) {
     html += `<div class="rezagada-header">⚠️ ${rezagadas.length} entrega${rezagadas.length!==1?'s':''} rezagada${rezagadas.length!==1?'s':''} — hacer hoy</div>`;
