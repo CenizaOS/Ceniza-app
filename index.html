@@ -2088,9 +2088,49 @@ function renderDelivery(d, fecha) {
       <div class="del-stat"><div class="del-stat-n" style="color:var(--green)">${entregados}</div><div class="del-stat-l">Entregados</div></div>
     </div>`;
 
-  if (!d.pedidos.length) {
+  // ── Rezagadas ──────────────────────────────────────────────
+  const rezagadas = d.rezagadas || [];
+  if (rezagadas.length) {
+    html += `<div class="rezagada-header">⚠️ ${rezagadas.length} entrega${rezagadas.length!==1?'s':''} rezagada${rezagadas.length!==1?'s':''} — pendiente${rezagadas.length!==1?'s':''} de día anterior</div>`;
+    rezagadas.forEach((p, idx) => {
+      const cardId = `del-rez-${idx}`;
+      const filas = [p.fila];
+      const tel = (p.telefono || '').replace(/[^0-9]/g,'');
+      const telDisplay = p.telefono || '';
+      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+      const monto = parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0);
+      const metodoPago = (p.metodoPago || '').toLowerCase();
+      const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+      const montoEfectivo = parseFloat(p.montoEfectivo || 0);
+      const vueltoGuardado = parseFloat(p.vuelto || 0);
+      const partes = [p.color, p.talla||''].filter(Boolean).join(' · ');
+      const vueltoHtml = esCobrar ? `
+        <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+        ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
+        ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
+      html += `<div class="del-card rezagada" id="${cardId}" style="border-left:3px solid #d97706">
+        <div class="del-card-info">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <div class="del-card-name">${p.cliente}</div>
+            <span class="rezagada-badge">Rezagada · ${p.fechaOriginal}</span>
+          </div>
+          <div class="del-card-det">1 pantalón:</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>
+          ${telDisplay ? `<div class="del-phone-row"><a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>${waLink?`<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
+          ${p.direccion ? `<div class="del-card-dir">📍 ${p.direccion}</div>` : ''}
+          ${p.notas ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:2px solid var(--amber);border-radius:4px;font-size:11px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 </span>${p.notas}</div>` : ''}
+          ${vueltoHtml}
+        </div>
+        <button class="del-check" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="Marcar como entregado">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>`;
+    });
+  }
+
+  if (!d.pedidos.length && !rezagadas.length) {
     html += '<div class="empty-state">Sin entregas para este día</div>';
-  } else {
+  } else if (d.pedidos.length) {
     const tiposEntrega = [
       { tipo: 'Delivery',        icono: '🛵', label: 'Delivery' },
       { tipo: 'Retiro personal', icono: '🙂', label: 'Retiro personal' },
@@ -2471,7 +2511,6 @@ async function loadEntregas(offset, forzar=false){
   document.getElementById('ent-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try{
     const d=await fetchData('entregas',`&fecha=${fecha}`);
-    console.log('[Ceniza] getEntregas →', JSON.stringify({pedidos:d.pedidos?.length, rezagadas:d.rezagadas?.length, rezagadasData:d.rezagadas}));
     _entCache[fecha]=d;
     renderEntregas(d, fecha);
   }catch(e){
@@ -2522,11 +2561,6 @@ function renderEntregas(d, fecha){
     </div>`;
   html += resumenCaja;
   // ── Rezagadas (entregas vencidas pendientes) ──
-  // Debug temporal: muestra en pantalla qué devuelve la API
-  const _dbgRez = d.rezagadas;
-  html += `<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:#6366f1;font-family:monospace">
-    🔍 debug — rezagadas: ${_dbgRez === undefined ? 'undefined (script viejo)' : JSON.stringify(_dbgRez)}
-  </div>`;
   const rezagadas = d.rezagadas || [];
   if (rezagadas.length) {
     html += `<div class="rezagada-header">⚠️ ${rezagadas.length} entrega${rezagadas.length!==1?'s':''} rezagada${rezagadas.length!==1?'s':''} — hacer hoy</div>`;
