@@ -2857,11 +2857,13 @@ function abrirEdicion(fila) {
   const p = pedidosMap[fila];
   if (!p) { mostrarToast('⚠ Error: pedido no encontrado'); return; }
 
-  formModo = 'editar';
   filaEdicion = fila;
 
   // Abrir formulario en modo limpio (reutiliza la animación y resets)
   abrirFormulario();
+
+  // IMPORTANTE: set después de abrirFormulario() para no ser pisado por el reset interno
+  formModo = 'editar';
 
   // Sobrescribir con datos del pedido (abrirFormulario() ya corrió, sobrepisamos)
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
@@ -2897,8 +2899,9 @@ function abrirEdicion(fila) {
   toggleEntrega();
   toggleMetodoPago();
 
-  // Actualizar título
+  // Actualizar título y botón con el modo correcto
   document.querySelector('.form-title').textContent = 'Editar pedido';
+  renderCarrito(); // refresca el botón para que diga "Guardar cambios"
 }
 
 // ── ELIMINAR PEDIDO ────────────────────────────────────────
