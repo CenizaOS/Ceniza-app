@@ -2471,6 +2471,7 @@ async function loadEntregas(offset, forzar=false){
   document.getElementById('ent-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try{
     const d=await fetchData('entregas',`&fecha=${fecha}`);
+    console.log('[Ceniza] getEntregas →', JSON.stringify({pedidos:d.pedidos?.length, rezagadas:d.rezagadas?.length, rezagadasData:d.rezagadas}));
     _entCache[fecha]=d;
     renderEntregas(d, fecha);
   }catch(e){
