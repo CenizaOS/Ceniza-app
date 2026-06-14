@@ -2706,14 +2706,18 @@ function verificarContactoDuplicado(campo, valor) {
   const alerta  = document.getElementById('contacto-alerta');
   const msg     = document.getElementById('contacto-alerta-msg');
   if (!alerta || !msg) return;
-  const v = (valor || '').trim().replace(/[\s\-\.]/g, ''); // normalizar
-  if (v.length < 5) { alerta.style.display = 'none'; return; }
+  // Si cache vacío, intentar cargar y reintentar en 1s
+  if (!clientesCache.length) {
+    cargarClientes().then(() => verificarContactoDuplicado(campo, valor));
+    return;
+  }
+  const norm = s => (s || '').trim().replace(/[\s\-\.\(\)\+]/g, '').replace(/^58/, '0'); // +58... → 0...
+  const v = norm(valor);
+  if (v.length < 7) { alerta.style.display = 'none'; return; }
   const nombreActual = (document.getElementById('f-nombre').value || '').trim().toLowerCase();
   const match = clientesCache.find(c => {
-    const cmp = campo === 'telefono'
-      ? (c.telefono || '').replace(/[\s\-\.]/g, '')
-      : (c.cedula   || '').replace(/[\s\-\.]/g, '');
-    return cmp.length >= 5 && cmp === v;
+    const cmp = norm(campo === 'telefono' ? c.telefono : c.cedula);
+    return cmp.length >= 7 && (cmp === v || cmp.endsWith(v) || v.endsWith(cmp));
   });
   if (match && match.nombre.toLowerCase() !== nombreActual) {
     const label = campo === 'telefono' ? 'número' : 'cédula';
@@ -2907,13 +2911,12 @@ function abrirEdicion(fila) {
   const p = pedidosMap[fila];
   if (!p) { mostrarToast('⚠ Error: pedido no encontrado'); return; }
 
-  filaEdicion = fila;
-
   // Abrir formulario en modo limpio (reutiliza la animación y resets)
   abrirFormulario();
 
-  // IMPORTANTE: set después de abrirFormulario() para no ser pisado por el reset interno
+  // IMPORTANTE: set después de abrirFormulario() para no ser pisados por el reset interno
   formModo = 'editar';
+  filaEdicion = fila;
 
   // Sobrescribir con datos del pedido (abrirFormulario() ya corrió, sobrepisamos)
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
