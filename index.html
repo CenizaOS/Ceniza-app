@@ -3080,13 +3080,13 @@ async function submitPedidos(){
       const data = await r.json();
       if (data.success) {
         cerrarFormulario();
-        mostrarToast(`Pedido guardado para ${nombre}`);
+        mostrarToast(`✓ Registrado con éxito`);
         resetForm();
         _prodCache = null;
         cargarClientes();
         const rol = localStorage.getItem('ceniza_rol');
         if (rol === 'duena')     { loadDashboard(); loadProduccion(); }
-        if (rol === 'vendedora') { loadVendedora(); }
+        if (rol === 'vendedora') { loadVendedoraPedidos(); }
       } else {
         throw new Error(data.error || 'Error desconocido');
       }
