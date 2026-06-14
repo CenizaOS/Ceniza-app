@@ -727,11 +727,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
         </div>
         <div class="form-group">
           <label>Teléfono</label>
-          <input type="tel" id="f-telefono" placeholder="0414-1234567">
+          <input type="tel" id="f-telefono" placeholder="0414-1234567" oninput="verificarContactoDuplicado('telefono',this.value)">
         </div>
         <div class="form-group">
           <label>Cédula</label>
-          <input type="text" id="f-cedula" placeholder="V-12.345.678">
+          <input type="text" id="f-cedula" placeholder="V-12.345.678" oninput="verificarContactoDuplicado('cedula',this.value)">
+        </div>
+        <div id="contacto-alerta" class="form-group full" style="display:none">
+          <div id="contacto-alerta-msg" class="cliente-badge" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.25)"></div>
         </div>
         <div class="form-group">
           <label>Origen *</label>
@@ -2699,6 +2702,28 @@ function mostrarClienteBadge(c) {
   }
 }
 
+function verificarContactoDuplicado(campo, valor) {
+  const alerta  = document.getElementById('contacto-alerta');
+  const msg     = document.getElementById('contacto-alerta-msg');
+  if (!alerta || !msg) return;
+  const v = (valor || '').trim().replace(/[\s\-\.]/g, ''); // normalizar
+  if (v.length < 5) { alerta.style.display = 'none'; return; }
+  const nombreActual = (document.getElementById('f-nombre').value || '').trim().toLowerCase();
+  const match = clientesCache.find(c => {
+    const cmp = campo === 'telefono'
+      ? (c.telefono || '').replace(/[\s\-\.]/g, '')
+      : (c.cedula   || '').replace(/[\s\-\.]/g, '');
+    return cmp.length >= 5 && cmp === v;
+  });
+  if (match && match.nombre.toLowerCase() !== nombreActual) {
+    const label = campo === 'telefono' ? 'número' : 'cédula';
+    msg.innerHTML = `⚠️ Este ${label} ya está registrado para <strong>${match.nombre}</strong>`;
+    alerta.style.display = 'block';
+  } else {
+    alerta.style.display = 'none';
+  }
+}
+
 document.addEventListener('click', e => {
   const lista = document.getElementById('autocomplete-list');
   if (lista && !lista.contains(e.target) && e.target.id !== 'f-nombre') {
@@ -2870,6 +2895,7 @@ function resetForm(){
   document.getElementById('grupo-monto-efectivo').style.display='none';
   document.getElementById('grupo-vuelto').style.display='none';
   document.getElementById('cliente-badge-wrap').style.display='none';
+  const ca = document.getElementById('contacto-alerta'); if(ca) ca.style.display='none';
   carrito = [];
   renderCarrito();
   ocultarAddItem();
