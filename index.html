@@ -209,6 +209,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .wa-hint a{color:var(--text3);text-decoration:underline;cursor:pointer}
 
 /* ── DATE NAV ── */
+.rezagada-header{display:flex;align-items:center;gap:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:10px;padding:8px 12px;margin-bottom:4px;font-size:11px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.05em}
+.rezagada-badge{display:inline-block;background:#d97706;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0}
+.card.rezagada{border-left:3px solid #d97706}
 .date-nav{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}
 .date-nav-btn{width:44px;height:44px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .date-nav-center{text-align:center}
@@ -2514,9 +2517,28 @@ function renderEntregas(d, fecha){
       <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
     </div>`;
   html += resumenCaja;
-  if(!d.pedidos.length){
+  // ── Rezagadas (entregas vencidas pendientes) ──
+  const rezagadas = d.rezagadas || [];
+  if (rezagadas.length) {
+    html += `<div class="rezagada-header">⚠️ ${rezagadas.length} entrega${rezagadas.length!==1?'s':''} rezagada${rezagadas.length!==1?'s':''} — hacer hoy</div>`;
+    rezagadas.forEach(p => {
+      html += `<div class="card rezagada">
+        <div class="card-header">
+          <div class="card-title">${p.cliente}</div>
+          <span class="rezagada-badge">Rezagada · ${p.fechaOriginal}</span>
+        </div>
+        <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
+        ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
+        <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
+        <div class="row"><span class="row-label">Estado</span><span class="row-val" style="color:var(--amber)">${p.estado}</span></div>
+      </div>`;
+    });
+  }
+
+  // ── Pedidos del día ──
+  if(!d.pedidos.length && !rezagadas.length){
     html+='<div class="empty-state">No hay entregas para este día</div>';
-  } else {
+  } else if(d.pedidos.length) {
     d.pedidos.forEach(p=>{
       html+=`<div class="card">
         <div class="card-header"><div class="card-title">${p.cliente}</div>${badgeHTML(p.tipoEntrega)}</div>
