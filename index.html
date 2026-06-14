@@ -1045,6 +1045,7 @@ function finBe() { // pantalones mínimos para cubrir fijos
 let _finPants = 0, _finLabel = '';
 let _fondos   = { emergencia:0, crecimiento:0, empresa:0 };
 let _cuentas  = { binance:0, bolivares:0, usdEfectivo:0, paypal:0 };
+let _tasas    = { bcv:0, usdt:0, fecha:'' };
 let _planPants = 100;
 
 // ── Entrada a la app de dueña ───────────────────────────────
@@ -1222,6 +1223,7 @@ async function loadFinFondos() {
     if (d && !d.error) {
       _fondos  = d.fondos  || { emergencia:0, crecimiento:0, empresa:0 };
       _cuentas = d.cuentas || { binance:0, bolivares:0, usdEfectivo:0, paypal:0 };
+      _tasas   = d.tasas   || { bcv:0, usdt:0, fecha:'' };
     } else { throw new Error('API sin datos'); }
   } catch(e) {
     // Fallback: localStorage
@@ -1229,6 +1231,7 @@ async function loadFinFondos() {
       const saved = JSON.parse(localStorage.getItem('ceniza_fin') || '{}');
       if (saved.fondos)  _fondos  = saved.fondos;
       if (saved.cuentas) _cuentas = saved.cuentas;
+      if (saved.tasas)   _tasas   = saved.tasas;
     } catch(_) {}
   }
   renderFinFondos();
@@ -1429,7 +1432,32 @@ function renderFinCuentas() {
     { key:'usdEfectivo', icon:'💵', label:'USD efectivo' },
     { key:'paypal',      icon:'🔵', label:'PayPal' },
   ];
+  const fechaLabel = _tasas.fecha
+    ? `<span style="color:var(--gold-dim)">Actualizado: ${_tasas.fecha}</span>`
+    : `<span style="color:var(--text3)">Sin actualizar hoy</span>`;
   document.getElementById('fin-cuentas-content').innerHTML = `
+    <div class="fin-sec-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>💱 Tasas del día</span>
+      <span style="font-size:11px;font-weight:400">${fechaLabel}</span>
+    </div>
+    <div class="fin-card">
+      <div class="fin-cuenta-row">
+        <span class="fin-cuenta-icon">🏦</span>
+        <span class="fin-cuenta-label">BCV <span style="font-size:11px;color:var(--text3)">(Bs/$)</span></span>
+        <input class="fin-cuenta-input" type="number" step="0.01" id="fin-tasa-bcv"
+          placeholder="0.00" value="${_tasas.bcv || ''}">
+      </div>
+      <div class="fin-cuenta-row">
+        <span class="fin-cuenta-icon" style="font-size:15px;font-weight:700">₮</span>
+        <span class="fin-cuenta-label">USDT <span style="font-size:11px;color:var(--text3)">(Bs/USDT)</span></span>
+        <input class="fin-cuenta-input" type="number" step="0.01" id="fin-tasa-usdt"
+          placeholder="0.00" value="${_tasas.usdt || ''}">
+      </div>
+    </div>
+    <button class="btn" onclick="guardarTasas()" style="width:100%;margin-bottom:20px">
+      💱 Guardar tasas
+    </button>
+
     <div class="fin-sec-title">🏧 Saldo por cuenta</div>
     <div class="fin-card">
       ${cuentas.map(c => `
@@ -1475,6 +1503,21 @@ async function guardarCuentas() {
     await fetch(`${API}?${p}`);
   } catch(e) {}
   mostrarToast('✓ Cuentas guardadas');
+}
+
+async function guardarTasas() {
+  const bcv  = parseFloat(document.getElementById('fin-tasa-bcv').value)  || 0;
+  const usdt = parseFloat(document.getElementById('fin-tasa-usdt').value) || 0;
+  const fecha = new Date().toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit', year:'numeric',
+    hour:'2-digit', minute:'2-digit' });
+  _tasas = { bcv, usdt, fecha };
+  _guardarFinLocal();
+  try {
+    const p = new URLSearchParams({ accion:'guardarFinanzas', tipo:'tasas', t_bcv:bcv, t_usdt:usdt });
+    await fetch(`${API}?${p}`);
+  } catch(e) {}
+  mostrarToast('💱 Tasas actualizadas');
+  renderFinCuentas();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1577,7 +1620,7 @@ function calcFinNuevo() {
 
 // ── Helper: guardar en localStorage ──────────────────────
 function _guardarFinLocal() {
-  try { localStorage.setItem('ceniza_fin', JSON.stringify({ fondos:_fondos, cuentas:_cuentas })); } catch(_) {}
+  try { localStorage.setItem('ceniza_fin', JSON.stringify({ fondos:_fondos, cuentas:_cuentas, tasas:_tasas })); } catch(_) {}
 }
 
 // ══════════════════════════════════════════════════════════
