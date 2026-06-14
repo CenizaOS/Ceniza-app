@@ -1234,42 +1234,28 @@ async function loadCosturera() {
 }
 
 function renderCosturera(d) {
-  // Separar por estado antes de renderizar
   const todos = d.grupos.flatMap(g => g.items);
-  const porProducir  = todos.filter(i => i.estado === 'En producción' || i.estado === 'Pagado').length;
+  const porCoser     = todos.filter(i => i.estado === 'En producción' || i.estado === 'Pagado').length;
   const empaquetados = todos.filter(i => i.estado === 'Empaquetado').length;
-  const entregadosD  = todos.filter(i => i.estado === 'Entregado a delivery').length;
+  const aDelivery    = todos.filter(i => i.estado === 'Entregado a delivery').length;
 
-  // Cola activa: excluye "Entregado a delivery" (ya pasaron a delivery)
-  const gruposActivos = d.grupos.map(g => ({
-    fecha: g.fecha,
-    items: g.items.filter(i => i.estado !== 'Entregado a delivery')
-  })).filter(g => g.items.length > 0);
-
-  const totalActivo = porProducir + empaquetados;
-
-  let html = `<div class="metric-grid" style="margin-bottom:${entregadosD > 0 ? '8px' : '16px'}">
-    <div class="metric-card"><div class="metric-label">Por coser</div><div class="metric-value blue">${porProducir}</div></div>
+  let html = `<div class="metric-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">
+    <div class="metric-card"><div class="metric-label">Por coser</div><div class="metric-value blue">${porCoser}</div></div>
     <div class="metric-card"><div class="metric-label">Empaquetados</div><div class="metric-value gold">${empaquetados}</div></div>
+    <div class="metric-card"><div class="metric-label">A delivery</div><div class="metric-value" style="color:var(--green)">${aDelivery}</div></div>
   </div>`;
 
-  // Nota de entregados a delivery (sin ocupar espacio si no hay)
-  if (entregadosD > 0) {
-    html += `<div style="font-size:12px;color:var(--text3);text-align:center;margin-bottom:14px">
-      ✓ ${entregadosD} pantalón${entregadosD!==1?'es':''} ya entregado${entregadosD!==1?'s':''} a delivery — ver en pestaña Semana
-    </div>`;
-  }
-
-  if (!totalActivo) {
-    html += '<div class="empty-state">¡Cola vacía! Todo fue entregado a delivery.</div>';
+  if (!d.total) {
+    html += '<div class="empty-state">¡Todo entregado! Sin pedidos pendientes.</div>';
   } else {
-    gruposActivos.forEach(g => {
+    d.grupos.forEach(g => {
       html += `<div class="sec-title">${g.fecha}</div>`;
       g.items.forEach(p => {
+        const entregado = p.estado === 'Entregado a delivery';
         const estados = ['En producción','Empaquetado','Entregado a delivery'];
         const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
         const entregaIcono = {'Delivery':'🛵','Retiro personal':'🏪','Envío MRW':'📦','Envío ZOOM':'📦'}[p.tipoEntrega] || '📦';
-        html += `<div class="cost-card" id="cost-card-${p.fila}">
+        html += `<div class="cost-card${entregado ? ' entregado' : ''}" id="cost-card-${p.fila}">
           <div class="cost-info">
             <div class="cost-name">${p.cliente}</div>
             <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
@@ -1323,13 +1309,13 @@ async function loadSemanaCosturera() {
 
 async function cambiarEstadoPedido(fila, estado, sel) {
   const estadoAnterior = sel ? [...sel.options].find(o => !o.selected && o.defaultSelected)?.value || sel.value : estado;
-  // Si se marca "Entregado a delivery", ocultar la tarjeta inmediatamente
-  if (estado === 'Entregado a delivery') {
-    const card = document.getElementById('cost-card-' + fila);
-    if (card) {
-      card.style.transition = 'opacity .3s';
-      card.style.opacity = '0';
-      setTimeout(() => { loadCosturera(); }, 350); // reload limpio
+  // Actualizar UI al instante (optimistic)
+  const card = document.getElementById('cost-card-' + fila);
+  if (card) {
+    if (estado === 'Entregado a delivery') {
+      card.classList.add('entregado');
+    } else {
+      card.classList.remove('entregado');
     }
   }
   // API en el fondo — sin bloquear
@@ -1339,7 +1325,7 @@ async function cambiarEstadoPedido(fila, estado, sel) {
       if (!data.success) {
         mostrarToast('✕ ' + (data.error || 'Error al guardar'));
         if (sel) sel.value = estadoAnterior;
-        loadCosturera(); // recargar para restaurar estado correcto
+        if (card) card.classList.toggle('entregado', estadoAnterior === 'Entregado a delivery');
       }
     })
     .catch(() => {
