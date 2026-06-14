@@ -1919,11 +1919,20 @@ async function loadVendedoraComisiones() {
 // ══════════════════════════════════════════════════════════
 // COSTURERA
 // ══════════════════════════════════════════════════════════
-async function loadCosturera() {
+let fechaCostureraActual = new Date();
+let _costData = null; // caché de datos completos
+
+async function loadCosturera(offset) {
+  if (offset !== undefined) {
+    fechaCostureraActual = new Date(fechaCostureraActual);
+    fechaCostureraActual.setDate(fechaCostureraActual.getDate() + offset);
+    if (_costData) { renderCosturera(_costData); return; } // navegar sin re-fetch
+  }
   document.getElementById('cost-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando producción...</div>';
   try {
     const d = await fetchData('produccion');
     document.getElementById('cost-mes').textContent = d.mes || '';
+    _costData = d;
     renderCosturera(d);
   } catch(e) {
     document.getElementById('cost-content').innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadCosturera()">${refreshIcon}Reintentar</button>`;
@@ -1931,39 +1940,51 @@ async function loadCosturera() {
 }
 
 function renderCosturera(d) {
-  const todos = d.grupos.flatMap(g => g.items);
-  const porCoser     = todos.filter(i => i.estado === 'En producción' || i.estado === 'Pagado').length;
-  const empaquetados = todos.filter(i => i.estado === 'Empaquetado').length;
-  const aDelivery    = todos.filter(i => i.estado === 'Entregado a delivery').length;
+  const fechaSelec = fechaStr(fechaCostureraActual);
 
-  let html = `<div class="metric-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">
-    <div class="metric-card"><div class="metric-label">Por coser</div><div class="metric-value blue">${porCoser}</div></div>
-    <div class="metric-card"><div class="metric-label">Empaquetados</div><div class="metric-value gold">${empaquetados}</div></div>
-    <div class="metric-card"><div class="metric-label">A delivery</div><div class="metric-value" style="color:var(--green)">${aDelivery}</div></div>
-  </div>`;
+  // Filtrar solo el grupo del día seleccionado
+  const grupoHoy = (d.grupos || []).find(g => g.fecha === fechaSelec);
+  const itemsHoy = grupoHoy ? grupoHoy.items : [];
 
-  if (!d.total) {
-    html += '<div class="empty-state">¡Todo entregado! Sin pedidos pendientes.</div>';
+  // Estadísticas del día seleccionado
+  const porCoser     = itemsHoy.filter(i => i.estado === 'En producción' || i.estado === 'Pagado').length;
+  const empaquetados = itemsHoy.filter(i => i.estado === 'Empaquetado').length;
+  const aDelivery    = itemsHoy.filter(i => i.estado === 'Entregado a delivery').length;
+
+  let html = `
+    <div class="del-date-nav" style="margin-bottom:12px">
+      <button class="del-date-btn" onclick="loadCosturera(-1)">${arrowLeft}</button>
+      <div>
+        <div class="del-date-label">${fechaLabel(fechaCostureraActual)}</div>
+        <div class="del-date-sub">${fechaSelec}</div>
+      </div>
+      <button class="del-date-btn" onclick="loadCosturera(+1)">${arrowRight}</button>
+    </div>
+    <div class="metric-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">
+      <div class="metric-card"><div class="metric-label">Por coser</div><div class="metric-value blue">${porCoser}</div></div>
+      <div class="metric-card"><div class="metric-label">Empaquetados</div><div class="metric-value gold">${empaquetados}</div></div>
+      <div class="metric-card"><div class="metric-label">A delivery</div><div class="metric-value" style="color:var(--green)">${aDelivery}</div></div>
+    </div>`;
+
+  if (!itemsHoy.length) {
+    html += '<div class="empty-state">Sin pedidos para este día.</div>';
   } else {
-    d.grupos.forEach(g => {
-      html += `<div class="sec-title">${g.fecha}</div>`;
-      g.items.forEach(p => {
-        const entregado = p.estado === 'Entregado a delivery';
-        const estados = ['En producción','Empaquetado','Entregado a delivery'];
-        const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
-        const entregaIcono = {'Delivery':'🛵','Retiro personal':'🏪','Envío MRW':'📦','Envío ZOOM':'📦'}[p.tipoEntrega] || '📦';
-        html += `<div class="cost-card${entregado ? ' entregado' : ''}" id="cost-card-${p.fila}">
-          <div class="cost-info">
-            <div class="cost-name">${p.cliente}</div>
-            <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
-            ${p.tipoEntrega ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${entregaIcono} ${p.tipoEntrega}</div>` : ''}
-          </div>
-          <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)">${opts}</select>
-        </div>`;
-      });
+    itemsHoy.forEach(p => {
+      const entregado = p.estado === 'Entregado a delivery';
+      const estados = ['En producción','Empaquetado','Entregado a delivery'];
+      const opts = estados.map(s=>`<option value="${s}"${p.estado===s?' selected':''}>${s}</option>`).join('');
+      const entregaIcono = {'Delivery':'🛵','Retiro personal':'🏪','Envío MRW':'📦','Envío ZOOM':'📦'}[p.tipoEntrega] || '📦';
+      html += `<div class="cost-card${entregado ? ' entregado' : ''}" id="cost-card-${p.fila}">
+        <div class="cost-info">
+          <div class="cost-name">${p.cliente}</div>
+          <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
+          ${p.tipoEntrega ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${entregaIcono} ${p.tipoEntrega}</div>` : ''}
+        </div>
+        <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)">${opts}</select>
+      </div>`;
     });
   }
-  html += `<button class="btn" onclick="loadCosturera()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
+  html += `<button class="btn" onclick="_costData=null;loadCosturera()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
   document.getElementById('cost-content').innerHTML = html;
 }
 
