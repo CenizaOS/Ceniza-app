@@ -606,6 +606,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 
     <div class="screen active" id="screen-dashboard">
       <div id="dash-content"><div class="loading-msg"><div class="spinner"></div>Conectando...</div></div>
+      <!-- Controles de administración -->
+      <div style="padding:16px;border-top:1px solid var(--bg4);margin-top:8px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚙️ Administración</div>
+        <button id="btn-reiniciar-quincena" class="btn" onclick="reiniciarQuincena()"
+          style="width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--bg4);transition:background .2s">
+          🔄 Reiniciar quincena
+        </button>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center">
+          Toca dos veces para confirmar · El conteo de comisiones empezará desde hoy
+        </div>
+      </div>
     </div>
     <div class="screen" id="screen-produccion">
       <div id="prod-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
@@ -963,10 +974,40 @@ function verifyPin() {
 }
 
 // ══════════════════════════════════════════════════════════
-// VENDEDORA — helpers de quincena
+// DUEÑA — reiniciar quincena
 // ══════════════════════════════════════════════════════════
-function quincenaActual() {
-  return new Date().getDate() <= 15 ? '1' : '2';
+let _reiniciarTimer = null, _reiniciarConfirm = false;
+async function reiniciarQuincena() {
+  const btn = document.getElementById('btn-reiniciar-quincena');
+  if (!_reiniciarConfirm) {
+    _reiniciarConfirm = true;
+    btn.textContent = '⚠️ ¿Confirmar reinicio?';
+    btn.style.background = 'var(--red)';
+    _reiniciarTimer = setTimeout(() => {
+      _reiniciarConfirm = false;
+      btn.textContent = '🔄 Reiniciar quincena';
+      btn.style.background = '';
+    }, 4000);
+    return;
+  }
+  clearTimeout(_reiniciarTimer);
+  _reiniciarConfirm = false;
+  btn.textContent = '⏳ Reiniciando...';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${API}?accion=reiniciarQuincena`);
+    const data = await r.json();
+    if (data.success) {
+      mostrarToast(`✓ Quincena reiniciada desde ${data.fecha}`);
+      btn.textContent = `✓ Reiniciado el ${data.fecha}`;
+    } else {
+      throw new Error(data.error || 'Error');
+    }
+  } catch(e) {
+    mostrarToast('✕ Error: ' + e.message);
+    btn.textContent = '🔄 Reiniciar quincena';
+  }
+  btn.disabled = false;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1157,8 +1198,7 @@ async function loadVendedoraComisiones() {
   const el = document.getElementById('vend-com-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
-    const q = quincenaActual();
-    const d = await fetchData('comisiones&quincena=' + q);
+    const d = await fetchData('comisiones');
     document.getElementById('vend-mes').textContent = d.mes || '';
     const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
     const vend = d.vendedoras.find(v => v.nombre === nombre);
