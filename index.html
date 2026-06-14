@@ -1022,11 +1022,11 @@ const FIN = {
   emgTecho:    1964,   // 2 meses gastos fijos: 981.34 × 2
   dist: { sueldo:0.40, crecimiento:0.25, emergencia:0.15, empresa:0.20 },
   tiers: [
-    { desde:400, pct:0.10 },
-    { desde:300, pct:0.08 },
-    { desde:200, pct:0.07 },
-    { desde:150, pct:0.06 },
-    { desde:1,   pct:0.05 }
+    { desde:400, pct:0.15 },
+    { desde:300, pct:0.12 },
+    { desde:200, pct:0.10 },
+    { desde:150, pct:0.09 },
+    { desde:1,   pct:0.08 }
   ],
   mat: { tela:6.49, liga:0.50, bolsa:0.46, etiqueta:0.11, confeccion:3.00, empaquetado:0.25, ads:2.00 }
 };
@@ -1814,7 +1814,7 @@ async function loadVendedoraComisiones() {
     const pantsVal   = vend ? vend.pants    : 0;
     const comisionVal = vend ? vend.comision : '0.00';
     const totalVal    = vend ? vend.totalAPagar : '100.00';
-    const nivelSig    = vend ? vend.nivelSiguiente : { pants: 150, pct: 6 };
+    const nivelSig    = vend ? vend.nivelSiguiente : { pants: 150, pct: 9 };
     const faltan      = vend ? vend.faltanParaSiguiente : 150;
     const max         = nivelSig ? nivelSig.pants : Math.max(pantsVal, 1);
     const prog        = Math.min(100, Math.round(pantsVal / max * 100));
@@ -1851,9 +1851,9 @@ async function loadVendedoraComisiones() {
     <!-- Tabla de niveles -->
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">Niveles de comisión</div>
     <div class="card">
-      ${[{r:'1–149',p:'5%',min:1},{r:'150–199',p:'6%',min:150},
-         {r:'200–299',p:'7%',min:200},{r:'300–399',p:'8%',min:300},
-         {r:'400+',p:'10%',min:400}
+      ${[{r:'1–149',p:'8%',min:1},{r:'150–199',p:'9%',min:150},
+         {r:'200–299',p:'10%',min:200},{r:'300–399',p:'12%',min:300},
+         {r:'400+',p:'15%',min:400}
         ].map(n=>`<div class="row">
           <span class="row-label">${n.r} pantalones</span>
           <span class="row-val ${pantsVal>=n.min?'gold':''}">${n.p}</span>
@@ -2562,12 +2562,11 @@ async function loadComisiones(){
     html+=`
       <div class="sec-title">tabla de niveles</div>
       <div class="card">
-        <div class="row"><span class="row-label">0 – 99 pants</span><span class="row-val">Solo base $200</span></div>
-        <div class="row"><span class="row-label">100 – 149 pants</span><span class="row-val gold">5%</span></div>
-        <div class="row"><span class="row-label">150 – 199 pants</span><span class="row-val gold">6%</span></div>
-        <div class="row"><span class="row-label">200 – 299 pants</span><span class="row-val gold">7%</span></div>
-        <div class="row"><span class="row-label">300 – 399 pants</span><span class="row-val gold">8%</span></div>
-        <div class="row"><span class="row-label">400+ pants</span><span class="row-val gold">10%</span></div>
+        <div class="row"><span class="row-label">1 – 149 pants</span><span class="row-val gold">8%</span></div>
+        <div class="row"><span class="row-label">150 – 199 pants</span><span class="row-val gold">9%</span></div>
+        <div class="row"><span class="row-label">200 – 299 pants</span><span class="row-val gold">10%</span></div>
+        <div class="row"><span class="row-label">300 – 399 pants</span><span class="row-val gold">12%</span></div>
+        <div class="row"><span class="row-label">400+ pants</span><span class="row-val gold">15%</span></div>
       </div>
       <button class="btn" onclick="loadComisiones()">${refreshIcon}Actualizar</button>`;
     document.getElementById('com-content').innerHTML=html;
