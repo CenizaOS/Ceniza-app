@@ -392,6 +392,57 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   .tasa-grid{grid-template-columns:repeat(4,1fr)}
   .vend-app,.cost-app{max-width:680px}
 }
+
+/* ═══════════════════════════════════════════════════════════
+   DUEÑA — PANEL FINANCIERO
+═══════════════════════════════════════════════════════════*/
+.fin-topbar{padding:calc(env(safe-area-inset-top,0px)+28px) 20px 14px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-bottom:1px solid var(--bg4);position:sticky;top:0;z-index:10;flex-shrink:0}
+.fin-topbar-brand{display:flex;align-items:center;gap:10px}
+.fin-topbar-name{font-size:16px;font-weight:700}
+.fin-topbar-sub{font-size:12px;color:var(--text2)}
+.fin-tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);position:sticky;top:70px;z-index:9;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.fin-tabs::-webkit-scrollbar{display:none}
+.fin-tab{flex:0 0 auto;padding:9px 15px;font-size:12px;font-weight:500;color:var(--text2);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
+.fin-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:700}
+.fin-body{padding:16px;padding-bottom:60px;overflow-y:auto;flex:1}
+.fin-screen{animation:fadeIn .15s ease}
+.fin-card{background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:10px}
+.fin-sec-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px}
+.fin-sec-title:first-child{margin-top:0}
+.fin-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg3)}
+.fin-row:last-child{border-bottom:none}
+.fin-row-label{font-size:13px;color:var(--text2)}
+.fin-row-val{font-size:13px;font-weight:600;color:var(--text)}
+.fin-total-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0 4px}
+.fin-total-label{font-size:14px;font-weight:700}
+.fin-total-val{font-size:20px;font-weight:800;color:var(--gold)}
+.fin-dist-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.fin-dist-cell{background:var(--bg2);border-radius:10px;padding:12px;text-align:center}
+.fin-dist-cell-label{font-size:10px;color:var(--text3);margin-bottom:4px;font-weight:600}
+.fin-dist-cell-val{font-size:18px;font-weight:700;color:var(--text)}
+.fin-dist-cell-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.fin-prog-track{background:var(--bg3);border-radius:99px;height:8px;overflow:hidden;margin:8px 0}
+.fin-prog-fill{height:100%;border-radius:99px;background:var(--gold);transition:width .4s}
+.fin-prog-fill.verde{background:#22c55e}
+.fin-prog-fill.rojo{background:var(--red)}
+.fin-sem-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.fin-sem-badge.verde{background:#d1fae5;color:#065f46}
+.fin-sem-badge.amarillo{background:#fef3c7;color:#92400e}
+.fin-sem-badge.rojo{background:#fee2e2;color:#991b1b}
+.fin-fondo-card{background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid transparent}
+.fin-fondo-card.emergencia{border-left-color:var(--amber)}
+.fin-fondo-card.crecimiento{border-left-color:#3b82f6}
+.fin-fondo-card.empresa{border-left-color:#22c55e}
+.fin-plan-qty-row{display:flex;gap:8px;margin-bottom:12px}
+.fin-plan-qty-btn{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg2);font-size:14px;font-weight:600;cursor:pointer;color:var(--text);transition:all .15s}
+.fin-plan-qty-btn.active{background:var(--gold-bg);border-color:var(--gold);color:var(--gold-dim)}
+.fin-plan-input{width:100%;padding:12px 16px;border:1px solid var(--bg3);border-radius:10px;font-size:20px;font-weight:700;text-align:center;background:var(--bg2);color:var(--text);margin-bottom:4px}
+.fin-cuenta-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--bg3)}
+.fin-cuenta-row:last-child{border-bottom:none}
+.fin-cuenta-icon{font-size:20px;width:28px;text-align:center;flex-shrink:0}
+.fin-cuenta-label{flex:1;font-size:13px;color:var(--text2)}
+.fin-cuenta-input{width:110px;padding:7px 10px;border:1px solid var(--bg3);border-radius:8px;font-size:14px;font-weight:600;text-align:right;background:var(--bg);color:var(--text)}
+.fin-hint{font-size:12px;color:var(--text3);padding:6px 10px;background:var(--bg3);border-radius:8px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -576,56 +627,46 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
-     DUEÑA APP
+     DUEÑA APP — PANEL FINANCIERO
 ═══════════════════════════════════════════════════════════ -->
 <div class="app" id="app-d" style="display:none">
-  <div class="topbar">
-    <div class="topbar-brand">
+  <!-- Topbar -->
+  <div class="fin-topbar">
+    <div class="fin-topbar-brand">
       <div class="topbar-logo">C</div>
       <div>
-        <div class="topbar-name">Ceniza</div>
-        <div class="topbar-mes" id="topbar-mes">Cargando...</div>
+        <div class="fin-topbar-name">Administración</div>
+        <div class="fin-topbar-sub" id="fin-mes-label">Ceniza</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="spread-chip" id="spread-chip" style="display:none"></div>
-      <button class="switch-btn" onclick="logoutRol()">Salir</button>
-    </div>
+    <button class="switch-btn" onclick="logoutRol()">Salir</button>
   </div>
 
-  <div class="screens">
-    <div id="tablet-topbar" style="display:none;padding:24px 32px 0;align-items:center;gap:16px">
-      <div class="topbar-logo" style="width:36px;height:36px;font-size:14px">C</div>
-      <div>
-        <div style="font-size:18px;font-weight:700">Ceniza</div>
-        <div style="font-size:13px;color:var(--text2)" id="topbar-mes-tablet">Cargando...</div>
-      </div>
-      <div class="spread-chip" id="spread-chip-tablet" style="display:none;margin-left:auto"></div>
-      <button class="switch-btn" onclick="logoutRol()" style="margin-left:8px">Cambiar usuario</button>
-    </div>
+  <!-- Tabs -->
+  <div class="fin-tabs">
+    <button class="fin-tab active" onclick="showFinTab('quincena',this)">💰 Quincena</button>
+    <button class="fin-tab" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
+    <button class="fin-tab" onclick="showFinTab('tanda',this)">📦 Tanda</button>
+    <button class="fin-tab" onclick="showFinTab('cuentas',this)">💳 Cuentas</button>
+    <button class="fin-tab" onclick="showFinTab('nuevo',this)">✨ Nuevo</button>
+  </div>
 
-    <div class="screen active" id="screen-dashboard">
-      <div id="dash-content"><div class="loading-msg"><div class="spinner"></div>Conectando...</div></div>
-      <!-- Controles de administración -->
-      <div style="padding:16px;border-top:1px solid var(--bg4);margin-top:8px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚙️ Administración</div>
-        <button id="btn-reiniciar-quincena" class="btn" onclick="reiniciarQuincena()"
-          style="width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--bg4);transition:background .2s">
-          🔄 Reiniciar quincena
-        </button>
-        <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center">
-          Toca dos veces para confirmar · El conteo de comisiones empezará desde hoy
-        </div>
-      </div>
+  <!-- Contenido -->
+  <div class="fin-body">
+    <div id="fin-quincena" class="fin-screen">
+      <div id="fin-quincena-content"><div class="loading-msg"><div class="spinner"></div>Calculando...</div></div>
     </div>
-    <div class="screen" id="screen-produccion">
-      <div id="prod-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    <div id="fin-fondos" class="fin-screen" style="display:none">
+      <div id="fin-fondos-content"><div class="loading-msg"><div class="spinner"></div>Cargando fondos...</div></div>
     </div>
-    <div class="screen" id="screen-entregas">
-      <div id="ent-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    <div id="fin-tanda" class="fin-screen" style="display:none">
+      <div id="fin-tanda-content"></div>
     </div>
-    <div class="screen" id="screen-comisiones">
-      <div id="com-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    <div id="fin-cuentas" class="fin-screen" style="display:none">
+      <div id="fin-cuentas-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div id="fin-nuevo" class="fin-screen" style="display:none">
+      <div id="fin-nuevo-content"></div>
     </div>
   </div>
 </div>
@@ -854,9 +895,7 @@ function showScreen(id) {
   if (!el) return;
 
   if (id === 'app-d') {
-    el.style.display = '';
-    document.getElementById('nav-duena').style.display = '';
-    fab.style.display = 'flex';
+    el.style.display = 'flex';
   } else if (id === 'app-v') {
     el.style.display = 'flex';
     // FAB no se usa en vendedora — hay botón inline en el tab de Pedidos
@@ -892,12 +931,7 @@ function showApp(rol) {
     fechaDeliveryActual = new Date();
     loadDelivery();
   } else if (rol === 'duena') {
-    showScreen('app-d');
-    setupTablet();
-    loadDashboard();
-    loadProduccion();
-    loadEntregas();
-    loadComisiones();
+    abrirAppDuena();
   } else {
     localStorage.removeItem('ceniza_rol');
     showScreen('screen-rol');
@@ -974,6 +1008,578 @@ function verifyPin() {
 }
 
 // ══════════════════════════════════════════════════════════
+// DUEÑA — PANEL FINANCIERO
+// ══════════════════════════════════════════════════════════
+
+// ── Constantes del modelo financiero (costos corregidos) ───
+const FIN = {
+  precio:      30,
+  varMat:      10.81, // tela $6.49 + liga $0.50 + bolsa $0.46 + etiq $0.07 + sticker $0.04 + confección $3.00 + empaque $0.25
+  varAds:      2.00,
+  fijosQuinc:  490.67, // $981.34 / 2 (mensual ÷ 2)
+  utilNeta:    12.28,  // $30 − $17.72 costo total corregido
+  costoTotal:  17.72,
+  emgTecho:    1964,   // 2 meses gastos fijos: 981.34 × 2
+  dist: { sueldo:0.40, crecimiento:0.25, emergencia:0.15, empresa:0.20 },
+  tiers: [
+    { desde:400, pct:0.10 },
+    { desde:300, pct:0.08 },
+    { desde:200, pct:0.07 },
+    { desde:150, pct:0.06 },
+    { desde:1,   pct:0.05 }
+  ],
+  mat: { tela:6.49, liga:0.50, bolsa:0.46, etiqueta:0.11, confeccion:3.00, empaquetado:0.25, ads:2.00 }
+};
+
+function finComisionPct(n) {
+  if (!n) return 0;
+  for (const t of FIN.tiers) if (n >= t.desde) return t.pct;
+  return 0;
+}
+function finBe() { // pantalones mínimos para cubrir fijos
+  return Math.ceil(FIN.fijosQuinc / (FIN.precio - FIN.varMat - FIN.varAds));
+}
+
+// ── Estado del panel ────────────────────────────────────────
+let _finPants = 0, _finLabel = '';
+let _fondos   = { emergencia:0, crecimiento:0, empresa:0 };
+let _cuentas  = { binance:0, bolivares:0, usdEfectivo:0, paypal:0 };
+let _planPants = 100;
+
+// ── Entrada a la app de dueña ───────────────────────────────
+async function abrirAppDuena() {
+  showScreen('app-d');
+  // Cargar datos en paralelo
+  loadFinQuincena();
+  loadFinFondos();
+}
+
+// ── Tabs ─────────────────────────────────────────────────────
+function showFinTab(tab, btn) {
+  document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  ['quincena','fondos','tanda','cuentas','nuevo'].forEach(t => {
+    const el = document.getElementById('fin-' + t);
+    if (el) el.style.display = (t === tab) ? '' : 'none';
+  });
+  if (tab === 'tanda')  renderFinPlanificador();
+  if (tab === 'nuevo')  renderFinNuevo();
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 1 · QUINCENA — P&L automático
+// ══════════════════════════════════════════════════════════
+async function loadFinQuincena() {
+  const div = document.getElementById('fin-quincena-content');
+  div.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Calculando...</div>';
+  try {
+    const d = await fetchData('comisiones');
+    _finPants = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pants) || 0), 0);
+    _finLabel = d.quincenaLabel || '';
+    if (d.mes) document.getElementById('fin-mes-label').textContent = d.mes;
+    renderFinQuincena();
+  } catch(e) {
+    div.innerHTML = `<div class="err-card">Error: ${e.message}</div>
+      <button class="btn" onclick="loadFinQuincena()">↻ Reintentar</button>`;
+  }
+}
+
+function renderFinQuincena() {
+  const n = _finPants;
+  const pct = finComisionPct(n);
+  const ingresos  = n * FIN.precio;
+  const costoVar  = n * (FIN.varMat + FIN.varAds);
+  const utilBruta = ingresos - costoVar - FIN.fijosQuinc;
+  const comision  = n * FIN.utilNeta * pct;
+  const utilReal  = utilBruta - comision;
+  const beQ       = finBe();
+
+  // Distribución con lógica de techo de emergencia
+  const emgSaldo = parseFloat(_fondos.emergencia) || 0;
+  const emgApte  = Math.min(utilReal > 0 ? utilReal * FIN.dist.emergencia : 0,
+                            Math.max(0, FIN.emgTecho - emgSaldo));
+  const overflow  = Math.max(0, (utilReal > 0 ? utilReal * FIN.dist.emergencia : 0) - emgApte);
+  const dist = {
+    sueldo:      utilReal > 0 ? utilReal * FIN.dist.sueldo      : 0,
+    crecimiento: utilReal > 0 ? utilReal * FIN.dist.crecimiento : 0,
+    emergencia:  emgApte,
+    empresa:     utilReal > 0 ? utilReal * FIN.dist.empresa + overflow : 0
+  };
+
+  const $f = v => '$' + Math.abs(v).toFixed(2);
+  const neg = v => v < 0 ? `style="color:var(--red)"` : '';
+
+  document.getElementById('fin-quincena-content').innerHTML = `
+    <!-- Resumen base -->
+    <div class="fin-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:13px;color:var(--text2)">📅 ${_finLabel || 'Quincena actual'}</div>
+        <div style="font-size:11px;background:var(--bg3);padding:3px 9px;border-radius:20px;color:var(--text3)">PE: ${beQ} pant</div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div style="font-size:44px;font-weight:800;color:var(--gold);line-height:1">${n}</div>
+        <div style="font-size:14px;color:var(--text2)">pantalones vendidos</div>
+      </div>
+      <div style="font-size:12px;color:${n >= beQ ? 'var(--green)' : 'var(--red)'};margin-top:6px;font-weight:600">
+        ${n >= beQ ? '✅ Sobre el punto de equilibrio' : `⚠️ Faltan ${beQ - n} pants para equilibrio`}
+      </div>
+      <button class="btn" onclick="loadFinQuincena()" style="margin-top:10px;background:var(--bg3);color:var(--text);border:none;padding:7px 14px;font-size:12px">↻ Actualizar</button>
+    </div>
+
+    <!-- P&L -->
+    <div class="fin-sec-title">📊 Estado de resultados</div>
+    <div class="fin-card">
+      <div class="fin-row">
+        <span class="fin-row-label">Ingresos (${n} × $30)</span>
+        <span class="fin-row-val">${$f(ingresos)}</span>
+      </div>
+      <div class="fin-row" style="padding-left:10px">
+        <span class="fin-row-label" style="font-size:12px">Materiales &amp; labor (${n} × $10.81)</span>
+        <span class="fin-row-val" style="font-size:12px;color:var(--red)">−${$f(n * FIN.varMat)}</span>
+      </div>
+      <div class="fin-row" style="padding-left:10px">
+        <span class="fin-row-label" style="font-size:12px">ADS/pauta (${n} × $2.00)</span>
+        <span class="fin-row-val" style="font-size:12px;color:var(--red)">−${$f(n * FIN.varAds)}</span>
+      </div>
+      <div class="fin-row" style="padding-left:10px">
+        <span class="fin-row-label" style="font-size:12px">Gastos fijos quincena</span>
+        <span class="fin-row-val" style="font-size:12px;color:var(--red)">−${$f(FIN.fijosQuinc)}</span>
+      </div>
+      <div class="fin-total-row" style="border-top:1px solid var(--bg3)">
+        <span class="fin-total-label" style="font-size:13px">Utilidad bruta</span>
+        <span class="fin-total-val" style="font-size:16px" ${neg(utilBruta)}>${utilBruta < 0 ? '−' : ''}${$f(utilBruta)}</span>
+      </div>
+      <div class="fin-row" style="padding-top:4px">
+        <span class="fin-row-label">Comisión vendedora (${(pct*100).toFixed(0)}% × ${n} pant)</span>
+        <span class="fin-row-val" style="color:var(--red)">−${$f(comision)}</span>
+      </div>
+      <div class="fin-total-row" style="border-top:2px solid var(--gold);padding-top:10px">
+        <span class="fin-total-label" style="font-size:16px">💰 Utilidad real</span>
+        <span class="fin-total-val" style="font-size:26px" ${neg(utilReal)}>${utilReal < 0 ? '−' : ''}${$f(utilReal)}</span>
+      </div>
+    </div>
+
+    <!-- Distribución -->
+    <div class="fin-sec-title">🧮 Distribución (si utilidad > 0)</div>
+    <div class="fin-dist-grid">
+      <div class="fin-dist-cell">
+        <div class="fin-dist-cell-label">Tu sueldo · 40%</div>
+        <div class="fin-dist-cell-val">${$f(dist.sueldo)}</div>
+      </div>
+      <div class="fin-dist-cell">
+        <div class="fin-dist-cell-label">Crecimiento · 25%</div>
+        <div class="fin-dist-cell-val">${$f(dist.crecimiento)}</div>
+      </div>
+      <div class="fin-dist-cell">
+        <div class="fin-dist-cell-label">Emergencia · 15%${emgSaldo >= FIN.emgTecho ? ' 🎉' : ''}</div>
+        <div class="fin-dist-cell-val">${emgSaldo >= FIN.emgTecho ? '$0.00' : $f(dist.emergencia)}</div>
+        <div class="fin-dist-cell-sub">${emgSaldo >= FIN.emgTecho ? 'Techo alcanzado' : ''}</div>
+      </div>
+      <div class="fin-dist-cell">
+        <div class="fin-dist-cell-label">Capital empresa · 20%${overflow > 0 ? '+' : ''}</div>
+        <div class="fin-dist-cell-val">${$f(dist.empresa)}</div>
+        <div class="fin-dist-cell-sub">${overflow > 0 ? '+overflow emergencia' : ''}</div>
+      </div>
+    </div>
+
+    <!-- Detalle por pant -->
+    <div class="fin-sec-title">🔍 Análisis por pantalón</div>
+    <div class="fin-card">
+      <div class="fin-row">
+        <span class="fin-row-label">Costo fijo real esta quincena/pant</span>
+        <span class="fin-row-val">${n > 0 ? '$'+(FIN.fijosQuinc/n).toFixed(2) : '–'}</span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-label">Costo total real/pant esta quincena</span>
+        <span class="fin-row-val">${n > 0 ? '$'+((FIN.varMat+FIN.varAds)+(FIN.fijosQuinc/n)).toFixed(2) : '–'}</span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-label">Margen real esta quincena</span>
+        <span class="fin-row-val">${n > 0 && ingresos > 0 ? ((utilReal/ingresos)*100).toFixed(1)+'%' : '–'}</span>
+      </div>
+    </div>
+
+    <!-- Reiniciar quincena -->
+    <div style="margin-top:4px">
+      <button id="btn-reiniciar-quincena" class="btn" onclick="reiniciarQuincena()"
+        style="width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--bg4);transition:background .2s,color .2s">
+        🔄 Reiniciar quincena
+      </button>
+      <div style="font-size:11px;color:var(--text3);margin-top:5px;text-align:center">
+        Toca dos veces · El conteo empezará desde hoy
+      </div>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 2 · FONDOS — balances manuales
+// ══════════════════════════════════════════════════════════
+async function loadFinFondos() {
+  try {
+    const d = await fetchData('finanzas');
+    if (d && !d.error) {
+      _fondos  = d.fondos  || { emergencia:0, crecimiento:0, empresa:0 };
+      _cuentas = d.cuentas || { binance:0, bolivares:0, usdEfectivo:0, paypal:0 };
+    } else { throw new Error('API sin datos'); }
+  } catch(e) {
+    // Fallback: localStorage
+    try {
+      const saved = JSON.parse(localStorage.getItem('ceniza_fin') || '{}');
+      if (saved.fondos)  _fondos  = saved.fondos;
+      if (saved.cuentas) _cuentas = saved.cuentas;
+    } catch(_) {}
+  }
+  renderFinFondos();
+  renderFinCuentas();
+}
+
+function renderFinFondos() {
+  const usd = v => '$' + parseFloat(v || 0).toFixed(2);
+  const emg = parseFloat(_fondos.emergencia  || 0);
+  const cre = parseFloat(_fondos.crecimiento || 0);
+  const emp = parseFloat(_fondos.empresa     || 0);
+  const emgPct = Math.min(100, (emg / FIN.emgTecho) * 100);
+
+  let semColor = 'rojo', semText = 'Por debajo del 30%';
+  if (emg >= FIN.emgTecho)             { semColor = 'verde';    semText = '¡Techo alcanzado! 🎉'; }
+  else if (emg >= FIN.emgTecho * 0.5)  { semColor = 'amarillo'; semText = 'En construcción'; }
+
+  // Aporte proyectado esta quincena
+  const n = _finPants;
+  const pct = finComisionPct(n);
+  const utilBrutaQ = n * FIN.precio - n * (FIN.varMat + FIN.varAds) - FIN.fijosQuinc;
+  const utilRealQ  = utilBrutaQ - n * FIN.utilNeta * pct;
+  const aporteEmg  = utilRealQ > 0 ? Math.min(utilRealQ * FIN.dist.emergencia, Math.max(0, FIN.emgTecho - emg)) : 0;
+  const aporteCre  = utilRealQ > 0 ? utilRealQ * FIN.dist.crecimiento : 0;
+  const aporteEmp  = utilRealQ > 0 ? utilRealQ * FIN.dist.empresa + Math.max(0, utilRealQ * FIN.dist.emergencia - aporteEmg) : 0;
+
+  document.getElementById('fin-fondos-content').innerHTML = `
+    <!-- Emergencia -->
+    <div class="fin-sec-title">🛡 Fondo de emergencia</div>
+    <div class="fin-fondo-card emergencia">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:26px;font-weight:800;line-height:1">${usd(emg)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">de ${usd(FIN.emgTecho)} objetivo (2 meses)</div>
+        </div>
+        <span class="fin-sem-badge ${semColor}">${semText}</span>
+      </div>
+      <div class="fin-prog-track">
+        <div class="fin-prog-fill ${emgPct >= 100 ? 'verde' : emgPct < 30 ? 'rojo' : ''}" style="width:${emgPct.toFixed(1)}%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:3px">
+        <span>${emgPct.toFixed(0)}% completado</span>
+        <span>Faltan ${usd(Math.max(0, FIN.emgTecho - emg))}</span>
+      </div>
+      ${aporteEmg > 0 ? `<div class="fin-hint" style="margin-top:10px">
+        Esta quincena: +${usd(aporteEmg)} → nuevo saldo ${usd(emg + aporteEmg)}
+      </div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="fin-inp-emg" type="number" step="0.01" value="${emg.toFixed(2)}"
+          style="flex:1;padding:8px 10px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px">
+        <button class="btn" onclick="guardarFondo('emergencia','fin-inp-emg')" style="padding:8px 16px">✓</button>
+      </div>
+    </div>
+
+    <!-- Crecimiento -->
+    <div class="fin-sec-title">📈 Fondo de crecimiento</div>
+    <div class="fin-fondo-card crecimiento">
+      <div style="font-size:26px;font-weight:800;margin-bottom:4px">${usd(cre)}</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Para próxima tanda y nuevos productos</div>
+      ${aporteCre > 0 ? `<div class="fin-hint">Esta quincena: +${usd(aporteCre)} → ${usd(cre + aporteCre)}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="fin-inp-cre" type="number" step="0.01" value="${cre.toFixed(2)}"
+          style="flex:1;padding:8px 10px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px">
+        <button class="btn" onclick="guardarFondo('crecimiento','fin-inp-cre')" style="padding:8px 16px">✓</button>
+      </div>
+    </div>
+
+    <!-- Capital empresa -->
+    <div class="fin-sec-title">🏢 Capital empresa</div>
+    <div class="fin-fondo-card empresa">
+      <div style="font-size:26px;font-weight:800;margin-bottom:4px">${usd(emp)}</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Reserva operativa</div>
+      ${aporteEmp > 0 ? `<div class="fin-hint">Esta quincena: +${usd(aporteEmp)} → ${usd(emp + aporteEmp)}</div>` : ''}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="fin-inp-emp" type="number" step="0.01" value="${emp.toFixed(2)}"
+          style="flex:1;padding:8px 10px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px">
+        <button class="btn" onclick="guardarFondo('empresa','fin-inp-emp')" style="padding:8px 16px">✓</button>
+      </div>
+    </div>
+  `;
+}
+
+async function guardarFondo(tipo, inputId) {
+  const valor = parseFloat(document.getElementById(inputId)?.value) || 0;
+  _fondos[tipo] = valor;
+  _guardarFinLocal();
+  try {
+    await fetch(`${API}?accion=guardarFinanzas&tipo=${tipo}&valor=${valor}`);
+  } catch(e) {}
+  mostrarToast('✓ Saldo actualizado');
+  renderFinFondos();
+  if (document.getElementById('fin-tanda').style.display !== 'none') renderFinPlanificador();
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 3 · TANDA — planificador
+// ══════════════════════════════════════════════════════════
+function renderFinPlanificador() {
+  const n   = _planPants;
+  const mat = FIN.mat;
+  const rows = [
+    { label:`Tela (${(n*2.7).toFixed(0)}m total, 2.7m/pant)`, cost: n * mat.tela },
+    { label:'Liga',                                             cost: n * mat.liga },
+    { label:'Bolsa',                                            cost: n * mat.bolsa },
+    { label:'Etiqueta + sticker',                              cost: n * mat.etiqueta },
+    { label:'Confección',                                       cost: n * mat.confeccion },
+    { label:'Empaquetado',                                      cost: n * mat.empaquetado },
+    { label:'ADS / pauta digital',                             cost: n * mat.ads },
+  ];
+  const varTotal = rows.reduce((a, r) => a + r.cost, 0);
+  const total    = varTotal + FIN.fijosQuinc;
+  const capital  = parseFloat(_fondos.crecimiento || 0) + parseFloat(_fondos.empresa || 0);
+  const gap      = capital - total;
+  const ingEsp   = n * FIN.precio;
+  const utilEsp  = n * FIN.utilNeta;
+  const $f       = v => '$' + v.toFixed(2);
+
+  const quickBtns = [50, 100, 150, 200].map(q =>
+    `<button class="fin-plan-qty-btn${q === n ? ' active':''}" onclick="setFinPlanPants(${q})">${q}</button>`
+  ).join('');
+
+  document.getElementById('fin-tanda-content').innerHTML = `
+    <div class="fin-sec-title">🎯 Pantalones a producir</div>
+    <div class="fin-plan-qty-row">${quickBtns}</div>
+    <input type="number" class="fin-plan-input" id="fin-plan-inp" value="${n}" min="1"
+      oninput="setFinPlanPants(this.value)">
+    <div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:14px">pantalones</div>
+
+    <div class="fin-sec-title">💸 Inversión requerida</div>
+    <div class="fin-card">
+      ${rows.map(r => `
+        <div class="fin-row">
+          <span class="fin-row-label">${r.label}</span>
+          <span class="fin-row-val">${$f(r.cost)}</span>
+        </div>`).join('')}
+      <div class="fin-row" style="border-top:1px solid var(--bg3);padding-top:8px">
+        <span class="fin-row-label">Gastos fijos (quincena)</span>
+        <span class="fin-row-val">${$f(FIN.fijosQuinc)}</span>
+      </div>
+      <div class="fin-total-row" style="border-top:2px solid var(--bg3)">
+        <span class="fin-total-label">TOTAL NECESARIO</span>
+        <span class="fin-total-val">${$f(total)}</span>
+      </div>
+    </div>
+
+    <div class="fin-sec-title">💼 ¿Alcanza el capital?</div>
+    <div class="fin-card">
+      <div class="fin-row">
+        <span class="fin-row-label">Fondo crecimiento</span>
+        <span class="fin-row-val">${$f(parseFloat(_fondos.crecimiento||0))}</span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-row-label">Capital empresa</span>
+        <span class="fin-row-val">${$f(parseFloat(_fondos.empresa||0))}</span>
+      </div>
+      <div class="fin-row" style="border-top:1px solid var(--bg3);padding-top:8px">
+        <span class="fin-row-label" style="font-weight:700">Capital disponible</span>
+        <span class="fin-row-val" style="font-weight:700">${$f(capital)}</span>
+      </div>
+      <div class="fin-total-row" style="border-top:2px solid ${gap >= 0 ? '#22c55e' : 'var(--red)'}">
+        <span class="fin-total-label">${gap >= 0 ? '✅ Sobrante' : '❌ Faltan'}</span>
+        <span class="fin-total-val" style="color:${gap >= 0 ? '#22c55e' : 'var(--red)'}">${$f(Math.abs(gap))}</span>
+      </div>
+    </div>
+
+    <div class="fin-sec-title">📈 Proyección si se venden los ${n}</div>
+    <div class="fin-dist-grid">
+      <div class="fin-dist-cell">
+        <div class="fin-dist-cell-label">Ingresos</div>
+        <div class="fin-dist-cell-val">${$f(ingEsp)}</div>
+      </div>
+      <div class="fin-dist-cell">
+        <div class="fin-dist-cell-label">Utilidad neta</div>
+        <div class="fin-dist-cell-val">${$f(utilEsp)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function setFinPlanPants(v) {
+  const n = Math.max(1, parseInt(v) || 1);
+  _planPants = n;
+  const inp = document.getElementById('fin-plan-inp');
+  if (inp) inp.value = n;
+  renderFinPlanificador();
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 4 · CUENTAS — saldos por plataforma
+// ══════════════════════════════════════════════════════════
+function renderFinCuentas() {
+  const $f  = v => parseFloat(v || 0).toFixed(2);
+  const total = ['binance','bolivares','usdEfectivo','paypal']
+    .reduce((a, k) => a + parseFloat(_cuentas[k] || 0), 0);
+  const cuentas = [
+    { key:'binance',     icon:'🟡', label:'Binance (USDT)' },
+    { key:'bolivares',   icon:'🇻🇪', label:'Bolívares (equiv. USD)' },
+    { key:'usdEfectivo', icon:'💵', label:'USD efectivo' },
+    { key:'paypal',      icon:'🔵', label:'PayPal' },
+  ];
+  document.getElementById('fin-cuentas-content').innerHTML = `
+    <div class="fin-sec-title">🏧 Saldo por cuenta</div>
+    <div class="fin-card">
+      ${cuentas.map(c => `
+        <div class="fin-cuenta-row">
+          <span class="fin-cuenta-icon">${c.icon}</span>
+          <span class="fin-cuenta-label">${c.label}</span>
+          <input class="fin-cuenta-input" type="number" step="0.01" id="fin-c-${c.key}"
+            value="${$f(_cuentas[c.key])}" oninput="actualizarTotalCuentas()">
+        </div>`).join('')}
+    </div>
+    <div class="fin-card" style="background:var(--gold-bg);border:1px solid var(--gold)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:14px;font-weight:700">💰 TOTAL</div>
+        <div style="font-size:30px;font-weight:800;color:var(--gold)" id="fin-cuentas-total">$${total.toFixed(2)}</div>
+      </div>
+    </div>
+    <button class="btn" onclick="guardarCuentas()" style="width:100%;margin-top:4px">
+      💾 Guardar saldos
+    </button>
+  `;
+}
+
+function actualizarTotalCuentas() {
+  const total = ['binance','bolivares','usdEfectivo','paypal']
+    .reduce((a, k) => {
+      const el = document.getElementById('fin-c-' + k);
+      return a + (el ? parseFloat(el.value) || 0 : 0);
+    }, 0);
+  const el = document.getElementById('fin-cuentas-total');
+  if (el) el.textContent = '$' + total.toFixed(2);
+}
+
+async function guardarCuentas() {
+  ['binance','bolivares','usdEfectivo','paypal'].forEach(k => {
+    const el = document.getElementById('fin-c-' + k);
+    if (el) _cuentas[k] = parseFloat(el.value) || 0;
+  });
+  _guardarFinLocal();
+  try {
+    const p = new URLSearchParams({ accion:'guardarFinanzas',
+      c_binance:_cuentas.binance, c_bolivares:_cuentas.bolivares,
+      c_usdEfectivo:_cuentas.usdEfectivo, c_paypal:_cuentas.paypal });
+    await fetch(`${API}?${p}`);
+  } catch(e) {}
+  mostrarToast('✓ Cuentas guardadas');
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 5 · NUEVO PRODUCTO
+// ══════════════════════════════════════════════════════════
+function renderFinNuevo() {
+  const cre = parseFloat(_fondos.crecimiento || 0);
+  document.getElementById('fin-nuevo-content').innerHTML = `
+    <div class="fin-sec-title">✨ Nuevo producto</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
+      Planifica el lanzamiento · Financiado del fondo de crecimiento
+    </div>
+    <div class="fin-card">
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Nombre</div>
+        <input id="fin-nv-nombre" type="text" placeholder="ej. Blusa Ceniza"
+          style="width:100%;padding:10px 12px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Precio venta</div>
+          <input id="fin-nv-precio" type="number" step="0.01" placeholder="$"
+            style="width:100%;padding:10px 12px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:16px;font-weight:700"
+            oninput="calcFinNuevo()">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Costo/unidad</div>
+          <input id="fin-nv-costo" type="number" step="0.01" placeholder="$"
+            style="width:100%;padding:10px 12px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:16px;font-weight:700"
+            oninput="calcFinNuevo()">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Unidades a producir</div>
+        <input id="fin-nv-unidades" type="number" placeholder="ej. 20"
+          style="width:100%;padding:10px 12px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:18px;font-weight:700;text-align:center"
+          oninput="calcFinNuevo()">
+      </div>
+    </div>
+    <div id="fin-nv-resultado" style="display:none">
+      <div class="fin-sec-title">📊 Resumen</div>
+      <div class="fin-dist-grid" id="fin-nv-grid"></div>
+      <div class="fin-card" id="fin-nv-viab" style="margin-top:0"></div>
+    </div>
+    <div style="font-size:12px;color:var(--text3);text-align:center;margin-top:12px">
+      Fondo de crecimiento disponible: <strong style="color:var(--text)">$${cre.toFixed(2)}</strong>
+    </div>
+  `;
+}
+
+function calcFinNuevo() {
+  const precio   = parseFloat(document.getElementById('fin-nv-precio')?.value)   || 0;
+  const costo    = parseFloat(document.getElementById('fin-nv-costo')?.value)    || 0;
+  const unidades = parseInt(document.getElementById('fin-nv-unidades')?.value) || 0;
+  const res      = document.getElementById('fin-nv-resultado');
+  if (!precio || !costo || !unidades) { if (res) res.style.display = 'none'; return; }
+
+  const inversion = costo * unidades;
+  const ingresos  = precio * unidades;
+  const utilidad  = (precio - costo) * unidades;
+  const margen    = ((precio - costo) / precio * 100).toFixed(1);
+  const cre       = parseFloat(_fondos.crecimiento || 0);
+  const alcanza   = cre >= inversion;
+
+  res.style.display = '';
+  document.getElementById('fin-nv-grid').innerHTML = `
+    <div class="fin-dist-cell">
+      <div class="fin-dist-cell-label">Inversión total</div>
+      <div class="fin-dist-cell-val" style="color:var(--red)">$${inversion.toFixed(2)}</div>
+    </div>
+    <div class="fin-dist-cell">
+      <div class="fin-dist-cell-label">Ingresos esperados</div>
+      <div class="fin-dist-cell-val" style="color:#22c55e">$${ingresos.toFixed(2)}</div>
+    </div>
+    <div class="fin-dist-cell">
+      <div class="fin-dist-cell-label">Utilidad esperada</div>
+      <div class="fin-dist-cell-val">$${utilidad.toFixed(2)}</div>
+    </div>
+    <div class="fin-dist-cell">
+      <div class="fin-dist-cell-label">Margen</div>
+      <div class="fin-dist-cell-val">${margen}%</div>
+    </div>
+  `;
+  document.getElementById('fin-nv-viab').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:3px">
+          ${alcanza ? '✅ El fondo alcanza' : '❌ Fondos insuficientes'}
+        </div>
+        <div style="font-size:12px;color:var(--text3)">
+          ${alcanza
+            ? `Sobraría $${(cre-inversion).toFixed(2)} en el fondo`
+            : `Faltan $${(inversion-cre).toFixed(2)} del fondo de crecimiento`}
+        </div>
+      </div>
+      <div style="font-size:28px">${alcanza ? '🟢' : '🔴'}</div>
+    </div>
+  `;
+}
+
+// ── Helper: guardar en localStorage ──────────────────────
+function _guardarFinLocal() {
+  try { localStorage.setItem('ceniza_fin', JSON.stringify({ fondos:_fondos, cuentas:_cuentas })); } catch(_) {}
+}
+
+// ══════════════════════════════════════════════════════════
 // DUEÑA — reiniciar quincena
 // ══════════════════════════════════════════════════════════
 let _reiniciarTimer = null, _reiniciarConfirm = false;
@@ -999,15 +1605,16 @@ async function reiniciarQuincena() {
     const data = await r.json();
     if (data.success) {
       mostrarToast(`✓ Quincena reiniciada desde ${data.fecha}`);
-      btn.textContent = `✓ Reiniciado el ${data.fecha}`;
+      // Recargar para que la quincena nueva aparezca con 0 pantalones
+      setTimeout(() => loadFinQuincena(), 800);
     } else {
       throw new Error(data.error || 'Error');
     }
   } catch(e) {
     mostrarToast('✕ Error: ' + e.message);
-    btn.textContent = '🔄 Reiniciar quincena';
+    const btnAgain = document.getElementById('btn-reiniciar-quincena');
+    if (btnAgain) { btnAgain.textContent = '🔄 Reiniciar quincena'; btnAgain.disabled = false; }
   }
-  btn.disabled = false;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1236,8 +1843,8 @@ async function loadVendedoraComisiones() {
           ? `Faltan <strong style="color:var(--gold)">${faltan}</strong> pantalones para ganar ${nivelSig.pct}% de comisión`
           : '<span style="color:var(--green)">¡Nivel máximo alcanzado! 🎉</span>'}
       </div>
-      <div class="row"><span class="row-label">Base fija (quincena)</span><span class="row-val">$100.00</span></div>
-      <div class="row"><span class="row-label">Comisión</span><span class="row-val">${fmt$(comisionVal)}</span></div>
+      <div class="row"><span class="row-label">Sueldo fijo quincena</span><span class="row-val">$100.00</span></div>
+      <div class="row"><span class="row-label">Comisión variable (${vend ? vend.pct : '5%'})</span><span class="row-val">${fmt$(comisionVal)}</span></div>
       <div class="total-row"><span class="total-label">Total estimado</span><span class="total-val" style="color:var(--gold)">${fmt$(totalVal)}</span></div>
     </div>
 
