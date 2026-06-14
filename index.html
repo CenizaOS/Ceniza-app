@@ -2522,12 +2522,11 @@ function renderEntregas(d, fecha){
     </div>`;
   html += resumenCaja;
   // ── Rezagadas (entregas vencidas pendientes) ──
-  // Si el servidor NO devuelve el campo `rezagadas`, el script viejo está corriendo
-  if (d.rezagadas === undefined) {
-    html += `<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:12px;color:var(--red);font-weight:600">
-      ⚠️ Apps Script desactualizado — redespliega una nueva versión para ver rezagadas
-    </div>`;
-  }
+  // Debug temporal: muestra en pantalla qué devuelve la API
+  const _dbgRez = d.rezagadas;
+  html += `<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:#6366f1;font-family:monospace">
+    🔍 debug — rezagadas: ${_dbgRez === undefined ? 'undefined (script viejo)' : JSON.stringify(_dbgRez)}
+  </div>`;
   const rezagadas = d.rezagadas || [];
   if (rezagadas.length) {
     html += `<div class="rezagada-header">⚠️ ${rezagadas.length} entrega${rezagadas.length!==1?'s':''} rezagada${rezagadas.length!==1?'s':''} — hacer hoy</div>`;
