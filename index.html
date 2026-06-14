@@ -396,15 +396,16 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 /* ═══════════════════════════════════════════════════════════
    DUEÑA — PANEL FINANCIERO
 ═══════════════════════════════════════════════════════════*/
-.fin-topbar{padding:calc(env(safe-area-inset-top,0px)+28px) 20px 14px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-bottom:1px solid var(--bg4);position:sticky;top:0;z-index:10;flex-shrink:0}
-.fin-topbar-brand{display:flex;align-items:center;gap:10px}
-.fin-topbar-name{font-size:16px;font-weight:700}
+.fin-topbar{padding:calc(env(safe-area-inset-top,0px)+20px) 20px 20px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-bottom:1px solid var(--bg4);flex-shrink:0}
+#app-d{height:100vh;height:100dvh;overflow:hidden;min-height:unset}
+.fin-topbar-brand{display:flex;align-items:center;gap:12px}
+.fin-topbar-name{font-size:17px;font-weight:700;letter-spacing:.2px}
 .fin-topbar-sub{font-size:12px;color:var(--text2)}
-.fin-tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);position:sticky;top:70px;z-index:9;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.fin-tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);overflow-x:auto;scrollbar-width:none;flex-shrink:0}
 .fin-tabs::-webkit-scrollbar{display:none}
 .fin-tab{flex:0 0 auto;padding:9px 15px;font-size:12px;font-weight:500;color:var(--text2);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
 .fin-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:700}
-.fin-body{padding:16px;padding-bottom:60px;overflow-y:auto;flex:1}
+.fin-body{padding:16px;padding-bottom:60px;overflow-y:auto;flex:1;min-height:0}
 .fin-screen{animation:fadeIn .15s ease}
 .fin-card{background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:10px}
 .fin-sec-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px}
@@ -434,7 +435,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .fin-fondo-card.crecimiento{border-left-color:#3b82f6}
 .fin-fondo-card.empresa{border-left-color:#22c55e}
 .fin-plan-qty-row{display:flex;gap:8px;margin-bottom:12px}
-.fin-plan-qty-btn{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg2);font-size:14px;font-weight:600;cursor:pointer;color:var(--text);transition:all .15s}
+.fin-plan-qty-btn{flex:1;padding:10px 2px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg2);font-size:13px;font-weight:600;cursor:pointer;color:var(--text);transition:all .15s}
 .fin-plan-qty-btn.active{background:var(--gold-bg);border-color:var(--gold);color:var(--gold-dim)}
 .fin-plan-input{width:100%;padding:12px 16px;border:1px solid var(--bg3);border-radius:10px;font-size:20px;font-weight:700;text-align:center;background:var(--bg2);color:var(--text);margin-bottom:4px}
 .fin-cuenta-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--bg3)}
@@ -1345,7 +1346,7 @@ function renderFinPlanificador() {
   const utilEsp  = n * FIN.utilNeta;
   const $f       = v => '$' + v.toFixed(2);
 
-  const quickBtns = [50, 100, 150, 200].map(q =>
+  const quickBtns = [100, 250, 300, 350, 400].map(q =>
     `<button class="fin-plan-qty-btn${q === n ? ' active':''}" onclick="setFinPlanPants(${q})">${q}</button>`
   ).join('');
 
