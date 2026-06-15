@@ -1100,9 +1100,12 @@ async function loadFinQuincena() {
   const div = document.getElementById('fin-quincena-content');
   div.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Calculando...</div>';
   try {
-    const d = await fetchData('comisiones');
+    const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
+    const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
     _finPants = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pants) || 0), 0);
     _finLabel = d.quincenaLabel || '';
+    // Guardar lista de vendedoras para el card de arrastre
+    window._finVendedoras = (d.vendedoras || []).map(v => v.nombre);
     if (d.mes) document.getElementById('fin-mes-label').textContent = d.mes;
     renderFinQuincena();
   } catch(e) {
@@ -1223,6 +1226,17 @@ function renderFinQuincena() {
       <div class="fin-row">
         <span class="fin-row-label">Margen real esta quincena</span>
         <span class="fin-row-val">${n > 0 && ingresos > 0 ? ((utilReal/ingresos)*100).toFixed(1)+'%' : '–'}</span>
+      </div>
+    </div>
+
+    <!-- Arrastre quincena anterior -->
+    <div class="fin-card" style="margin-top:4px" id="arrastre-card">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
+        📦 Arrastre quincena anterior
+      </div>
+      <div id="arrastre-vendedoras-list">${renderArrastreAdmin()}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">
+        Pantalones de la quincena 1 que se suman al conteo de comisiones
       </div>
     </div>
 
@@ -1982,6 +1996,39 @@ function _guardarFinLocal() {
 }
 
 // ══════════════════════════════════════════════════════════
+// DUEÑA — arrastre quincena anterior
+// ══════════════════════════════════════════════════════════
+function renderArrastreAdmin() {
+  const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
+  // Lista de vendedoras conocidas (si hay datos de comisiones cargados, úsalos; sino, fallback a Angie)
+  const nombres = window._finVendedoras && window._finVendedoras.length
+    ? window._finVendedoras
+    : ['Angie'];
+  return nombres.map(nombre => {
+    const val = arrastres[nombre] || 0;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bg3)">
+      <div style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${nombre}</div>
+      <input type="number" min="0" value="${val}" id="arrastre-inp-${nombre.replace(/\s/g,'_')}"
+        style="width:70px;padding:6px 8px;border:1px solid var(--bg3);border-radius:8px;font-size:14px;font-weight:700;text-align:center;background:var(--bg);color:var(--text)">
+      <button onclick="guardarArrastre('${nombre}')"
+        style="padding:6px 12px;border-radius:8px;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);font-size:12px;font-weight:700;cursor:pointer">
+        ✓
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function guardarArrastre(nombre) {
+  const inp = document.getElementById('arrastre-inp-' + nombre.replace(/\s/g,'_'));
+  if (!inp) return;
+  const val = parseInt(inp.value) || 0;
+  const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
+  arrastres[nombre] = val;
+  localStorage.setItem('ceniza_arrastres', JSON.stringify(arrastres));
+  mostrarToast(`✓ Arrastre de ${nombre}: ${val} pantalones guardado`);
+}
+
+// ══════════════════════════════════════════════════════════
 // DUEÑA — reiniciar quincena
 // ══════════════════════════════════════════════════════════
 let _reiniciarTimer = null, _reiniciarConfirm = false;
@@ -2207,13 +2254,17 @@ async function loadVendedoraComisiones() {
   const el = document.getElementById('vend-com-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
-    const d = await fetchData('comisiones');
-    document.getElementById('vend-mes').textContent = d.mes || '';
     const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
+    // Leer arrastre de quincena anterior desde localStorage (lo configura la dueña)
+    const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
+    const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
+    document.getElementById('vend-mes').textContent = d.mes || '';
     const vend = d.vendedoras.find(v => v.nombre === nombre);
     const qLabel = d.quincenaLabel || '';
 
-    const pantsVal   = vend ? vend.pants    : 0;
+    const pantsVal    = vend ? vend.pants         : 0;   // total acumulado (quincena + arrastre)
+    const pantsQ2     = vend ? vend.pantsQuincena  : 0;  // solo esta quincena
+    const arrastre    = vend ? (vend.arrastre || 0): 0;
     const comisionVal = vend ? vend.comision : '0.00';
     const totalVal    = vend ? vend.totalAPagar : '100.00';
     const nivelSig    = vend ? vend.nivelSiguiente : { pants: 150, pct: 9 };
@@ -2228,7 +2279,8 @@ async function loadVendedoraComisiones() {
       <div class="card" style="text-align:center;padding:18px 10px">
         <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Pantalones</div>
         <div style="font-size:42px;font-weight:700;color:var(--text);line-height:1">${pantsVal}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:5px">vendidos</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:5px">acumulado del mes</div>
+        ${arrastre > 0 ? `<div style="font-size:10px;color:var(--text3);margin-top:3px">${arrastre} ant. + ${pantsQ2} nueva</div>` : ''}
       </div>
       <div class="card" style="text-align:center;padding:18px 10px">
         <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Comisión</div>
