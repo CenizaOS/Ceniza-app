@@ -662,10 +662,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   <!-- Tabs -->
   <div class="fin-tabs">
     <button class="fin-tab active" onclick="showFinTab('quincena',this)">💰 Quincena</button>
-    <button class="fin-tab" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
-    <button class="fin-tab" onclick="showFinTab('tanda',this)">📦 Tanda</button>
-    <button class="fin-tab" onclick="showFinTab('cuentas',this)">💳 Cuentas</button>
+    <button class="fin-tab" onclick="showFinTab('plan',this)">📋 Plan</button>
     <button class="fin-tab" onclick="showFinTab('cierre',this)">📊 Cierre</button>
+    <button class="fin-tab" onclick="showFinTab('tanda',this)">📦 Tanda</button>
+    <button class="fin-tab" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
     <button class="fin-tab" onclick="showFinTab('nuevo',this)">✨ Nuevo</button>
   </div>
 
@@ -674,17 +674,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div id="fin-quincena" class="fin-screen">
       <div id="fin-quincena-content"><div class="loading-msg"><div class="spinner"></div>Calculando...</div></div>
     </div>
-    <div id="fin-fondos" class="fin-screen" style="display:none">
-      <div id="fin-fondos-content"><div class="loading-msg"><div class="spinner"></div>Cargando fondos...</div></div>
+    <div id="fin-plan" class="fin-screen" style="display:none">
+      <div id="fin-plan-content"></div>
+    </div>
+    <div id="fin-cierre" class="fin-screen" style="display:none">
+      <div id="fin-cierre-content"></div>
     </div>
     <div id="fin-tanda" class="fin-screen" style="display:none">
       <div id="fin-tanda-content"></div>
     </div>
-    <div id="fin-cuentas" class="fin-screen" style="display:none">
-      <div id="fin-cuentas-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
-    </div>
-    <div id="fin-cierre" class="fin-screen" style="display:none">
-      <div id="fin-cierre-content"></div>
+    <div id="fin-fondos" class="fin-screen" style="display:none">
+      <div id="fin-fondos-content"><div class="loading-msg"><div class="spinner"></div>Cargando fondos...</div></div>
     </div>
     <div id="fin-nuevo" class="fin-screen" style="display:none">
       <div id="fin-nuevo-content"></div>
@@ -1083,10 +1083,11 @@ async function abrirAppDuena() {
 function showFinTab(tab, btn) {
   document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  ['quincena','fondos','tanda','cuentas','cierre','nuevo'].forEach(t => {
+  ['quincena','plan','cierre','tanda','fondos','nuevo'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
+  if (tab === 'plan')   renderFinPlan();
   if (tab === 'tanda')  renderFinPlanificador();
   if (tab === 'cierre') renderFinCierre();
   if (tab === 'nuevo')  renderFinNuevo();
@@ -1746,11 +1747,135 @@ async function guardarCierre() {
     await fetch(`${API}?${p}`);
   } catch(e) {}
 
+  // Guardar último cierre para tab Plan
+  const cierreData = {
+    fecha:       new Date().toLocaleDateString('es-VE'),
+    ingresos:    g('ci-ingresos'),
+    costos:      g('ci-costos'),
+    salidas:     g('ci-salidas'),
+    utilidad:    utilidad,
+    personal:    u * _porcentajes.personal    / 100,
+    reinversion: u * _porcentajes.reinversion / 100,
+    emergencia:  aEme,
+    crecimiento: aCre,
+    pctPersonal:    _porcentajes.personal,
+    pctReinversion: _porcentajes.reinversion,
+    pctEmergencia:  _porcentajes.emergencia,
+    pctCrecimiento: _porcentajes.crecimiento
+  };
+  localStorage.setItem('ceniza_cierre_ultimo', JSON.stringify(cierreData));
+
   mostrarToast(`✅ Quincena cerrada · +${fmt$(aEme)} emergencia · +${fmt$(aCre)} crecimiento`);
-  // Ir a fondos para ver el resultado
-  const fondosBtn = [...document.querySelectorAll('.fin-tab')].find(b => b.textContent.includes('Fondos'));
-  showFinTab('fondos', fondosBtn);
-  loadFinFondos();
+  // Ir a Plan para ver el presupuesto de la próxima quincena
+  const planBtn = [...document.querySelectorAll('.fin-tab')].find(b => b.textContent.includes('Plan'));
+  showFinTab('plan', planBtn);
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 2 · PLAN DE QUINCENA
+// ══════════════════════════════════════════════════════════
+function recalcPlan() {
+  const raw = localStorage.getItem('ceniza_cierre_ultimo');
+  if (!raw) return;
+  const c = JSON.parse(raw);
+  const total = c.reinversion || 0;
+  const pcts = {
+    materia:    parseFloat(document.getElementById('plan-pct-materia')?.value)    || 0,
+    ads:        parseFloat(document.getElementById('plan-pct-ads')?.value)        || 0,
+    nomina:     parseFloat(document.getElementById('plan-pct-nomina')?.value)     || 0,
+    operativos: parseFloat(document.getElementById('plan-pct-operativos')?.value) || 0,
+  };
+  const suma = pcts.materia + pcts.ads + pcts.nomina + pcts.operativos;
+  ['materia','ads','nomina','operativos'].forEach(k => {
+    const el = document.getElementById('plan-monto-' + k);
+    if (el) el.textContent = fmt$(total * pcts[k] / 100);
+  });
+  const sumEl = document.getElementById('plan-suma-pct');
+  if (sumEl) {
+    sumEl.textContent = suma + '%';
+    sumEl.style.color = Math.round(suma) === 100 ? 'var(--green)' : '#ef4444';
+  }
+  const totalEl = document.getElementById('plan-total-comprometido');
+  if (totalEl) totalEl.textContent = fmt$(total * suma / 100);
+  localStorage.setItem('ceniza_plan_pct', JSON.stringify(pcts));
+}
+
+function renderFinPlan() {
+  const div = document.getElementById('fin-plan-content');
+  const raw = localStorage.getItem('ceniza_cierre_ultimo');
+  if (!raw) {
+    div.innerHTML = `
+      <div class="cierre-bloque" style="text-align:center;padding:32px 16px">
+        <div style="font-size:40px;margin-bottom:12px">📋</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">Sin datos de cierre</div>
+        <div style="font-size:13px;color:var(--text2)">Cierra una quincena primero para ver el plan de la próxima.</div>
+      </div>`;
+    return;
+  }
+
+  const c = JSON.parse(raw);
+  const reinv = c.reinversion || 0;
+  const saved = JSON.parse(localStorage.getItem('ceniza_plan_pct') || 'null') || {
+    materia: 50, ads: 20, nomina: 20, operativos: 10
+  };
+
+  const categorias = [
+    { id: 'materia',    icon: '🧵', label: 'Materia prima / Tela', pct: saved.materia    },
+    { id: 'ads',        icon: '📢', label: 'Publicidad / Ads',      pct: saved.ads        },
+    { id: 'nomina',     icon: '👩‍💼', label: 'Nómina y comisiones',   pct: saved.nomina     },
+    { id: 'operativos', icon: '⚡', label: 'Gastos operativos',     pct: saved.operativos },
+  ];
+  const sumaInicial = saved.materia + saved.ads + saved.nomina + saved.operativos;
+
+  div.innerHTML = `
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">📊 Cierre anterior · ${c.fecha || ''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px">
+          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Utilidad</div>
+          <div style="font-size:18px;font-weight:800;color:var(--gold)">${fmt$(c.utilidad)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px">
+          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Reinversión (${c.pctReinversion || 0}%)</div>
+          <div style="font-size:18px;font-weight:800;color:var(--accent)">${fmt$(reinv)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">💸 ¿Cómo usar los ${fmt$(reinv)} de reinversión?</div>
+      ${categorias.map(cat => `
+        <div class="dist-fila">
+          <div class="dist-icono">${cat.icon}</div>
+          <div class="dist-label">${cat.label}</div>
+          <input id="plan-pct-${cat.id}" class="dist-pct-input" type="number" min="0" max="100"
+            value="${cat.pct}" oninput="recalcPlan()">
+          <span class="dist-pct-sym">%</span>
+          <div id="plan-monto-${cat.id}" class="dist-monto">${fmt$(reinv * cat.pct / 100)}</div>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px;border-top:1px solid var(--bg3);margin-top:6px">
+        <span style="font-size:12px;color:var(--text3)">Total asignado · <span id="plan-suma-pct" style="color:${sumaInicial===100?'var(--green)':'#ef4444'};font-weight:700">${sumaInicial}%</span></span>
+        <span id="plan-total-comprometido" style="font-size:15px;font-weight:800;color:var(--text)">${fmt$(reinv * sumaInicial / 100)}</span>
+      </div>
+    </div>
+
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">🏦 Fondos disponibles</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px">
+          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">💛 Emergencia</div>
+          <div style="font-size:18px;font-weight:800;color:var(--gold)">${fmt$(_fondos.emergencia || 0)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">No tocar salvo urgencia</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px">
+          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">🌱 Crecimiento</div>
+          <div style="font-size:18px;font-weight:800;color:#22c55e">${fmt$(_fondos.crecimiento || 0)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Para expansión del negocio</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fin-hint" style="text-align:center;margin-top:4px">Los porcentajes se guardan automáticamente</div>`;
 }
 
 // ══════════════════════════════════════════════════════════
