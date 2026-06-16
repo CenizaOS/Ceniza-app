@@ -495,8 +495,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="role-card locked" onclick="selectRole('compras')">
       <div class="role-icon">🛍️</div>
       <div>
-        <div class="role-card-name">Compras</div>
-        <div class="role-card-desc">Lista de insumos · presupuesto disponible</div>
+        <div class="role-card-name">Delivery de compras</div>
+        <div class="role-card-desc">Lista de encargos de insumos</div>
       </div>
     </button>
     <button class="role-card locked" onclick="selectRole('duena')">
@@ -658,8 +658,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div style="display:flex;align-items:center;gap:10px">
       <div class="topbar-logo">C</div>
       <div>
-        <div class="del-header-title">Compras</div>
-        <div class="del-header-sub" id="compras-sub">Materia prima</div>
+        <div class="del-header-title">Delivery de compras</div>
+        <div class="del-header-sub" id="compras-sub">Lista de encargos</div>
       </div>
     </div>
     <button class="switch-btn" onclick="logoutRol()">Salir</button>
@@ -918,7 +918,7 @@ const ROL_NOMBRES = {
   vendedora: 'Vendedora',
   costurera: 'Taller de costura',
   delivery:  'Delivery',
-  compras:   'Compras / Materia prima',
+  compras:   'Delivery de compras',
   duena:     'Dueña'
 };
 let rolPendiente = '';
@@ -963,6 +963,24 @@ function renderEncargosAdmin() {
     </button>`;
 }
 
+function generarListaTanda() {
+  const n = _lotePants;
+  const m = FIN.mat;
+  // Reemplaza solo los ítems no-hechos (mantiene los hechos y los manuales sin cuantía de tanda)
+  const actuales = getEncargos().filter(e => e.hecho);  // conserva completados
+  const nuevos = [
+    { id: Date.now()+1, item: 'Tela lycra',           cantidad: `${(n * 2.7).toFixed(1)} metros`,  lugar: '', nota: `2.7 m × ${n} pants`, hecho: false },
+    { id: Date.now()+2, item: 'Liga',                  cantidad: `${n} unidades`,                   lugar: '', nota: '1 por pantalón',      hecho: false },
+    { id: Date.now()+3, item: 'Bolsa',                 cantidad: `${n} unidades`,                   lugar: '', nota: '1 por pantalón',      hecho: false },
+    { id: Date.now()+4, item: 'Etiquetas + stickers',  cantidad: `${n} juegos`,                     lugar: '', nota: '1 juego por pantalón',hecho: false },
+    { id: Date.now()+5, item: 'Empaquetado',           cantidad: `${n} unidades`,                   lugar: '', nota: 'bolsas, amarres, etc.',hecho: false },
+  ];
+  saveEncargos([...actuales, ...nuevos]);
+  const adminDiv = document.getElementById('lote-lista-encargos');
+  if (adminDiv) adminDiv.innerHTML = renderEncargosAdmin();
+  mostrarToast(`✓ Lista generada para ${n} pantalones`);
+}
+
 function agregarEncargo() {
   const item     = document.getElementById('enc-item')?.value.trim();
   const cantidad = document.getElementById('enc-cantidad')?.value.trim();
@@ -1001,7 +1019,9 @@ function renderCompras() {
   const div  = document.getElementById('compras-content');
   const list = getEncargos();
 
-  document.getElementById('compras-sub').textContent = 'Lista de encargos';
+  document.getElementById('compras-sub').textContent = list.length
+    ? `${list.filter(e=>!e.hecho).length} pendiente(s) de ${list.length}`
+    : 'Lista de encargos';
 
   if (!list.length) {
     div.innerHTML = `
@@ -2030,117 +2050,150 @@ async function guardarCierre() {
   };
   localStorage.setItem('ceniza_cierre_ultimo', JSON.stringify(cierreData));
 
+  // Acumular historial de cierres
+  const historial = JSON.parse(localStorage.getItem('ceniza_historial_cierres') || '[]');
+  historial.push(cierreData);
+  localStorage.setItem('ceniza_historial_cierres', JSON.stringify(historial));
+
   mostrarToast(`✅ Quincena cerrada · +${fmt$(aEme)} emergencia · +${fmt$(aCre)} crecimiento`);
-  // Ir a Plan para ver el presupuesto de la próxima quincena
   const planBtn = [...document.querySelectorAll('.fin-tab')].find(b => b.textContent.includes('Plan'));
   showFinTab('plan', planBtn);
 }
 
 // ══════════════════════════════════════════════════════════
-// TAB 2 · PLAN DE QUINCENA
+// TAB 2 · HISTORIAL DE CIERRES
 // ══════════════════════════════════════════════════════════
-function recalcPlan() {
-  const raw = localStorage.getItem('ceniza_cierre_ultimo');
-  if (!raw) return;
-  const c = JSON.parse(raw);
-  const total = c.reinversion || 0;
-  const pcts = {
-    materia:    parseFloat(document.getElementById('plan-pct-materia')?.value)    || 0,
-    ads:        parseFloat(document.getElementById('plan-pct-ads')?.value)        || 0,
-    nomina:     parseFloat(document.getElementById('plan-pct-nomina')?.value)     || 0,
-    operativos: parseFloat(document.getElementById('plan-pct-operativos')?.value) || 0,
-  };
-  const suma = pcts.materia + pcts.ads + pcts.nomina + pcts.operativos;
-  ['materia','ads','nomina','operativos'].forEach(k => {
-    const el = document.getElementById('plan-monto-' + k);
-    if (el) el.textContent = fmt$(total * pcts[k] / 100);
-  });
-  const sumEl = document.getElementById('plan-suma-pct');
-  if (sumEl) {
-    sumEl.textContent = suma + '%';
-    sumEl.style.color = Math.round(suma) === 100 ? 'var(--green)' : '#ef4444';
-  }
-  const totalEl = document.getElementById('plan-total-comprometido');
-  if (totalEl) totalEl.textContent = fmt$(total * suma / 100);
-  localStorage.setItem('ceniza_plan_pct', JSON.stringify(pcts));
-}
-
 function renderFinPlan() {
-  const div = document.getElementById('fin-plan-content');
-  const raw = localStorage.getItem('ceniza_cierre_ultimo');
-  if (!raw) {
+  const div      = document.getElementById('fin-plan-content');
+  const historial = JSON.parse(localStorage.getItem('ceniza_historial_cierres') || '[]');
+
+  if (!historial.length) {
     div.innerHTML = `
-      <div class="cierre-bloque" style="text-align:center;padding:32px 16px">
-        <div style="font-size:40px;margin-bottom:12px">📋</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">Sin datos de cierre</div>
-        <div style="font-size:13px;color:var(--text2)">Cierra una quincena primero para ver el plan de la próxima.</div>
+      <div class="cierre-bloque" style="text-align:center;padding:40px 16px">
+        <div style="font-size:44px;margin-bottom:12px">📋</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text2)">Sin cierres registrados</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:6px">Cuando cierres una quincena aquí quedará el registro.</div>
       </div>`;
     return;
   }
 
-  const c = JSON.parse(raw);
-  const reinv = c.reinversion || 0;
-  const saved = JSON.parse(localStorage.getItem('ceniza_plan_pct') || 'null') || {
-    materia: 50, ads: 20, nomina: 20, operativos: 10
-  };
+  // Totales acumulados
+  const tots = historial.reduce((acc, c) => ({
+    pants:     acc.pants     + (c.pants    || 0),
+    ingresos:  acc.ingresos  + (c.ingresos || 0),
+    utilidad:  acc.utilidad  + (c.utilidad || 0),
+    comision:  acc.comision  + (c.comision || 0),
+  }), { pants:0, ingresos:0, utilidad:0, comision:0 });
 
-  const categorias = [
-    { id: 'materia',    icon: '🧵', label: 'Materia prima / Tela', pct: saved.materia    },
-    { id: 'ads',        icon: '📢', label: 'Publicidad / Ads',      pct: saved.ads        },
-    { id: 'nomina',     icon: '👩‍💼', label: 'Nómina y comisiones',   pct: saved.nomina     },
-    { id: 'operativos', icon: '⚡', label: 'Gastos operativos',     pct: saved.operativos },
-  ];
-  const sumaInicial = saved.materia + saved.ads + saved.nomina + saved.operativos;
+  // Función que renderiza una tarjeta de cierre
+  function tarjetaCierre(c, idx) {
+    const fila = (label, valor, color='var(--text2)') =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0">
+        <span style="font-size:12px;color:var(--text3)">${label}</span>
+        <span style="font-size:13px;font-weight:700;color:${color}">${fmt$(valor)}</span>
+      </div>`;
+
+    const distItems = [];
+    if (c.personal    > 0) distItems.push({ icon:'👩‍💼', label:`Dueña (${c.pctPersonal||0}%)`,      val: c.personal    });
+    if (c.reinversion > 0) distItems.push({ icon:'🔄', label:`Reinversión (${c.pctReinversion||0}%)`, val: c.reinversion });
+    if (c.emergencia  > 0) distItems.push({ icon:'💛', label:`Emergencia (${c.pctEmergencia||0}%)`,   val: c.emergencia  });
+    if (c.crecimiento > 0) distItems.push({ icon:'🌱', label:`Crecimiento (${c.pctCrecimiento||0}%)`, val: c.crecimiento });
+
+    return `
+      <div style="background:var(--bg2);border-radius:12px;margin-bottom:12px;overflow:hidden">
+        <!-- Encabezado -->
+        <div style="background:var(--bg3);padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text)">Quincena ${idx} · ${c.fecha || ''}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:1px">${c.pants || 0} pantalones vendidos</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:10px;color:var(--text3)">Utilidad</div>
+            <div style="font-size:17px;font-weight:800;color:var(--gold)">${fmt$(c.utilidad || 0)}</div>
+          </div>
+        </div>
+        <!-- Desglose -->
+        <div style="padding:10px 14px">
+          ${fila('Ingresos brutos',            c.ingresos || 0, 'var(--text)')}
+          ${fila('− Costos de producción',     c.costos   || 0)}
+          ${(c.salidas||0) > 0 ? fila('− Otros gastos', c.salidas, '#ef4444') : ''}
+          ${fila('Utilidad bruta',             c.utilBruta|| 0, 'var(--text)')}
+          ${(c.comision||0) > 0 ? fila('− Comisión vendedora', c.comision, '#f97316') : ''}
+          <div style="border-top:1px solid var(--bg4);margin:6px 0"></div>
+          ${fila('Utilidad a distribuir',      c.utilidad || 0, 'var(--gold)')}
+          <!-- Distribución -->
+          ${distItems.length ? `
+          <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--bg4)">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Distribución</div>
+            ${distItems.map(d => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0">
+                <span style="font-size:12px;color:var(--text3)">${d.icon} ${d.label}</span>
+                <span style="font-size:12px;font-weight:700;color:var(--text2)">${fmt$(d.val)}</span>
+              </div>`).join('')}
+          </div>` : ''}
+        </div>
+        <!-- Botón eliminar (solo el último) -->
+        ${idx === historial.length ? `
+        <div style="padding:0 14px 10px">
+          <button onclick="eliminarUltimoCierre()"
+            style="width:100%;background:none;border:1px solid var(--bg4);border-radius:7px;padding:7px;font-size:11px;color:var(--text3);cursor:pointer">
+            🗑 Eliminar este cierre
+          </button>
+        </div>` : ''}
+      </div>`;
+  }
+
+  // Más reciente primero
+  const tarjetas = [...historial].reverse().map((c, i) =>
+    tarjetaCierre(c, historial.length - i)
+  ).join('');
 
   div.innerHTML = `
+    <!-- Resumen acumulado -->
     <div class="cierre-bloque">
-      <div class="cierre-titulo">📊 Cierre anterior · ${c.fecha || ''}</div>
+      <div class="cierre-titulo">📊 Acumulado · ${historial.length} quincena(s)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:var(--bg3);border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Utilidad</div>
-          <div style="font-size:18px;font-weight:800;color:var(--gold)">${fmt$(c.utilidad)}</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Pantalones</div>
+          <div style="font-size:20px;font-weight:800;color:var(--text)">${tots.pants}</div>
         </div>
-        <div style="background:var(--bg3);border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">Reinversión (${c.pctReinversion || 0}%)</div>
-          <div style="font-size:18px;font-weight:800;color:var(--accent)">${fmt$(reinv)}</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Ingresos totales</div>
+          <div style="font-size:20px;font-weight:800;color:var(--text)">${fmt$(tots.ingresos)}</div>
         </div>
-      </div>
-    </div>
-
-    <div class="cierre-bloque">
-      <div class="cierre-titulo">💸 ¿Cómo usar los ${fmt$(reinv)} de reinversión?</div>
-      ${categorias.map(cat => `
-        <div class="dist-fila">
-          <div class="dist-icono">${cat.icon}</div>
-          <div class="dist-label">${cat.label}</div>
-          <input id="plan-pct-${cat.id}" class="dist-pct-input" type="number" min="0" max="100"
-            value="${cat.pct}" oninput="recalcPlan()">
-          <span class="dist-pct-sym">%</span>
-          <div id="plan-monto-${cat.id}" class="dist-monto">${fmt$(reinv * cat.pct / 100)}</div>
-        </div>`).join('')}
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px;border-top:1px solid var(--bg3);margin-top:6px">
-        <span style="font-size:12px;color:var(--text3)">Total asignado · <span id="plan-suma-pct" style="color:${sumaInicial===100?'var(--green)':'#ef4444'};font-weight:700">${sumaInicial}%</span></span>
-        <span id="plan-total-comprometido" style="font-size:15px;font-weight:800;color:var(--text)">${fmt$(reinv * sumaInicial / 100)}</span>
-      </div>
-    </div>
-
-    <div class="cierre-bloque">
-      <div class="cierre-titulo">🏦 Fondos disponibles</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:var(--bg3);border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">💛 Emergencia</div>
-          <div style="font-size:18px;font-weight:800;color:var(--gold)">${fmt$(_fondos.emergencia || 0)}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">No tocar salvo urgencia</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Utilidad total</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">${fmt$(tots.utilidad)}</div>
         </div>
-        <div style="background:var(--bg3);border-radius:8px;padding:10px">
-          <div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;margin-bottom:4px">🌱 Crecimiento</div>
-          <div style="font-size:18px;font-weight:800;color:#22c55e">${fmt$(_fondos.crecimiento || 0)}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">Para expansión del negocio</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Comisiones pag.</div>
+          <div style="font-size:20px;font-weight:800;color:#f97316">${fmt$(tots.comision)}</div>
         </div>
       </div>
     </div>
 
-    <div class="fin-hint" style="text-align:center;margin-top:4px">Los porcentajes se guardan automáticamente</div>`;
+    <!-- Historial -->
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
+      Registro de cierres
+    </div>
+    ${tarjetas}
+  `;
+}
+
+function eliminarUltimoCierre() {
+  const historial = JSON.parse(localStorage.getItem('ceniza_historial_cierres') || '[]');
+  if (!historial.length) return;
+  if (!confirm('¿Eliminar el último cierre? Esta acción no se puede deshacer.')) return;
+  historial.pop();
+  localStorage.setItem('ceniza_historial_cierres', JSON.stringify(historial));
+  // actualizar cierre_ultimo
+  if (historial.length) {
+    localStorage.setItem('ceniza_cierre_ultimo', JSON.stringify(historial[historial.length - 1]));
+  } else {
+    localStorage.removeItem('ceniza_cierre_ultimo');
+  }
+  renderFinPlan();
+  mostrarToast('Cierre eliminado');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2154,18 +2207,14 @@ function renderFinLote() {
   const m   = FIN.mat;
   const $f  = v => '$' + Math.abs(v).toFixed(2);
 
-  // ── Presupuesto disponible de reinversión (del último cierre)
-  const cierre     = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
-  const planPct    = JSON.parse(localStorage.getItem('ceniza_plan_pct') || 'null') || { materia:50, ads:20, nomina:20, operativos:10 };
-  const reinvTotal = cierre ? (cierre.reinversion || 0) : 0;
-  const presup = {
-    materia:    reinvTotal * planPct.materia    / 100,
-    confeccion: reinvTotal * planPct.nomina     / 100,  // nómina cubre confección
-    ads:        reinvTotal * planPct.ads        / 100,
-    operativos: reinvTotal * planPct.operativos / 100,
-  };
+  // ── Capital disponible (ingresos quincena ant. + reinversión acumulada)
+  const cierre      = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
+  const ingresosCierre = cierre ? (cierre.ingresos    || 0) : 0;  // capital de trabajo
+  const reinvTotal     = cierre ? (cierre.reinversion || 0) : 0;  // ahorro de utilidades
+  const totalDisponible = ingresosCierre + reinvTotal;
+  const hayCierre = !!cierre;
 
-  // ── Costos del lote agrupados
+  // ── Costos del lote
   const costoMateria    = n * (m.tela + m.liga + m.bolsa + m.etiqueta + m.empaquetado);
   const costoConfeccion = n * m.confeccion;
   const costoAds        = n * m.ads;
@@ -2174,41 +2223,24 @@ function renderFinLote() {
 
   // ── Desglose interno de materia prima
   const desgloseMat = [
-    { label: `Tela  ·  ${(n * 2.7).toFixed(0)} m  (2.7 m/pant)`, unit: m.tela,       total: n * m.tela       },
-    { label: 'Liga',                                                unit: m.liga,       total: n * m.liga       },
-    { label: 'Bolsa',                                               unit: m.bolsa,      total: n * m.bolsa      },
-    { label: 'Etiqueta + sticker',                                  unit: m.etiqueta,   total: n * m.etiqueta   },
-    { label: 'Empaquetado',                                         unit: m.empaquetado,total: n * m.empaquetado },
+    { label: `Tela  ·  ${(n * 2.7).toFixed(0)} m  (2.7 m/pant)`, total: n * m.tela       },
+    { label: 'Liga',                                                total: n * m.liga       },
+    { label: 'Bolsa',                                               total: n * m.bolsa      },
+    { label: 'Etiqueta + sticker',                                  total: n * m.etiqueta   },
+    { label: 'Empaquetado',                                         total: n * m.empaquetado },
   ];
 
-  function fila(icon, label, necesitas, tienes, detalle) {
-    const gap   = tienes - necesitas;
-    const color = gap >= 0 ? '#22c55e' : '#ef4444';
-    const badge = tienes > 0
-      ? `<span style="font-size:11px;font-weight:700;color:${color};white-space:nowrap">${gap >= 0 ? '✅ sobran ' + $f(gap) : '❌ faltan ' + $f(Math.abs(gap))}</span>`
-      : `<span style="font-size:11px;color:var(--text3)">sin presupuesto asignado</span>`;
+  function filaDetalle(icon, label, costo, subDetalle) {
     return `
       <div style="border-radius:10px;background:var(--bg2);padding:12px 14px;margin-bottom:8px">
-        <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:20px;flex-shrink:0">${icon}</span>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px">
-              <span style="font-size:13px;font-weight:700;color:var(--text)">${label}</span>
-              ${badge}
-            </div>
-            <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
-              <div>
-                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Necesitas</div>
-                <div style="font-size:16px;font-weight:800;color:var(--text)">${$f(necesitas)}</div>
-              </div>
-              ${tienes > 0 ? `<div>
-                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Tienes</div>
-                <div style="font-size:16px;font-weight:800;color:var(--gold)">${$f(tienes)}</div>
-              </div>` : ''}
-            </div>
-            ${detalle ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bg3)">${detalle}</div>` : ''}
+          <div style="flex:1">
+            <span style="font-size:13px;font-weight:700;color:var(--text)">${label}</span>
           </div>
+          <span style="font-size:16px;font-weight:800;color:var(--text)">${$f(costo)}</span>
         </div>
+        ${subDetalle ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bg3)">${subDetalle}</div>` : ''}
       </div>`;
   }
 
@@ -2225,10 +2257,10 @@ function renderFinLote() {
              background:${q===n?'var(--gold-bg)':'var(--bg2)'};color:${q===n?'var(--gold-dim)':'var(--text)'}">${q}</button>`
   ).join('');
 
-  const hayPresup = reinvTotal > 0;
+  const sobrante = totalDisponible - costoTotal;
 
   div.innerHTML = `
-    <!-- Proyección -->
+    <!-- Selector de cantidad -->
     <div class="cierre-bloque">
       <div class="cierre-titulo">🎯 ¿Cuántos pantalones vas a hacer?</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${quickBtns}</div>
@@ -2238,36 +2270,59 @@ function renderFinLote() {
           onchange="setLotePants(this.value)">
         <span style="font-size:14px;color:var(--text2)">pantalones</span>
       </div>
-      ${!hayPresup ? `<div style="margin-top:10px;background:rgba(234,179,8,.1);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--gold-dim)">
-        💡 Cierra una quincena primero para ver el presupuesto disponible por categoría
-      </div>` : `<div style="margin-top:8px;font-size:12px;color:var(--text3)">Presupuesto de reinversión: <strong style="color:var(--gold)">${$f(reinvTotal)}</strong></div>`}
     </div>
 
-    <!-- Desglose por categoría -->
-    <div class="cierre-titulo" style="margin-top:4px">💸 ¿Con qué cuento?</div>
-
-    ${fila('🧵', 'Materia prima', costoMateria, presup.materia, detalleMatHTML)}
-    ${fila('✂️', 'Confección  ·  $3.00/pant', costoConfeccion, presup.confeccion, '')}
-    ${fila('📢', 'Publicidad / Ads  ·  $2.00/pant', costoAds, presup.ads, '')}
-    ${fila('⚡', 'Gastos operativos (fijos)', costoOperativos, presup.operativos, '')}
-
-    <!-- Total -->
-    <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-top:4px">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:13px;font-weight:700;color:var(--text2)">Costo total del lote</span>
-        <span style="font-size:20px;font-weight:800;color:var(--text)">${$f(costoTotal)}</span>
-      </div>
-      ${hayPresup ? (() => {
-        const totalPresup = reinvTotal;
-        const gap = totalPresup - costoTotal;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-          <span style="font-size:13px;color:var(--text2)">Reinversión disponible</span>
-          <span style="font-size:20px;font-weight:800;color:var(--gold)">${$f(totalPresup)}</span>
+    <!-- Capital disponible -->
+    ${hayCierre ? `
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">💰 Capital disponible</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text2)">Ingresos quincena anterior</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Lo que recogiste vendiendo — capital de trabajo</div>
         </div>
-        <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:${gap>=0?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)'};font-size:13px;font-weight:700;color:${gap>=0?'#22c55e':'#ef4444'};text-align:center">
-          ${gap >= 0 ? `✅ Cubre el lote · sobran ${$f(gap)}` : `❌ Faltan ${$f(Math.abs(gap))} para cubrir este lote`}
-        </div>`;
-      })() : ''}
+        <div style="font-size:18px;font-weight:800;color:var(--text)">${$f(ingresosCierre)}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--bg3)">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text2)">+ Reinversión acumulada</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Ahorro de utilidades — para crecer el lote</div>
+        </div>
+        <div style="font-size:18px;font-weight:800;color:var(--accent)">${$f(reinvTotal)}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px;border-top:2px solid var(--bg4)">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">Total con qué trabajar</div>
+        <div style="font-size:20px;font-weight:800;color:var(--gold)">${$f(totalDisponible)}</div>
+      </div>
+    </div>` : `
+    <div style="background:rgba(234,179,8,.08);border-radius:10px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--gold-dim)">
+      💡 Cierra una quincena primero para ver el capital disponible
+    </div>`}
+
+    <!-- Desglose de costos del lote -->
+    <div class="cierre-titulo" style="margin-top:4px">📦 Costo del lote · ${n} pantalones</div>
+
+    ${filaDetalle('🧵', 'Materia prima', costoMateria, detalleMatHTML)}
+    ${filaDetalle('✂️', 'Confección  ·  $3.00/pant', costoConfeccion, '')}
+    ${filaDetalle('📢', 'Publicidad / Ads  ·  $2.00/pant', costoAds, '')}
+    ${filaDetalle('⚡', 'Operativos (fijos)', costoOperativos, '')}
+
+    <!-- Resumen: costo vs capital -->
+    <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-top:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${hayCierre?'10px':'0'}">
+        <span style="font-size:14px;font-weight:700;color:var(--text2)">Costo total del lote</span>
+        <span style="font-size:22px;font-weight:800;color:var(--text)">${$f(costoTotal)}</span>
+      </div>
+      ${hayCierre ? `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--bg3);margin-bottom:8px">
+        <span style="font-size:13px;color:var(--text2)">Capital disponible</span>
+        <span style="font-size:18px;font-weight:800;color:var(--gold)">${$f(totalDisponible)}</span>
+      </div>
+      <div style="padding:10px 14px;border-radius:8px;background:${sobrante>=0?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)'};font-size:13px;font-weight:700;color:${sobrante>=0?'#22c55e':'#ef4444'};text-align:center">
+        ${sobrante >= 0
+          ? `✅ Alcanza · te sobran ${$f(sobrante)} después del lote`
+          : `❌ Faltan ${$f(Math.abs(sobrante))} para cubrir este lote`}
+      </div>` : ''}
     </div>
 
     <!-- Proyección si se venden todos -->
@@ -2287,28 +2342,36 @@ function renderFinLote() {
 
     <!-- ══ Lista de encargos para Compras ══ -->
     <div style="margin-top:16px;border-top:1px solid var(--bg4);padding-top:16px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
-        🛍️ Lista de encargos para Compras
-      </div>
-      <div id="lote-lista-encargos">${renderEncargosAdmin()}</div>
-      <!-- formulario para agregar ítem -->
-      <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-top:8px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:8px">+ Agregar encargo</div>
-        <input id="enc-item" placeholder="¿Qué comprar? ej: Tela lycra negra" type="text"
-          style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:6px">
-        <div style="display:flex;gap:6px;margin-bottom:6px">
-          <input id="enc-cantidad" placeholder="Cantidad  ej: 27 m" type="text"
-            style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-          <input id="enc-lugar" placeholder="Dónde  ej: Mayoreo centro" type="text"
-            style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">
+          🛍️ Lista de compras
         </div>
-        <input id="enc-nota" placeholder="Nota adicional (opcional)" type="text"
-          style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
-        <button onclick="agregarEncargo()"
-          style="width:100%;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
-          Agregar a la lista
+        <button onclick="generarListaTanda()"
+          style="background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">
+          ✨ Generar para ${n} pants
         </button>
       </div>
+      <div id="lote-lista-encargos">${renderEncargosAdmin()}</div>
+      <!-- formulario para agregar ítem extra -->
+      <details style="margin-top:8px">
+        <summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:6px 0">+ Agregar ítem manual</summary>
+        <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-top:6px">
+          <input id="enc-item" placeholder="¿Qué comprar? ej: Tela lycra negra" type="text"
+            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:6px">
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <input id="enc-cantidad" placeholder="Cantidad  ej: 27 m" type="text"
+              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+            <input id="enc-lugar" placeholder="Dónde  ej: Mayoreo centro" type="text"
+              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+          </div>
+          <input id="enc-nota" placeholder="Nota adicional (opcional)" type="text"
+            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
+          <button onclick="agregarEncargo()"
+            style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
+            Agregar ítem
+          </button>
+        </div>
+      </details>
     </div>
   `;
 }
