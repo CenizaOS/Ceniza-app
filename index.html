@@ -1065,7 +1065,7 @@ function finBe() { // pantalones mínimos para cubrir fijos
 }
 
 // ── Estado del panel ────────────────────────────────────────
-let _finPants = 0, _finLabel = '';
+let _finPants = 0, _finPantsAPI = null, _finLabel = '';
 let _fondos   = { emergencia:0, crecimiento:0, empresa:0 };
 let _cuentas  = { binance:0, bolivares:0, usdEfectivo:0, paypal:0 };
 let _tasas    = { bcv:0, usdt:0, fecha:'' };
@@ -1102,7 +1102,8 @@ async function loadFinQuincena() {
   try {
     const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
     const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
-    _finPants = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pants) || 0), 0);
+    _finPantsAPI = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pants) || 0), 0);
+    _finPants = _finPantsAPI;
     _finLabel = d.quincenaLabel || '';
     // Guardar lista de vendedoras para el card de arrastre
     window._finVendedoras = (d.vendedoras || []).map(v => v.nombre);
@@ -1142,18 +1143,25 @@ function renderFinQuincena() {
   document.getElementById('fin-quincena-content').innerHTML = `
     <!-- Resumen base -->
     <div class="fin-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div style="font-size:13px;color:var(--text2)">📅 ${_finLabel || 'Quincena actual'}</div>
         <div style="font-size:11px;background:var(--bg3);padding:3px 9px;border-radius:20px;color:var(--text3)">PE: ${beQ} pant</div>
       </div>
-      <div style="display:flex;align-items:baseline;gap:8px">
-        <div style="font-size:44px;font-weight:800;color:var(--gold);line-height:1">${n}</div>
-        <div style="font-size:14px;color:var(--text2)">pantalones vendidos</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pantalones vendidos</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <input id="fin-pants-input" type="number" min="0" value="${n}"
+          style="width:110px;font-size:40px;font-weight:800;color:var(--gold);background:var(--bg2);border:2px solid var(--bg4);border-radius:10px;padding:4px 10px;text-align:center;line-height:1"
+          onchange="actualizarPantsManual(this.value)"
+          onkeydown="if(event.key==='Enter'){this.blur()}">
+        <div>
+          <div style="font-size:12px;color:var(--text3)">← edita si es necesario</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">API: ${_finPantsAPI ?? n}</div>
+        </div>
       </div>
-      <div style="font-size:12px;color:${n >= beQ ? 'var(--green)' : 'var(--red)'};margin-top:6px;font-weight:600">
+      <div style="font-size:12px;color:${n >= beQ ? 'var(--green)' : 'var(--red)'};font-weight:600;margin-bottom:10px">
         ${n >= beQ ? '✅ Sobre el punto de equilibrio' : `⚠️ Faltan ${beQ - n} pants para equilibrio`}
       </div>
-      <button class="btn" onclick="loadFinQuincena()" style="margin-top:10px;background:var(--bg3);color:var(--text);border:none;padding:7px 14px;font-size:12px">↻ Actualizar</button>
+      <button class="btn" onclick="loadFinQuincena()" style="background:var(--bg3);color:var(--text);border:none;padding:7px 14px;font-size:12px">↻ Sincronizar desde Sheets</button>
     </div>
 
     <!-- P&L -->
@@ -1251,6 +1259,13 @@ function renderFinQuincena() {
       </div>
     </div>
   `;
+}
+
+function actualizarPantsManual(val) {
+  const n = parseInt(val) || 0;
+  if (n < 0) return;
+  _finPants = n;
+  renderFinQuincena();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1565,7 +1580,6 @@ async function guardarTasas() {
 let _porcentajes = { personal: 40, reinversion: 30, emergencia: 15, crecimiento: 15 };
 
 function renderFinCierre() {
-  // Cargar porcentajes guardados
   try {
     const saved = JSON.parse(localStorage.getItem('ceniza_fin') || '{}');
     if (saved.porcentajes) _porcentajes = saved.porcentajes;
@@ -1577,31 +1591,58 @@ function renderFinCierre() {
   document.getElementById('fin-cierre-content').innerHTML = `
     <div class="fin-hint" style="margin-bottom:10px">📅 ${quincenaLabel}</div>
 
-    <!-- PASO 1: Ingresos y gastos -->
+    <!-- PASO 1: Datos de la quincena -->
     <div class="cierre-bloque">
       <div class="cierre-titulo">📥 Datos de la quincena</div>
+
+      <!-- Pantalones — auto-rellena ingresos y costos -->
+      <div class="fin-cuenta-row" style="border-bottom:2px solid var(--gold-bg);margin-bottom:4px;padding-bottom:10px">
+        <span class="fin-cuenta-icon">👖</span>
+        <span class="fin-cuenta-label" style="font-weight:700;color:var(--text)">Pantalones vendidos</span>
+        <input class="fin-cuenta-input" type="number" id="ci-pants" placeholder="0"
+          oninput="autoFillCierre()" inputmode="numeric"
+          style="font-size:20px;font-weight:800;color:var(--gold);border-color:var(--gold)">
+      </div>
+
       <div class="fin-cuenta-row">
         <span class="fin-cuenta-icon">💵</span>
         <span class="fin-cuenta-label">Ingresos brutos</span>
-        <input class="fin-cuenta-input" type="number" id="ci-ingresos" placeholder="0" oninput="calcCierre()" inputmode="decimal">
+        <input class="fin-cuenta-input" type="number" id="ci-ingresos" placeholder="auto"
+          oninput="calcCierre()" inputmode="decimal">
       </div>
       <div class="fin-cuenta-row">
         <span class="fin-cuenta-icon">🧵</span>
         <span class="fin-cuenta-label">Costos de producción</span>
-        <input class="fin-cuenta-input" type="number" id="ci-costos" placeholder="0" oninput="calcCierre()" inputmode="decimal">
+        <input class="fin-cuenta-input" type="number" id="ci-costos" placeholder="auto"
+          oninput="calcCierre()" inputmode="decimal">
       </div>
       <div class="fin-cuenta-row">
         <span class="fin-cuenta-icon">📤</span>
         <span class="fin-cuenta-label">Otras salidas</span>
-        <input class="fin-cuenta-input" type="number" id="ci-salidas" placeholder="0" oninput="calcCierre()" inputmode="decimal">
+        <input class="fin-cuenta-input" type="number" id="ci-salidas" placeholder="0"
+          oninput="calcCierre()" inputmode="decimal">
       </div>
       <div class="cierre-resultado">
-        <span class="cierre-resultado-label">Utilidad neta</span>
-        <span class="cierre-resultado-val" id="ci-utilidad">Bs 0</span>
+        <span class="cierre-resultado-label">Utilidad bruta</span>
+        <span class="cierre-resultado-val" id="ci-utilidad-bruta">$0</span>
       </div>
     </div>
 
-    <!-- PASO 2: Distribución de utilidad -->
+    <!-- PASO 2: Comisión vendedora -->
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">👩‍💼 Comisión vendedora</div>
+      <div class="fin-cuenta-row" style="border:none;padding:0">
+        <span class="fin-cuenta-icon">📊</span>
+        <span class="fin-cuenta-label" id="ci-comision-label" style="color:var(--text2)">Ingresa los pantalones</span>
+        <span id="ci-comision-monto" style="font-size:15px;font-weight:700;color:var(--red)">−$0</span>
+      </div>
+      <div class="cierre-resultado">
+        <span class="cierre-resultado-label">Utilidad a distribuir</span>
+        <span class="cierre-resultado-val" id="ci-utilidad">$0</span>
+      </div>
+    </div>
+
+    <!-- PASO 3: Distribución de la utilidad -->
     <div class="cierre-bloque">
       <div class="cierre-titulo">📊 Distribución de la utilidad</div>
       <div class="fin-hint" style="margin-bottom:10px;margin-top:-4px">Cambia los % cuando quieras — quedan guardados</div>
@@ -1611,28 +1652,28 @@ function renderFinCierre() {
         <span class="dist-label">Pago personal</span>
         <input class="dist-pct-input" type="number" id="pct-personal" value="${p.personal}" min="0" max="100" oninput="calcCierre()" inputmode="decimal">
         <span class="dist-pct-sym">%</span>
-        <span class="dist-monto" id="amt-personal">Bs 0</span>
+        <span class="dist-monto" id="amt-personal">$0</span>
       </div>
       <div class="dist-fila">
         <span class="dist-icono">🏭</span>
         <span class="dist-label">Reinversión / tela</span>
         <input class="dist-pct-input" type="number" id="pct-reinversion" value="${p.reinversion}" min="0" max="100" oninput="calcCierre()" inputmode="decimal">
         <span class="dist-pct-sym">%</span>
-        <span class="dist-monto" id="amt-reinversion">Bs 0</span>
+        <span class="dist-monto" id="amt-reinversion">$0</span>
       </div>
       <div class="dist-fila">
         <span class="dist-icono">🛡️</span>
         <span class="dist-label">Fondo emergencia</span>
         <input class="dist-pct-input" type="number" id="pct-emergencia" value="${p.emergencia}" min="0" max="100" oninput="calcCierre()" inputmode="decimal">
         <span class="dist-pct-sym">%</span>
-        <span class="dist-monto" id="amt-emergencia">Bs 0</span>
+        <span class="dist-monto" id="amt-emergencia">$0</span>
       </div>
       <div class="dist-fila">
         <span class="dist-icono">🚀</span>
         <span class="dist-label">Fondo crecimiento</span>
         <input class="dist-pct-input" type="number" id="pct-crecimiento" value="${p.crecimiento}" min="0" max="100" oninput="calcCierre()" inputmode="decimal">
         <span class="dist-pct-sym">%</span>
-        <span class="dist-monto" id="amt-crecimiento">Bs 0</span>
+        <span class="dist-monto" id="amt-crecimiento">$0</span>
       </div>
 
       <div id="ci-pct-aviso" style="display:none;background:rgba(239,68,68,.1);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--red);margin-top:8px">
@@ -1643,13 +1684,13 @@ function renderFinCierre() {
       </div>
     </div>
 
-    <!-- PASO 3: Presupuesto próxima quincena -->
+    <!-- PASO 4: Presupuesto próxima quincena -->
     <div class="cierre-bloque">
       <div class="cierre-titulo">📅 Presupuesto — próxima quincena</div>
       <div class="dist-fila">
         <span class="dist-icono">🧵</span>
         <span class="dist-label">Tela / inventario</span>
-        <span class="dist-monto" id="prx-tela">Bs 0</span>
+        <span class="dist-monto" id="prx-tela">$0</span>
       </div>
       <div class="dist-fila">
         <span class="dist-icono">👩‍💼</span>
@@ -1668,7 +1709,7 @@ function renderFinCierre() {
       </div>
       <div class="cierre-resultado">
         <span class="cierre-resultado-label">Total comprometido</span>
-        <span class="cierre-resultado-val" id="prx-total" style="color:var(--text)">Bs 0</span>
+        <span class="cierre-resultado-val" id="prx-total" style="color:var(--text)">$0</span>
       </div>
     </div>
 
@@ -1682,21 +1723,52 @@ function renderFinCierre() {
   `;
 }
 
+function autoFillCierre() {
+  const n = parseInt(document.getElementById('ci-pants')?.value) || 0;
+  const ingEl = document.getElementById('ci-ingresos');
+  const cosEl = document.getElementById('ci-costos');
+  if (ingEl) ingEl.value = n > 0 ? (n * FIN.precio).toFixed(2) : '';
+  if (cosEl) cosEl.value = n > 0 ? (n * FIN.costoTotal).toFixed(2) : '';
+  calcCierre();
+}
+
 function calcCierre() {
-  const g = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const g  = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const gi = id => parseInt(document.getElementById(id)?.value)   || 0;
+  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt$(val); };
+
+  const n        = gi('ci-pants');
   const ingresos = g('ci-ingresos');
   const costos   = g('ci-costos');
   const salidas  = g('ci-salidas');
-  const utilidad = ingresos - costos - salidas;
+  const utilBruta = ingresos - costos - salidas;
 
-  // Mostrar utilidad
+  // Comisión vendedora: pants × $12.28 × tier%
+  const pctCom   = finComisionPct(n);
+  const comision = n * FIN.utilNeta * pctCom;
+  const niveles  = [[400,0.15,'400+'],[300,0.12,'300–399'],[200,0.10,'200–299'],[150,0.09,'150–199'],[1,0.08,'1–149']];
+  const nivelLabel = n > 0 ? (niveles.find(([min]) => n >= min)?.[2] ?? '—') : '—';
+
+  // Utilidad distribuible (después de comisión)
+  const utilidad = utilBruta - comision;
+
+  // ── Utilidad bruta
+  const uBrEl = document.getElementById('ci-utilidad-bruta');
+  if (uBrEl) { uBrEl.textContent = fmt$(utilBruta); uBrEl.style.color = utilBruta >= 0 ? 'var(--gold)' : 'var(--red)'; }
+
+  // ── Comisión vendedora
+  const comLabel = document.getElementById('ci-comision-label');
+  const comMonto = document.getElementById('ci-comision-monto');
+  if (comLabel) comLabel.textContent = n > 0
+    ? `Nivel ${nivelLabel} pants · ${(pctCom*100).toFixed(0)}% × ${n} pant × $${FIN.utilNeta}`
+    : 'Ingresa los pantalones vendidos';
+  if (comMonto) { comMonto.textContent = `−${fmt$(comision)}`; comMonto.style.color = comision > 0 ? 'var(--red)' : 'var(--text3)'; }
+
+  // ── Utilidad a distribuir
   const uEl = document.getElementById('ci-utilidad');
-  if (uEl) {
-    uEl.textContent = fmt$(utilidad);
-    uEl.style.color = utilidad >= 0 ? 'var(--gold)' : 'var(--red)';
-  }
+  if (uEl) { uEl.textContent = fmt$(utilidad); uEl.style.color = utilidad >= 0 ? 'var(--gold)' : 'var(--red)'; }
 
-  // Leer y guardar porcentajes
+  // ── Porcentajes y distribución
   const pPer  = g('pct-personal');
   const pRein = g('pct-reinversion');
   const pEme  = g('pct-emergencia');
@@ -1709,24 +1781,21 @@ function calcCierre() {
     localStorage.setItem('ceniza_fin', JSON.stringify(saved));
   } catch(e) {}
 
-  // Aviso de suma
-  const aviso = document.getElementById('ci-pct-aviso');
-  const ok    = document.getElementById('ci-pct-ok');
+  const aviso  = document.getElementById('ci-pct-aviso');
+  const ok     = document.getElementById('ci-pct-ok');
   const sumaEl = document.getElementById('ci-pct-suma');
   if (sumaEl) sumaEl.textContent = suma.toFixed(0);
   if (aviso)  aviso.style.display = (Math.round(suma) !== 100 && suma > 0) ? '' : 'none';
   if (ok)     ok.style.display    = (Math.round(suma) === 100) ? '' : 'none';
 
-  // Montos de distribución
-  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt$(val); };
-  const u = Math.max(0, utilidad);
+  const u     = Math.max(0, utilidad);
   const aRein = u * pRein / 100;
-  setT('amt-personal',    u * pPer  / 100);
+  setT('amt-personal',    u * pPer / 100);
   setT('amt-reinversion', aRein);
-  setT('amt-emergencia',  u * pEme  / 100);
-  setT('amt-crecimiento', u * pCre  / 100);
+  setT('amt-emergencia',  u * pEme / 100);
+  setT('amt-crecimiento', u * pCre / 100);
 
-  // Presupuesto próxima quincena
+  // ── Presupuesto próxima quincena
   setT('prx-tela', aRein);
   const nomina  = g('prx-nomina');
   const gastos  = g('prx-gastos');
@@ -1735,9 +1804,14 @@ function calcCierre() {
 }
 
 async function guardarCierre() {
-  const g = id => parseFloat(document.getElementById(id)?.value) || 0;
-  const utilidad = g('ci-ingresos') - g('ci-costos') - g('ci-salidas');
-  if (utilidad <= 0) { mostrarToast('⚠ Ingresa los datos de la quincena primero'); return; }
+  const g  = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const gi = id => parseInt(document.getElementById(id)?.value)   || 0;
+  const n         = gi('ci-pants');
+  const utilBruta = g('ci-ingresos') - g('ci-costos') - g('ci-salidas');
+  const pctCom    = finComisionPct(n);
+  const comision  = n * FIN.utilNeta * pctCom;
+  const utilidad  = utilBruta - comision;  // utilidad a distribuir
+  if (utilBruta <= 0) { mostrarToast('⚠ Ingresa los datos de la quincena primero'); return; }
   if (Math.round(_porcentajes.personal + _porcentajes.reinversion + _porcentajes.emergencia + _porcentajes.crecimiento) !== 100) {
     mostrarToast('⚠ Los porcentajes deben sumar 100%'); return;
   }
@@ -1764,9 +1838,12 @@ async function guardarCierre() {
   // Guardar último cierre para tab Plan
   const cierreData = {
     fecha:       new Date().toLocaleDateString('es-VE'),
+    pants:       n,
     ingresos:    g('ci-ingresos'),
     costos:      g('ci-costos'),
     salidas:     g('ci-salidas'),
+    comision:    comision,
+    utilBruta:   utilBruta,
     utilidad:    utilidad,
     personal:    u * _porcentajes.personal    / 100,
     reinversion: u * _porcentajes.reinversion / 100,
