@@ -492,6 +492,13 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
         <div class="role-card-desc">Entregas del día · marcar entregado</div>
       </div>
     </button>
+    <button class="role-card locked" onclick="selectRole('compras')">
+      <div class="role-icon">🛍️</div>
+      <div>
+        <div class="role-card-name">Compras</div>
+        <div class="role-card-desc">Lista de insumos · presupuesto disponible</div>
+      </div>
+    </button>
     <button class="role-card locked" onclick="selectRole('duena')">
       <div class="role-icon">🔑</div>
       <div>
@@ -644,6 +651,25 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     COMPRAS APP
+═══════════════════════════════════════════════════════════ -->
+<div id="app-compras" class="del-app" style="display:none">
+  <div class="del-header">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="topbar-logo">C</div>
+      <div>
+        <div class="del-header-title">Compras</div>
+        <div class="del-header-sub" id="compras-sub">Materia prima</div>
+      </div>
+    </div>
+    <button class="switch-btn" onclick="logoutRol()">Salir</button>
+  </div>
+  <div class="del-body" id="compras-content">
+    <div class="loading-msg"><div class="spinner"></div>Cargando...</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
      DUEÑA APP — PANEL FINANCIERO
 ═══════════════════════════════════════════════════════════ -->
 <div class="app" id="app-d" style="display:none">
@@ -665,6 +691,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="fin-tab" onclick="showFinTab('plan',this)">📋 Plan</button>
     <button class="fin-tab" onclick="showFinTab('cierre',this)">📊 Cierre</button>
     <button class="fin-tab" onclick="showFinTab('tanda',this)">📦 Tanda</button>
+    <button class="fin-tab" onclick="showFinTab('lote',this)">📐 Lote</button>
     <button class="fin-tab" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
     <button class="fin-tab" onclick="showFinTab('nuevo',this)">✨ Nuevo</button>
   </div>
@@ -682,6 +709,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="fin-tanda" class="fin-screen" style="display:none">
       <div id="fin-tanda-content"></div>
+    </div>
+    <div id="fin-lote" class="fin-screen" style="display:none">
+      <div id="fin-lote-content"></div>
     </div>
     <div id="fin-fondos" class="fin-screen" style="display:none">
       <div id="fin-fondos-content"><div class="loading-msg"><div class="spinner"></div>Cargando fondos...</div></div>
@@ -878,15 +908,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
 const PINES = {
-  vendedora: '2317',
+  vendedora: '1818',
   costurera: '5690',
   delivery:  '5420',
+  compras:   '3030',
   duena:     '5439'
 };
 const ROL_NOMBRES = {
   vendedora: 'Vendedora',
   costurera: 'Taller de costura',
   delivery:  'Delivery',
+  compras:   'Compras / Materia prima',
   duena:     'Dueña'
 };
 let rolPendiente = '';
@@ -895,6 +927,87 @@ let rolPendiente = '';
 // ROLE MANAGEMENT
 // ══════════════════════════════════════════════════════════
 let pinActual = '';
+
+// ══════════════════════════════════════════════════════════
+// ROL COMPRAS — vista de lista de insumos
+// ══════════════════════════════════════════════════════════
+function renderCompras() {
+  const div    = document.getElementById('compras-content');
+  const n      = parseInt(localStorage.getItem('ceniza_lote_pants') || '100');
+  const m      = FIN.mat;
+  const $f     = v => '$' + v.toFixed(2);
+  const cierre = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
+  const planPct = JSON.parse(localStorage.getItem('ceniza_plan_pct') || 'null') || { materia: 50 };
+  const reinv  = cierre ? (cierre.reinversion || 0) : 0;
+  const presupMat = reinv * planPct.materia / 100;
+  const hayPresup = reinv > 0;
+
+  // Insumos con cantidad física + costo
+  const insumos = [
+    { icon: '🧵', nombre: 'Tela',              cantidad: `${(n * 2.7).toFixed(1)} m`,  unitario: m.tela,        total: n * m.tela,        nota: '2.7 m por pantalón' },
+    { icon: '🔗', nombre: 'Liga',              cantidad: `${n} unid`,                  unitario: m.liga,        total: n * m.liga,        nota: '1 por pantalón' },
+    { icon: '📦', nombre: 'Bolsa',             cantidad: `${n} unid`,                  unitario: m.bolsa,       total: n * m.bolsa,       nota: '1 por pantalón' },
+    { icon: '🏷️', nombre: 'Etiquetas + stickers', cantidad: `${n} juegos`,            unitario: m.etiqueta,    total: n * m.etiqueta,    nota: '1 juego por pantalón' },
+    { icon: '📎', nombre: 'Empaquetado',       cantidad: `${n} unid`,                  unitario: m.empaquetado, total: n * m.empaquetado, nota: 'bolsas, amarres, etc.' },
+  ];
+  const totalMat = insumos.reduce((a, i) => a + i.total, 0);
+
+  document.getElementById('compras-sub').textContent = `Lote de ${n} pantalones`;
+
+  div.innerHTML = `
+    <!-- Presupuesto -->
+    <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">💰 Presupuesto disponible</div>
+      ${hayPresup ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:13px;color:var(--text2)">Para materia prima (${planPct.materia}% de reinversión)</span>
+          <span style="font-size:18px;font-weight:800;color:var(--gold)">${$f(presupMat)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--bg3)">
+          <span style="font-size:13px;color:var(--text2)">Total insumos para ${n} pants</span>
+          <span style="font-size:18px;font-weight:800;color:var(--text)">${$f(totalMat)}</span>
+        </div>
+        <div style="margin-top:8px;padding:8px 12px;border-radius:8px;text-align:center;font-size:13px;font-weight:700;
+          background:${presupMat >= totalMat ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)'};
+          color:${presupMat >= totalMat ? '#22c55e' : '#ef4444'}">
+          ${presupMat >= totalMat
+            ? `✅ Alcanza · sobran ${$f(presupMat - totalMat)}`
+            : `❌ Faltan ${$f(totalMat - presupMat)} para cubrir este lote`}
+        </div>` : `
+        <div style="font-size:13px;color:var(--text3);text-align:center;padding:8px">
+          Sin datos de cierre aún — el presupuesto aparecerá cuando la dueña cierre una quincena
+        </div>`}
+    </div>
+
+    <!-- Lista de insumos -->
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
+      🛍️ Lista de compras — ${n} pantalones
+    </div>
+
+    ${insumos.map(ins => `
+      <div style="background:var(--bg2);border-radius:10px;padding:13px 15px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px;flex-shrink:0">${ins.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${ins.nombre}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${ins.nota}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:15px;font-weight:800;color:var(--gold)">${$f(ins.total)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">${ins.cantidad} · ${$f(ins.unitario)}/u</div>
+        </div>
+      </div>`).join('')}
+
+    <!-- Total -->
+    <div style="background:var(--bg2);border-radius:10px;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;border:1px solid var(--bg4)">
+      <span style="font-size:14px;font-weight:700;color:var(--text)">Total a invertir</span>
+      <span style="font-size:20px;font-weight:800;color:var(--text)">${$f(totalMat)}</span>
+    </div>
+
+    <div class="fin-hint" style="text-align:center;margin-top:8px">
+      Lote configurado por administración · ${n} pantalones
+    </div>
+  `;
+}
 
 function initApp() {
   const rol = localStorage.getItem('ceniza_rol');
@@ -906,7 +1019,7 @@ function initApp() {
 }
 
 function showScreen(id) {
-  ['screen-rol','screen-pin','app-v','app-c','app-del'].forEach(s => {
+  ['screen-rol','screen-pin','app-v','app-c','app-del','app-compras'].forEach(s => {
     document.getElementById(s).style.display = 'none';
   });
   document.getElementById('app-d').style.display = 'none';
@@ -954,6 +1067,9 @@ function showApp(rol) {
     showScreen('app-del');
     fechaDeliveryActual = new Date();
     loadDelivery();
+  } else if (rol === 'compras') {
+    showScreen('app-compras');
+    renderCompras();
   } else if (rol === 'duena') {
     abrirAppDuena();
   } else {
@@ -1083,12 +1199,13 @@ async function abrirAppDuena() {
 function showFinTab(tab, btn) {
   document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  ['quincena','plan','cierre','tanda','fondos','nuevo'].forEach(t => {
+  ['quincena','plan','cierre','tanda','lote','fondos','nuevo'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
   if (tab === 'plan')   renderFinPlan();
   if (tab === 'tanda')  renderFinPlanificador();
+  if (tab === 'lote')   renderFinLote();
   if (tab === 'cierre') renderFinCierre();
   if (tab === 'nuevo')  renderFinNuevo();
 }
@@ -1967,6 +2084,159 @@ function renderFinPlan() {
     </div>
 
     <div class="fin-hint" style="text-align:center;margin-top:4px">Los porcentajes se guardan automáticamente</div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB · LOTE — planificador de producción por presupuesto
+// ══════════════════════════════════════════════════════════
+let _lotePants = parseInt(localStorage.getItem('ceniza_lote_pants') || '100');
+
+function renderFinLote() {
+  const div = document.getElementById('fin-lote-content');
+  const n   = _lotePants;
+  const m   = FIN.mat;
+  const $f  = v => '$' + Math.abs(v).toFixed(2);
+
+  // ── Presupuesto disponible de reinversión (del último cierre)
+  const cierre     = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
+  const planPct    = JSON.parse(localStorage.getItem('ceniza_plan_pct') || 'null') || { materia:50, ads:20, nomina:20, operativos:10 };
+  const reinvTotal = cierre ? (cierre.reinversion || 0) : 0;
+  const presup = {
+    materia:    reinvTotal * planPct.materia    / 100,
+    confeccion: reinvTotal * planPct.nomina     / 100,  // nómina cubre confección
+    ads:        reinvTotal * planPct.ads        / 100,
+    operativos: reinvTotal * planPct.operativos / 100,
+  };
+
+  // ── Costos del lote agrupados
+  const costoMateria    = n * (m.tela + m.liga + m.bolsa + m.etiqueta + m.empaquetado);
+  const costoConfeccion = n * m.confeccion;
+  const costoAds        = n * m.ads;
+  const costoOperativos = FIN.fijosQuinc;
+  const costoTotal      = costoMateria + costoConfeccion + costoAds + costoOperativos;
+
+  // ── Desglose interno de materia prima
+  const desgloseMat = [
+    { label: `Tela  ·  ${(n * 2.7).toFixed(0)} m  (2.7 m/pant)`, unit: m.tela,       total: n * m.tela       },
+    { label: 'Liga',                                                unit: m.liga,       total: n * m.liga       },
+    { label: 'Bolsa',                                               unit: m.bolsa,      total: n * m.bolsa      },
+    { label: 'Etiqueta + sticker',                                  unit: m.etiqueta,   total: n * m.etiqueta   },
+    { label: 'Empaquetado',                                         unit: m.empaquetado,total: n * m.empaquetado },
+  ];
+
+  function fila(icon, label, necesitas, tienes, detalle) {
+    const gap   = tienes - necesitas;
+    const color = gap >= 0 ? '#22c55e' : '#ef4444';
+    const badge = tienes > 0
+      ? `<span style="font-size:11px;font-weight:700;color:${color};white-space:nowrap">${gap >= 0 ? '✅ sobran ' + $f(gap) : '❌ faltan ' + $f(Math.abs(gap))}</span>`
+      : `<span style="font-size:11px;color:var(--text3)">sin presupuesto asignado</span>`;
+    return `
+      <div style="border-radius:10px;background:var(--bg2);padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <span style="font-size:20px;flex-shrink:0">${icon}</span>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px">
+              <span style="font-size:13px;font-weight:700;color:var(--text)">${label}</span>
+              ${badge}
+            </div>
+            <div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap">
+              <div>
+                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Necesitas</div>
+                <div style="font-size:16px;font-weight:800;color:var(--text)">${$f(necesitas)}</div>
+              </div>
+              ${tienes > 0 ? `<div>
+                <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Tienes</div>
+                <div style="font-size:16px;font-weight:800;color:var(--gold)">${$f(tienes)}</div>
+              </div>` : ''}
+            </div>
+            ${detalle ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bg3)">${detalle}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const detalleMatHTML = desgloseMat.map(r =>
+    `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:2px 0">
+      <span>${r.label}</span>
+      <span style="font-weight:600">${$f(r.total)}</span>
+    </div>`
+  ).join('');
+
+  const quickBtns = [50, 100, 150, 200, 250, 300].map(q =>
+    `<button onclick="setLotePants(${q})"
+      style="padding:7px 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);
+             background:${q===n?'var(--gold-bg)':'var(--bg2)'};color:${q===n?'var(--gold-dim)':'var(--text)'}">${q}</button>`
+  ).join('');
+
+  const hayPresup = reinvTotal > 0;
+
+  div.innerHTML = `
+    <!-- Proyección -->
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">🎯 ¿Cuántos pantalones vas a hacer?</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${quickBtns}</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="number" min="1" value="${n}" id="lote-pants-inp"
+          style="width:100px;font-size:28px;font-weight:800;color:var(--gold);background:var(--bg2);border:2px solid var(--gold);border-radius:10px;padding:4px 10px;text-align:center"
+          onchange="setLotePants(this.value)">
+        <span style="font-size:14px;color:var(--text2)">pantalones</span>
+      </div>
+      ${!hayPresup ? `<div style="margin-top:10px;background:rgba(234,179,8,.1);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--gold-dim)">
+        💡 Cierra una quincena primero para ver el presupuesto disponible por categoría
+      </div>` : `<div style="margin-top:8px;font-size:12px;color:var(--text3)">Presupuesto de reinversión: <strong style="color:var(--gold)">${$f(reinvTotal)}</strong></div>`}
+    </div>
+
+    <!-- Desglose por categoría -->
+    <div class="cierre-titulo" style="margin-top:4px">💸 ¿Con qué cuento?</div>
+
+    ${fila('🧵', 'Materia prima', costoMateria, presup.materia, detalleMatHTML)}
+    ${fila('✂️', 'Confección  ·  $3.00/pant', costoConfeccion, presup.confeccion, '')}
+    ${fila('📢', 'Publicidad / Ads  ·  $2.00/pant', costoAds, presup.ads, '')}
+    ${fila('⚡', 'Gastos operativos (fijos)', costoOperativos, presup.operativos, '')}
+
+    <!-- Total -->
+    <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-top:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:700;color:var(--text2)">Costo total del lote</span>
+        <span style="font-size:20px;font-weight:800;color:var(--text)">${$f(costoTotal)}</span>
+      </div>
+      ${hayPresup ? (() => {
+        const totalPresup = reinvTotal;
+        const gap = totalPresup - costoTotal;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+          <span style="font-size:13px;color:var(--text2)">Reinversión disponible</span>
+          <span style="font-size:20px;font-weight:800;color:var(--gold)">${$f(totalPresup)}</span>
+        </div>
+        <div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:${gap>=0?'rgba(34,197,94,.12)':'rgba(239,68,68,.1)'};font-size:13px;font-weight:700;color:${gap>=0?'#22c55e':'#ef4444'};text-align:center">
+          ${gap >= 0 ? `✅ Cubre el lote · sobran ${$f(gap)}` : `❌ Faltan ${$f(Math.abs(gap))} para cubrir este lote`}
+        </div>`;
+      })() : ''}
+    </div>
+
+    <!-- Proyección si se venden todos -->
+    <div class="cierre-bloque" style="margin-top:8px">
+      <div class="cierre-titulo">📈 Si vendes los ${n} pantalones</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Ingresos</div>
+          <div style="font-size:18px;font-weight:800;color:var(--text)">${$f(n * FIN.precio)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Utilidad neta</div>
+          <div style="font-size:18px;font-weight:800;color:var(--gold)">${$f(n * FIN.utilNeta - FIN.fijosQuinc)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setLotePants(v) {
+  const n = Math.max(1, parseInt(v) || 1);
+  _lotePants = n;
+  localStorage.setItem('ceniza_lote_pants', n);
+  const inp = document.getElementById('lote-pants-inp');
+  if (inp) inp.value = n;
+  renderFinLote();
 }
 
 // ══════════════════════════════════════════════════════════
