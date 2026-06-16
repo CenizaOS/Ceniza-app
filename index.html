@@ -1296,11 +1296,13 @@ async function loadFinQuincena() {
   try {
     const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
     const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
-    _finPantsAPI = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pants) || 0), 0);
+    // Solo pantalones de ESTA quincena (sin arrastre) — para el P&L del admin
+    _finPantsAPI = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pantsQuincena) || 0), 0);
     _finPants = _finPantsAPI;
     _finLabel = d.quincenaLabel || '';
-    // Guardar lista de vendedoras para el card de arrastre
-    window._finVendedoras = (d.vendedoras || []).map(v => v.nombre);
+    // Guardar lista de vendedoras con datos completos para el card de arrastre
+    window._finVendedoras     = (d.vendedoras || []).map(v => v.nombre);
+    window._finVendedorasData = d.vendedoras || [];  // {nombre, pantsQuincena, arrastre, pants}
     if (d.mes) document.getElementById('fin-mes-label').textContent = d.mes;
     renderFinQuincena();
   } catch(e) {
@@ -1341,7 +1343,7 @@ function renderFinQuincena() {
         <div style="font-size:13px;color:var(--text2)">📅 ${_finLabel || 'Quincena actual'}</div>
         <div style="font-size:11px;background:var(--bg3);padding:3px 9px;border-radius:20px;color:var(--text3)">PE: ${beQ} pant</div>
       </div>
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pantalones vendidos</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pantalones esta quincena (desde 15 Jun)</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <input id="fin-pants-input" type="number" min="0" value="${n}"
           style="width:110px;font-size:40px;font-weight:800;color:var(--gold);background:var(--bg2);border:2px solid var(--bg4);border-radius:10px;padding:4px 10px;text-align:center;line-height:1"
@@ -1431,15 +1433,38 @@ function renderFinQuincena() {
       </div>
     </div>
 
-    <!-- Arrastre quincena anterior -->
+    <!-- Arrastre quincena anterior + resumen total del mes -->
     <div class="fin-card" style="margin-top:4px" id="arrastre-card">
       <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
-        📦 Arrastre quincena anterior
+        📦 Arrastre quincena 1 (historial de pago)
       </div>
       <div id="arrastre-vendedoras-list">${renderArrastreAdmin()}</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:6px">
-        Pantalones de la quincena 1 que se suman al conteo de comisiones
-      </div>
+      ${(() => {
+        // Mostrar resumen total del mes por vendedora (para calcular pago final)
+        const vData = window._finVendedorasData || [];
+        const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
+        if (!vData.length && !Object.keys(arrastres).length) return '';
+        const nombres = vData.length ? vData.map(v=>v.nombre) : Object.keys(arrastres);
+        const filas = nombres.map(nom => {
+          const vd = vData.find(v => v.nombre === nom);
+          const q2 = vd ? (parseInt(vd.pantsQuincena)||0) : 0;
+          const arr = parseInt(arrastres[nom]||0);
+          const total = q2 + arr;
+          const pctTotal = finComisionPct(total);
+          const comTotal = (total * FIN.utilNeta * pctTotal).toFixed(2);
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg3)">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">${nom}</span>
+            <span style="font-size:12px;color:var(--text3)">${arr} + ${q2} = <strong style="color:var(--gold)">${total}</strong> pant · $${comTotal}</span>
+          </div>`;
+        }).join('');
+        return `<div style="margin-top:10px;padding-top:10px;border-top:2px dashed var(--bg4)">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">
+            📊 Total del mes (Q1 + Q2) · para pago
+          </div>
+          ${filas}
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">Q1 arrastre + Q2 esta quincena = total acumulado del mes</div>
+        </div>`;
+      })()}
     </div>
 
     <!-- Reiniciar quincena -->
