@@ -948,6 +948,9 @@ function getEncargos() {
 }
 function saveEncargos(list) {
   localStorage.setItem('ceniza_encargos', JSON.stringify(list));
+  // Sincronizar al servidor (fire & forget — no bloquea la UI)
+  const encoded = encodeURIComponent(JSON.stringify(list));
+  fetch(`${API}?accion=setEncargos&data=${encoded}`).catch(() => {});
 }
 
 function renderEncargosAdmin() {
@@ -1026,8 +1029,15 @@ function limpiarEncargosHechos() {
 }
 
 // ── Vista Compras (checklist para el mensajero) ──────────
-function renderCompras() {
-  const div  = document.getElementById('compras-content');
+async function renderCompras() {
+  const div = document.getElementById('compras-content');
+  div.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
+  try {
+    const d = await fetchData('getEncargos');
+    if (Array.isArray(d.encargos)) {
+      localStorage.setItem('ceniza_encargos', JSON.stringify(d.encargos));
+    }
+  } catch(e) { /* usa localStorage como fallback */ }
   const list = getEncargos();
 
   document.getElementById('compras-sub').textContent = list.length
@@ -1111,6 +1121,19 @@ function getArreglos() {
 }
 function saveArreglos(list) {
   localStorage.setItem('ceniza_arreglos', JSON.stringify(list));
+  // Sincronizar al servidor para compartir entre dispositivos
+  const encoded = encodeURIComponent(JSON.stringify(list));
+  fetch(`${API}?accion=setArreglos&data=${encoded}`).catch(() => {});
+}
+
+// Carga arreglos desde el servidor y actualiza localStorage
+async function syncArreglos() {
+  try {
+    const d = await fetchData('getArreglos');
+    if (Array.isArray(d.arreglos)) {
+      localStorage.setItem('ceniza_arreglos', JSON.stringify(d.arreglos));
+    }
+  } catch(e) { /* usa localStorage como fallback */ }
 }
 function arregloEstadoLabel(e) {
   return { pendiente_recogida:'Por recoger', recibido:'Recibido · en taller',
@@ -2830,10 +2853,9 @@ function showVendTab(tab) {
     if (el.querySelector('.loading-msg')) loadVendedoraComisiones();
   }
   if (tab === 'historial') {
-    const el = document.getElementById('vend-hist-content');
-    if (el.querySelector('.loading-msg')) loadVendedoraHistorial();
+    loadVendedoraHistorial();
   }
-  if (tab === 'recogidas') renderVendRecogidas();
+  if (tab === 'recogidas') syncArreglos().then(renderVendRecogidas);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3156,8 +3178,10 @@ function showCostTab(tab) {
   if (tab === 'arreglos') renderCostArreglos();
 }
 
-function renderCostArreglos() {
+async function renderCostArreglos() {
   const el = document.getElementById('cost-arreglos-content');
+  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
+  await syncArreglos();
   const todos   = getArreglos();
   const enTaller = todos.filter(a => a.estado === 'recibido');
 
@@ -3267,6 +3291,7 @@ async function loadDelivery(offset) {
     fechaDeliveryActual.setDate(fechaDeliveryActual.getDate() + offset);
   }
   document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  await syncArreglos(); // sincronizar arreglos antes de renderizar
   try {
     const fecha = fechaStr(fechaDeliveryActual);
     const d = await fetchData('entregas', `&fecha=${fecha}`);
