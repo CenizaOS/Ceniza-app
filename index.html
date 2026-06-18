@@ -698,12 +698,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 
   <!-- Tabs -->
   <div class="fin-tabs">
-    <button class="fin-tab active" onclick="showFinTab('quincena',this)">💰 Quincena</button>
-    <button class="fin-tab" onclick="showFinTab('plan',this)">📋 Plan</button>
-    <button class="fin-tab" onclick="showFinTab('cierre',this)">📊 Cierre</button>
+    <button class="fin-tab active" onclick="showFinTab('quincena',this)">🏠 Inicio</button>
+    <button class="fin-tab" onclick="showFinTab('produccion',this)">🏭 Producción</button>
     <button class="fin-tab" onclick="showFinTab('lote',this)">📐 Lote</button>
+    <button class="fin-tab" onclick="showFinTab('historial',this)">📋 Historial</button>
+    <button class="fin-tab" onclick="showFinTab('cierre',this)">📊 Cierre</button>
     <button class="fin-tab" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
-    <button class="fin-tab" onclick="showFinTab('nuevo',this)">✨ Nuevo</button>
     <button class="fin-tab" onclick="showFinTab('compras',this)">🛍️ Compras</button>
   </div>
 
@@ -712,20 +712,20 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div id="fin-quincena" class="fin-screen">
       <div id="fin-quincena-content"><div class="loading-msg"><div class="spinner"></div>Calculando...</div></div>
     </div>
-    <div id="fin-plan" class="fin-screen" style="display:none">
-      <div id="fin-plan-content"></div>
-    </div>
-    <div id="fin-cierre" class="fin-screen" style="display:none">
-      <div id="fin-cierre-content"></div>
+    <div id="fin-produccion" class="fin-screen" style="display:none">
+      <div id="fin-produccion-content"></div>
     </div>
     <div id="fin-lote" class="fin-screen" style="display:none">
       <div id="fin-lote-content"></div>
     </div>
+    <div id="fin-historial" class="fin-screen" style="display:none">
+      <div id="fin-historial-content"></div>
+    </div>
+    <div id="fin-cierre" class="fin-screen" style="display:none">
+      <div id="fin-cierre-content"></div>
+    </div>
     <div id="fin-fondos" class="fin-screen" style="display:none">
       <div id="fin-fondos-content"><div class="loading-msg"><div class="spinner"></div>Cargando fondos...</div></div>
-    </div>
-    <div id="fin-nuevo" class="fin-screen" style="display:none">
-      <div id="fin-nuevo-content"></div>
     </div>
     <div id="fin-compras" class="fin-screen" style="display:none">
       <div id="fin-compras-content"></div>
@@ -1724,15 +1724,15 @@ async function abrirAppDuena() {
 function showFinTab(tab, btn) {
   document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  ['quincena','plan','cierre','lote','fondos','nuevo','compras'].forEach(t => {
+  ['quincena','produccion','lote','historial','cierre','fondos','compras'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
-  if (tab === 'plan')    renderFinPlan();
-  if (tab === 'lote')    renderFinLote();
-  if (tab === 'cierre')  renderFinCierre();
-  if (tab === 'nuevo')   renderFinNuevo();
-  if (tab === 'compras') renderFinCompras();
+  if (tab === 'produccion') renderFinProduccion();
+  if (tab === 'lote')       renderFinLote();
+  if (tab === 'historial')  renderFinHistorial();
+  if (tab === 'cierre')     renderFinCierre();
+  if (tab === 'compras')    renderFinCompras();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2044,7 +2044,7 @@ async function guardarFondo(tipo, inputId) {
   } catch(e) {}
   mostrarToast('✓ Saldo actualizado');
   renderFinFondos();
-  if (document.getElementById('fin-tanda').style.display !== 'none') renderFinPlanificador();
+  // fin-tanda ya no existe (tab eliminado)
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2665,8 +2665,287 @@ function eliminarUltimoCierre() {
   } else {
     localStorage.removeItem('ceniza_cierre_ultimo');
   }
-  renderFinPlan();
+  renderFinHistorial();
   mostrarToast('Cierre eliminado');
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB · PRODUCCIÓN — planeación de lotes para próxima quincena
+// ══════════════════════════════════════════════════════════
+function getProduccionLotes() {
+  return JSON.parse(localStorage.getItem('ceniza_produccion_lotes') || '[]');
+}
+function saveProduccionLotes(list) {
+  localStorage.setItem('ceniza_produccion_lotes', JSON.stringify(list));
+}
+
+function renderFinProduccion() {
+  const div = document.getElementById('fin-produccion-content');
+  if (!div) return;
+  const lotes = getProduccionLotes();
+  const totalPants = lotes.reduce((s, l) => s + (parseInt(l.cantidad) || 0), 0);
+  const totalCosto = lotes.reduce((s, l) => {
+    const fin = l.producto === 'sublimado' ? FIN_SUBLIMADO : FIN;
+    return s + (parseInt(l.cantidad) || 0) * fin.costoTotal;
+  }, 0);
+  const totalUtil = lotes.reduce((s, l) => {
+    const fin = l.producto === 'sublimado' ? FIN_SUBLIMADO : FIN;
+    return s + (parseInt(l.cantidad) || 0) * fin.utilNeta;
+  }, 0);
+
+  const estadoColor = { planificado:'var(--text3)', en_produccion:'var(--gold)', completado:'#22c55e' };
+  const estadoLabel = { planificado:'📋 Planificado', en_produccion:'⚙️ En producción', completado:'✅ Completado' };
+
+  div.innerHTML = `
+    <!-- Resumen -->
+    ${lotes.length ? `
+    <div style="background:var(--bg2);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">📊 Resumen quincena</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Pants</div>
+          <div style="font-size:20px;font-weight:800;color:var(--text)">${totalPants}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Inversión</div>
+          <div style="font-size:16px;font-weight:800;color:var(--text)">${$f(totalCosto)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Util. est.</div>
+          <div style="font-size:16px;font-weight:800;color:var(--gold)">${$f(totalUtil - FIN.fijosQuinc)}</div>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <!-- Lista de lotes -->
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
+      🏭 Lotes planificados
+    </div>
+
+    ${!lotes.length ? `
+      <div style="text-align:center;padding:40px 16px;background:var(--bg2);border-radius:14px;margin-bottom:12px">
+        <div style="font-size:44px;margin-bottom:10px">🏭</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:6px">Sin lotes planificados</div>
+        <div style="font-size:12px;color:var(--text3)">Agrega el primer lote para esta quincena</div>
+      </div>` :
+    lotes.map((l, i) => {
+      const fin = l.producto === 'sublimado' ? FIN_SUBLIMADO : FIN;
+      const n   = parseInt(l.cantidad) || 0;
+      return `
+      <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:700;color:var(--text)">
+              ${l.producto === 'sublimado' ? '🌈 Sublimado' : '🎨 Unicolor'} · ${n} pantalones
+            </div>
+            <div style="font-size:11px;color:${estadoColor[l.estado] || 'var(--text3)'};margin-top:3px;font-weight:700">
+              ${estadoLabel[l.estado] || l.estado}
+            </div>
+          </div>
+          <button onclick="eliminarLote(${i})"
+            style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:0 4px;line-height:1">×</button>
+        </div>
+        <!-- Números del lote -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Precio</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${$f(fin.precio)}</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Costo/pant</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${$f(fin.costoTotal)}</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">Utilidad</div>
+            <div style="font-size:13px;font-weight:700;color:var(--gold)">${$f(n * fin.utilNeta)}</div>
+          </div>
+        </div>
+        <!-- Cambiar estado -->
+        <div style="display:flex;gap:5px">
+          ${['planificado','en_produccion','completado'].map(e => `
+            <button onclick="setEstadoLote(${i},'${e}')"
+              style="flex:1;padding:6px 4px;font-size:10px;font-weight:700;border-radius:7px;cursor:pointer;border:1px solid ${l.estado===e?'var(--gold)':'var(--bg4)'};background:${l.estado===e?'var(--gold-bg)':'var(--bg3)'};color:${l.estado===e?'var(--gold-dim)':'var(--text3)'}">
+              ${e === 'planificado' ? '📋' : e === 'en_produccion' ? '⚙️' : '✅'} ${e === 'en_produccion' ? 'Produciendo' : e.charAt(0).toUpperCase() + e.slice(1)}
+            </button>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+
+    <!-- Agregar lote -->
+    <div style="background:var(--bg2);border-radius:14px;padding:14px;margin-top:4px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">+ Agregar lote</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="prod-tipo-unicolor" onclick="setProdTipo('unicolor')"
+          style="flex:1;padding:10px 6px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)">
+          🎨 Unicolor<br><span style="font-size:10px;font-weight:400">$30 · util $13.25</span>
+        </button>
+        <button id="prod-tipo-sublimado" onclick="setProdTipo('sublimado')"
+          style="flex:1;padding:10px 6px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--bg4);background:var(--bg2);color:var(--text)">
+          🌈 Sublimado<br><span style="font-size:10px;font-weight:400">$45 · util $20.64</span>
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <input type="number" id="prod-cantidad" min="1" value="100" placeholder="Cantidad"
+          style="width:100px;font-size:24px;font-weight:800;color:var(--gold);background:var(--bg3);border:2px solid var(--gold);border-radius:10px;padding:4px 10px;text-align:center">
+        <span style="font-size:13px;color:var(--text2)">pantalones</span>
+      </div>
+      <button onclick="agregarLote()"
+        style="width:100%;background:var(--gold);color:#000;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer">
+        Agregar lote
+      </button>
+    </div>
+  `;
+
+  // Inicializar selección visual
+  _prodTipoSeleccionado = _prodTipoSeleccionado || 'unicolor';
+}
+
+let _prodTipoSeleccionado = 'unicolor';
+function setProdTipo(tipo) {
+  _prodTipoSeleccionado = tipo;
+  const uc = document.getElementById('prod-tipo-unicolor');
+  const sl = document.getElementById('prod-tipo-sublimado');
+  if (uc) {
+    uc.style.border     = tipo==='unicolor' ? '2px solid var(--gold)' : '2px solid var(--bg4)';
+    uc.style.background = tipo==='unicolor' ? 'var(--gold-bg)' : 'var(--bg2)';
+    uc.style.color      = tipo==='unicolor' ? 'var(--gold-dim)' : 'var(--text)';
+  }
+  if (sl) {
+    sl.style.border     = tipo==='sublimado' ? '2px solid var(--gold)' : '2px solid var(--bg4)';
+    sl.style.background = tipo==='sublimado' ? 'var(--gold-bg)' : 'var(--bg2)';
+    sl.style.color      = tipo==='sublimado' ? 'var(--gold-dim)' : 'var(--text)';
+  }
+}
+function agregarLote() {
+  const cantidad = parseInt(document.getElementById('prod-cantidad')?.value) || 0;
+  if (cantidad < 1) { mostrarToast('Ingresa una cantidad válida'); return; }
+  const list = getProduccionLotes();
+  list.push({ id: Date.now(), producto: _prodTipoSeleccionado || 'unicolor', cantidad, estado: 'planificado' });
+  saveProduccionLotes(list);
+  renderFinProduccion();
+  mostrarToast(`✓ Lote de ${cantidad} pantalones agregado`);
+}
+function eliminarLote(i) {
+  const list = getProduccionLotes();
+  list.splice(i, 1);
+  saveProduccionLotes(list);
+  renderFinProduccion();
+}
+function setEstadoLote(i, estado) {
+  const list = getProduccionLotes();
+  if (!list[i]) return;
+  list[i].estado = estado;
+  saveProduccionLotes(list);
+  renderFinProduccion();
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB · HISTORIAL — registro de todos los cierres
+// ══════════════════════════════════════════════════════════
+function renderFinHistorial() {
+  const div = document.getElementById('fin-historial-content');
+  if (!div) return;
+  const historial = JSON.parse(localStorage.getItem('ceniza_historial_cierres') || '[]');
+
+  if (!historial.length) {
+    div.innerHTML = `
+      <div style="text-align:center;padding:50px 16px">
+        <div style="font-size:44px;margin-bottom:12px">📋</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text2)">Sin cierres registrados</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:6px">Cuando cierres una quincena aquí quedará el registro.</div>
+      </div>`;
+    return;
+  }
+
+  const tots = historial.reduce((acc, c) => ({
+    pants:    acc.pants    + (c.pants    || 0),
+    ingresos: acc.ingresos + (c.ingresos || 0),
+    utilidad: acc.utilidad + (c.utilidad || 0),
+    comision: acc.comision + (c.comision || 0),
+  }), { pants:0, ingresos:0, utilidad:0, comision:0 });
+
+  function tarjetaCierreH(c, idx) {
+    const fila = (label, valor, color='var(--text2)') =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0">
+        <span style="font-size:12px;color:var(--text3)">${label}</span>
+        <span style="font-size:13px;font-weight:700;color:${color}">${fmt$(valor)}</span>
+      </div>`;
+    const distItems = [];
+    if (c.personal    > 0) distItems.push({ icon:'👩‍💼', label:`Dueña (${c.pctPersonal||0}%)`,       val: c.personal    });
+    if (c.reinversion > 0) distItems.push({ icon:'🔄',  label:`Reinversión (${c.pctReinversion||0}%)`, val: c.reinversion });
+    if (c.emergencia  > 0) distItems.push({ icon:'💛',  label:`Emergencia (${c.pctEmergencia||0}%)`,   val: c.emergencia  });
+    if (c.crecimiento > 0) distItems.push({ icon:'🌱',  label:`Crecimiento (${c.pctCrecimiento||0}%)`, val: c.crecimiento });
+    return `
+      <div style="background:var(--bg2);border-radius:12px;margin-bottom:12px;overflow:hidden">
+        <div style="background:var(--bg3);padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text)">Quincena ${idx} · ${c.fecha || ''}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:1px">${c.pants || 0} pantalones vendidos</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:10px;color:var(--text3)">Utilidad</div>
+            <div style="font-size:17px;font-weight:800;color:var(--gold)">${fmt$(c.utilidad || 0)}</div>
+          </div>
+        </div>
+        <div style="padding:10px 14px">
+          ${fila('Ingresos brutos',        c.ingresos || 0, 'var(--text)')}
+          ${fila('− Costos de producción', c.costos   || 0)}
+          ${(c.salidas||0) > 0 ? fila('− Otros gastos', c.salidas, '#ef4444') : ''}
+          ${fila('Utilidad bruta',         c.utilBruta|| 0, 'var(--text)')}
+          ${(c.comision||0) > 0 ? fila('− Comisión vendedora', c.comision, '#f97316') : ''}
+          <div style="border-top:1px solid var(--bg4);margin:6px 0"></div>
+          ${fila('Utilidad a distribuir',  c.utilidad || 0, 'var(--gold)')}
+          ${distItems.length ? `
+          <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--bg4)">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Distribución</div>
+            ${distItems.map(d => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0">
+                <span style="font-size:12px;color:var(--text3)">${d.icon} ${d.label}</span>
+                <span style="font-size:12px;font-weight:700;color:var(--text2)">${fmt$(d.val)}</span>
+              </div>`).join('')}
+          </div>` : ''}
+        </div>
+        ${idx === historial.length ? `
+        <div style="padding:0 14px 10px">
+          <button onclick="eliminarUltimoCierre()"
+            style="width:100%;background:none;border:1px solid var(--bg4);border-radius:7px;padding:7px;font-size:11px;color:var(--text3);cursor:pointer">
+            🗑 Eliminar este cierre
+          </button>
+        </div>` : ''}
+      </div>`;
+  }
+
+  const tarjetas = [...historial].reverse().map((c, i) =>
+    tarjetaCierreH(c, historial.length - i)
+  ).join('');
+
+  div.innerHTML = `
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">📊 Acumulado · ${historial.length} quincena(s)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Pantalones</div>
+          <div style="font-size:20px;font-weight:800;color:var(--text)">${tots.pants}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Ingresos totales</div>
+          <div style="font-size:20px;font-weight:800;color:var(--text)">${fmt$(tots.ingresos)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Utilidad total</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">${fmt$(tots.utilidad)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Comisiones pag.</div>
+          <div style="font-size:20px;font-weight:800;color:#f97316">${fmt$(tots.comision)}</div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
+      Registro de cierres
+    </div>
+    ${tarjetas}
+  `;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2844,7 +3123,7 @@ function renderFinLote() {
     </div>
 
     <!-- Acceso rápido a Compras -->
-    <button onclick="const b=document.querySelector('[onclick*=compras]');showFinTab('compras',b)"
+    <button onclick="showFinTab('compras', [...document.querySelectorAll('.fin-tab')].find(b=>b.textContent.includes('Compras')))"
       style="width:100%;margin-top:14px;background:var(--bg2);border:1px solid var(--bg4);border-radius:12px;padding:12px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;text-align:center">
       🛍️ Ver lista de compras →
     </button>
