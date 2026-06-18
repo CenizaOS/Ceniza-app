@@ -4027,12 +4027,16 @@ function renderDelivery(d, fecha) {
             ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
             <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
           </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
+        const notasHtml = cg.items.filter(p => p.notas).map(p =>
+          `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+        ).join('');
         html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
           <div class="del-card-info">
             <div class="del-card-name">${cg.cliente}</div>
             <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
             ${itemsHtml}
             ${infoHtml}
+            ${notasHtml}
             ${vueltoHtml}
           </div>
           <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
@@ -4086,12 +4090,16 @@ function renderDelivery(d, fecha) {
             ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
             <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
           </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
+        const notasHtml = cg.items.filter(p => p.notas).map(p =>
+          `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+        ).join('');
         html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
           <div class="del-card-info">
             <div class="del-card-name">${cg.cliente}</div>
             <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
             ${itemsHtml}
             ${infoHtml}
+            ${notasHtml}
             ${vueltoHtml}
           </div>
           <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
