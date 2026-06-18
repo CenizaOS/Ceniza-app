@@ -589,6 +589,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4H1"/><polyline points="1 3 1 7 5 7"/></svg>
       Historial
     </button>
+    <button class="vend-tab" id="vtab-recogidas" onclick="showVendTab('recogidas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Arreglos
+    </button>
   </div>
   <div class="vend-body">
     <div id="vend-screen-pedidos">
@@ -599,6 +603,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="vend-screen-historial" style="display:none">
       <div id="vend-hist-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div id="vend-screen-recogidas" style="display:none">
+      <div id="vend-recogidas-content"></div>
     </div>
   </div>
 </div>
@@ -639,6 +646,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   <div class="cost-tabs">
     <button class="cost-tab active" id="ctab-cola" onclick="showCostTab('cola')">Cola de producción</button>
     <button class="cost-tab" id="ctab-semana" onclick="showCostTab('semana')">Semana</button>
+    <button class="cost-tab" id="ctab-arreglos" onclick="showCostTab('arreglos')">🔧 Arreglos</button>
   </div>
   <div class="cost-body">
     <div id="cost-screen-cola">
@@ -646,6 +654,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="cost-screen-semana" style="display:none">
       <div id="cost-semana-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div id="cost-screen-arreglos" style="display:none">
+      <div id="cost-arreglos-content"></div>
     </div>
   </div>
 </div>
@@ -662,7 +673,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
         <div class="del-header-sub" id="compras-sub">Lista de encargos</div>
       </div>
     </div>
-    <button class="switch-btn" onclick="logoutRol()">Salir</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <button class="switch-btn" onclick="logoutRol()">Salir</button>
+      <button onclick="renderCompras()" style="background:none;border:none;font-size:11px;color:var(--text3);cursor:pointer;padding:0 2px">↻ Actualizar</button>
+    </div>
   </div>
   <div class="del-body" id="compras-content">
     <div class="loading-msg"><div class="spinner"></div>Cargando...</div>
@@ -1084,6 +1098,209 @@ function toggleEncargo(i) {
   list[i].hecho = !list[i].hecho;
   saveEncargos(list);
   renderCompras();
+}
+
+// ══════════════════════════════════════════════════════════
+// ARREGLOS — flujo completo (vendedora → delivery → costurera → delivery)
+// estados: pendiente_recogida → recibido → arreglado → pendiente_entrega → entregado
+// ══════════════════════════════════════════════════════════
+function getArreglos() {
+  return JSON.parse(localStorage.getItem('ceniza_arreglos') || '[]');
+}
+function saveArreglos(list) {
+  localStorage.setItem('ceniza_arreglos', JSON.stringify(list));
+}
+function arregloEstadoLabel(e) {
+  return { pendiente_recogida:'Por recoger', recibido:'Recibido · en taller',
+           arreglado:'Listo · por enviar', pendiente_entrega:'Programado para entrega',
+           entregado:'Entregado' }[e] || e;
+}
+function arregloEstadoColor(e) {
+  return { pendiente_recogida:'#f97316', recibido:'#3b82f6',
+           arreglado:'#a855f7', pendiente_entrega:'#eab308',
+           entregado:'#22c55e' }[e] || 'var(--text3)';
+}
+
+// ── Vista Vendedora ──────────────────────────────────────
+function renderVendRecogidas() {
+  const div  = document.getElementById('vend-recogidas-content');
+  const all  = getArreglos();
+  const activos   = all.filter(a => a.estado !== 'entregado');
+  const entregados = all.filter(a => a.estado === 'entregado');
+
+  function tarjeta(a, i) {
+    const col = arregloEstadoColor(a.estado);
+    const lbl = arregloEstadoLabel(a.estado);
+    const tipoStr = a.tipo === 'ruedo'
+      ? `Ruedo · quitar ${a.cm||'?'} cm`
+      : a.tipo === 'descosido' ? 'Descosido / error de fábrica' : a.tipo;
+    const esListo = a.estado === 'arreglado';
+    return `
+      <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:8px;
+                  opacity:${a.estado==='entregado'?'.45':'1'}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+          <div style="min-width:0">
+            <div style="font-size:15px;font-weight:700;color:var(--text)">${a.cliente}</div>
+            ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 ${a.telefono}</div>` : ''}
+          </div>
+          <span style="flex-shrink:0;font-size:10px;font-weight:700;color:${col};background:${col}18;padding:3px 8px;border-radius:20px;white-space:nowrap">${lbl}</span>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
+        ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+        ${a.notas     ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Registrado ${a.fecha||''}</div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          ${esListo ? `
+          <button onclick="arregloAgendarEntrega(${i})"
+            style="flex:1;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">
+            📅 Agendar entrega
+          </button>` : ''}
+          ${a.estado === 'entregado' ? '' : `
+          <button onclick="eliminarArreglo(${i})"
+            style="${esListo?'':'flex:1;'}background:none;border:1px solid var(--bg4);border-radius:8px;padding:8px;font-size:12px;color:var(--text3);cursor:pointer">
+            Eliminar
+          </button>`}
+        </div>
+      </div>`;
+  }
+
+  const mostrarForm = !document.getElementById('arr-form-visible') || true;
+
+  div.innerHTML = `
+    <!-- Formulario -->
+    <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Registrar arreglo</div>
+
+      <input id="arr-cliente" placeholder="Nombre del cliente *" type="text"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
+      <input id="arr-tel" placeholder="Teléfono del cliente" type="tel"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
+      <input id="arr-dir" placeholder="Dirección o punto de encuentro" type="text"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
+
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Tipo de arreglo</div>
+      <div style="display:flex;gap:6px;margin-bottom:7px">
+        <button id="arr-tipo-ruedo" onclick="arrSelTipo('ruedo')"
+          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)">
+          📏 Ruedo
+        </button>
+        <button id="arr-tipo-descosido" onclick="arrSelTipo('descosido')"
+          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text)">
+          🧵 Descosido
+        </button>
+      </div>
+      <div id="arr-cm-wrap" style="margin-bottom:7px">
+        <input id="arr-cm" placeholder="¿Cuántos cm quitar? ej: 3" type="number" min="1"
+          style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px">
+      </div>
+      <input id="arr-notas" placeholder="Notas adicionales (talla, color, modelo...)" type="text"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:10px">
+
+      <button onclick="agregarArreglo()"
+        style="width:100%;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
+        Registrar · delivery irá a buscar
+      </button>
+    </div>
+
+    <!-- Activos -->
+    ${activos.length ? `
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
+      En proceso (${activos.length})
+    </div>
+    ${activos.map((a,_) => tarjeta(a, all.indexOf(a))).join('')}` : `
+    <div style="text-align:center;padding:20px 0;color:var(--text3);font-size:13px">Sin arreglos activos</div>`}
+
+    <!-- Entregados -->
+    ${entregados.length ? `
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 8px">
+      ✅ Completados (${entregados.length})
+    </div>
+    ${entregados.map((a,_) => tarjeta(a, all.indexOf(a))).join('')}
+    <button onclick="limpiarArreglosEntregados()"
+      style="width:100%;margin-top:4px;background:none;border:1px solid var(--bg4);border-radius:8px;padding:8px;font-size:11px;color:var(--text3);cursor:pointer">
+      🗑 Limpiar completados
+    </button>` : ''}
+  `;
+  // Estado inicial del selector de tipo
+  _arrTipo = _arrTipo || 'ruedo';
+  arrSelTipo(_arrTipo, true);
+}
+
+let _arrTipo = 'ruedo';
+function arrSelTipo(tipo, silente) {
+  _arrTipo = tipo;
+  const ruedo    = document.getElementById('arr-tipo-ruedo');
+  const descosido= document.getElementById('arr-tipo-descosido');
+  const cmWrap   = document.getElementById('arr-cm-wrap');
+  if (!ruedo) return;
+  const actStyle   = 'border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)';
+  const inactStyle = 'border:1px solid var(--bg4);background:var(--bg3);color:var(--text)';
+  ruedo.style.cssText     += tipo === 'ruedo'     ? actStyle : inactStyle;
+  descosido.style.cssText += tipo === 'descosido' ? actStyle : inactStyle;
+  if (cmWrap) cmWrap.style.display = tipo === 'ruedo' ? '' : 'none';
+}
+
+function agregarArreglo() {
+  const cliente = document.getElementById('arr-cliente')?.value.trim();
+  if (!cliente) { mostrarToast('Escribe el nombre del cliente'); return; }
+  const a = {
+    id:        Date.now(),
+    cliente,
+    telefono:  document.getElementById('arr-tel')?.value.trim()   || '',
+    direccion: document.getElementById('arr-dir')?.value.trim()   || '',
+    tipo:      _arrTipo,
+    cm:        parseInt(document.getElementById('arr-cm')?.value) || null,
+    notas:     document.getElementById('arr-notas')?.value.trim() || '',
+    estado:    'pendiente_recogida',
+    fecha:     new Date().toLocaleDateString('es-VE'),
+    vendedora: localStorage.getItem('vendedora_nombre') || ''
+  };
+  const list = getArreglos();
+  list.unshift(a);
+  saveArreglos(list);
+  ['arr-cliente','arr-tel','arr-dir','arr-cm','arr-notas'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderVendRecogidas();
+  mostrarToast('✓ Arreglo registrado · el delivery irá a buscarlo');
+}
+
+function arregloAgendarEntrega(i) {
+  const list = getArreglos();
+  if (!list[i]) return;
+  list[i].estado = 'pendiente_entrega';
+  saveArreglos(list);
+  renderVendRecogidas();
+  mostrarToast('📅 Agendado · el delivery lo entregará');
+}
+
+function eliminarArreglo(i) {
+  if (!confirm('¿Eliminar este arreglo?')) return;
+  const list = getArreglos();
+  list.splice(i, 1);
+  saveArreglos(list);
+  renderVendRecogidas();
+}
+
+function limpiarArreglosEntregados() {
+  saveArreglos(getArreglos().filter(a => a.estado !== 'entregado'));
+  renderVendRecogidas();
+}
+
+// Helper que cambia estado de un arreglo por id y recarga
+function arregloSetEstado(id, nuevoEstado, callback) {
+  const list = getArreglos();
+  const idx  = list.findIndex(a => a.id === id);
+  if (idx < 0) return;
+  list[idx].estado = nuevoEstado;
+  // Timestamp por transición
+  const now = new Date().toLocaleDateString('es-VE', {day:'2-digit',month:'short'});
+  if (nuevoEstado === 'recibido')          list[idx].fechaRecibido = now;
+  if (nuevoEstado === 'arreglado')         list[idx].fechaArreglado = now;
+  if (nuevoEstado === 'pendiente_entrega') list[idx].fechaProgramado = now;
+  if (nuevoEstado === 'entregado')         list[idx].fechaEntregado = now;
+  saveArreglos(list);
+  if (callback) callback();
 }
 
 function initApp() {
@@ -2588,7 +2805,7 @@ async function reiniciarQuincena() {
 // VENDEDORA — tab switcher
 // ══════════════════════════════════════════════════════════
 function showVendTab(tab) {
-  ['pedidos','comisiones','historial'].forEach(t => {
+  ['pedidos','comisiones','historial','recogidas'].forEach(t => {
     document.getElementById('vend-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('vtab-' + t).classList.toggle('active', tab === t);
   });
@@ -2600,6 +2817,7 @@ function showVendTab(tab) {
     const el = document.getElementById('vend-hist-content');
     if (el.querySelector('.loading-msg')) loadVendedoraHistorial();
   }
+  if (tab === 'recogidas') renderVendRecogidas();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2911,7 +3129,7 @@ function renderCosturera(d) {
 }
 
 function showCostTab(tab) {
-  ['cola','semana'].forEach(t => {
+  ['cola','semana','arreglos'].forEach(t => {
     document.getElementById('cost-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('ctab-' + t).classList.toggle('active', tab === t);
   });
@@ -2919,6 +3137,52 @@ function showCostTab(tab) {
     const el = document.getElementById('cost-semana-content');
     if (el.querySelector('.loading-msg')) loadSemanaCosturera();
   }
+  if (tab === 'arreglos') renderCostArreglos();
+}
+
+function renderCostArreglos() {
+  const el = document.getElementById('cost-arreglos-content');
+  const todos   = getArreglos();
+  const enTaller = todos.filter(a => a.estado === 'recibido');
+
+  if (!enTaller.length) {
+    el.innerHTML = `<div class="empty-state" style="margin-top:40px">
+      <div style="font-size:2.2rem;margin-bottom:12px">🧵</div>
+      <div style="font-weight:700;margin-bottom:6px">Sin arreglos en taller</div>
+      <div style="font-size:13px;color:var(--text3)">Cuando el delivery recoja un pantalón para arreglo, aparecerá aquí.</div>
+    </div>`;
+    return;
+  }
+
+  let html = `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">🔧 Pendientes de arreglo (${enTaller.length})</div>`;
+
+  enTaller.forEach((a, i) => {
+    const tipoLabel = a.tipo === 'ruedo' ? '📏 Arreglo de ruedo' : '🧵 Descosido / error de fábrica';
+    const tipoDetalle = a.tipo === 'ruedo' ? `Quitar <strong>${a.cm||'?'} cm</strong> del ruedo` : 'Reparar costura descosida';
+    const fechaRec = a.fechaRecibido || a.fecha || '';
+
+    html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:12px;border-left:4px solid #3b82f6">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">${a.cliente}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">Registrado por ${a.vendedora||'vendedora'}${fechaRec ? ' · '+fechaRec : ''}</div>
+        </div>
+        <div style="background:rgba(59,130,246,.15);color:#3b82f6;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700">En taller</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">${tipoLabel}</div>
+        <div style="font-size:13px;color:var(--text2)">${tipoDetalle}</div>
+        ${a.notas ? `<div style="font-size:12px;color:var(--text3);margin-top:6px;border-top:1px solid var(--bg4);padding-top:6px">📝 ${a.notas}</div>` : ''}
+      </div>
+      ${a.telefono ? `<div style="font-size:12px;color:var(--text3);margin-bottom:8px">📞 ${a.telefono}${a.direccion ? ' · 📍 '+a.direccion : ''}</div>` : ''}
+      <button onclick="arregloSetEstado(${a.id},'arreglado',renderCostArreglos)"
+        style="width:100%;background:rgba(168,85,247,.12);border:1.5px solid #a855f7;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;color:#a855f7">
+        ✅ Arreglo listo — avisarle a vendedora
+      </button>
+    </div>`;
+  });
+
+  el.innerHTML = html;
 }
 
 async function loadSemanaCosturera() {
@@ -3205,6 +3469,58 @@ function renderDelivery(d, fecha) {
     }
   }
   html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
+
+  // ── Sección de Arreglos (recogidas y reentregas) ──────
+  const arreglos = getArreglos();
+  const aRecoger  = arreglos.filter(a => a.estado === 'pendiente_recogida');
+  const aEntregar = arreglos.filter(a => a.estado === 'pendiente_entrega');
+
+  if (aRecoger.length || aEntregar.length) {
+    html += `<div style="margin-top:16px;border-top:2px dashed var(--bg4);padding-top:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Arreglos de prendas</div>`;
+
+    if (aRecoger.length) {
+      html += `<div style="font-size:11px;font-weight:700;color:#f97316;margin-bottom:6px">📦 Recoger del cliente (${aRecoger.length})</div>`;
+      aRecoger.forEach(a => {
+        const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitar ${a.cm||'?'} cm` : 'Descosido / error de fábrica';
+        const tel = (a.telefono||'').replace(/[^0-9]/g,'');
+        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+        html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #f97316">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
+          ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
+          ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+          ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+          <button onclick="arregloSetEstado(${a.id},'recibido',()=>{loadDelivery(0)})"
+            style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text)">
+            ✅ Recibido · lo tengo
+          </button>
+        </div>`;
+      });
+    }
+
+    if (aEntregar.length) {
+      html += `<div style="font-size:11px;font-weight:700;color:#eab308;margin:10px 0 6px">🚚 Entregar al cliente (${aEntregar.length})</div>`;
+      aEntregar.forEach(a => {
+        const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
+        const tel = (a.telefono||'').replace(/[^0-9]/g,'');
+        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+        html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
+          ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
+          ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+          <button onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})"
+            style="margin-top:8px;width:100%;background:rgba(34,197,94,.12);border:1px solid #22c55e;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:#22c55e">
+            ✅ Entregado al cliente
+          </button>
+        </div>`;
+      });
+    }
+
+    html += '</div>';
+  }
+
   document.getElementById('del-content').innerHTML = html;
 }
 
