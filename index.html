@@ -2488,11 +2488,14 @@ function renderFinLote() {
   const m   = FIN.mat;
   const $f  = v => '$' + Math.abs(v).toFixed(2);
 
-  // ── Capital disponible (ingresos quincena ant. + reinversión acumulada)
-  const cierre      = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
-  const ingresosCierre = cierre ? (cierre.ingresos    || 0) : 0;  // capital de trabajo
-  const reinvTotal     = cierre ? (cierre.reinversion || 0) : 0;  // ahorro de utilidades
-  const totalDisponible = ingresosCierre + reinvTotal;
+  // ── Capital disponible
+  // capitalRecupero = costos de la quincena anterior (lo que se gastó en producción
+  //                   y ahora vuelve de las ventas para financiar el siguiente lote)
+  // reinvTotal      = ahorro de utilidades que se suma opcionalmente para crecer el lote
+  const cierre         = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
+  const capitalRecupero = cierre ? (cierre.costos     || 0) : 0;
+  const reinvTotal      = cierre ? (cierre.reinversion || 0) : 0;
+  const totalDisponible = capitalRecupero + reinvTotal;
   const hayCierre = !!cierre;
 
   // ── Costos del lote
@@ -2559,10 +2562,10 @@ function renderFinLote() {
       <div class="cierre-titulo">💰 Capital disponible</div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text2)">Ingresos quincena anterior</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">Lo que recogiste vendiendo — capital de trabajo</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text2)">Recuperación de inversión</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">Costos de la quincena anterior · lo que se recupera de las ventas para el siguiente lote</div>
         </div>
-        <div style="font-size:18px;font-weight:800;color:var(--text)">${$f(ingresosCierre)}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--text)">${$f(capitalRecupero)}</div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--bg3)">
         <div>
