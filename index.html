@@ -1489,10 +1489,10 @@ const FIN = {
   precio:      30,
   varMat:      10.81, // tela $6.49 + liga $0.50 + bolsa $0.46 + etiq $0.07 + sticker $0.04 + confección $3.00 + empaque $0.25
   varAds:      2.00,
-  fijosQuinc:  490.67, // $981.34 / 2 (mensual ÷ 2)
-  utilNeta:    12.28,  // $30 − $17.72 costo total corregido
-  costoTotal:  17.72,
-  emgTecho:    1964,   // 2 meses gastos fijos: 981.34 × 2
+  fijosQuinc:  1182,  // gastos fijos totales por quincena
+  utilNeta:    13.25, // $30 − $16.75 costo total
+  costoTotal:  16.75,
+  emgTecho:    2364,  // 2 meses gastos fijos: 1182 × 2
   dist: { sueldo:0.40, crecimiento:0.25, emergencia:0.15, empresa:0.20 },
   tiers: [
     { desde:400, pct:0.15 },
@@ -1501,7 +1501,17 @@ const FIN = {
     { desde:150, pct:0.09 },
     { desde:1,   pct:0.08 }
   ],
-  mat: { tela:6.49, liga:0.50, bolsa:0.46, etiqueta:0.11, confeccion:3.00, empaquetado:0.25, ads:2.00 }
+  mat: { tela:6.49, liga:0.50, bolsa:0.46, etiqueta:0.07, sticker:0.04, confeccion:3.00, empaquetado:0.25, ads:2.00 }
+};
+
+// ── Pantalón Sublimado ────────────────────────────────────────
+const FIN_SUBLIMADO = {
+  precio:     45,
+  varMat:     18.42, // sublimado $6.50 + tela $7.60 + liga $0.50 + bolsa $0.46 + etiq $0.07 + sticker $0.04 + confección $3.00 + empaque $0.25
+  varAds:     2.00,
+  utilNeta:   20.64, // $45 − $24.36
+  costoTotal: 24.36,
+  mat: { sublimado:6.50, tela:7.60, liga:0.50, bolsa:0.46, etiqueta:0.07, sticker:0.04, confeccion:3.00, empaquetado:0.25, ads:2.00 }
 };
 
 function finComisionPct(n) {
@@ -2480,38 +2490,50 @@ function eliminarUltimoCierre() {
 // ══════════════════════════════════════════════════════════
 // TAB · LOTE — planificador de producción por presupuesto
 // ══════════════════════════════════════════════════════════
-let _lotePants = parseInt(localStorage.getItem('ceniza_lote_pants') || '100');
+let _lotePants    = parseInt(localStorage.getItem('ceniza_lote_pants')    || '100');
+let _loteProducto = localStorage.getItem('ceniza_lote_producto') || 'unicolor';
 
 function renderFinLote() {
   const div = document.getElementById('fin-lote-content');
-  const n   = _lotePants;
-  const m   = FIN.mat;
-  const $f  = v => '$' + Math.abs(v).toFixed(2);
+  const n          = _lotePants;
+  const esSublimado = _loteProducto === 'sublimado';
+  const finP        = esSublimado ? FIN_SUBLIMADO : FIN;
+  const m           = finP.mat;
+  const $f          = v => '$' + Math.abs(v).toFixed(2);
 
   // ── Capital disponible
-  // capitalRecupero = costos de la quincena anterior (lo que se gastó en producción
-  //                   y ahora vuelve de las ventas para financiar el siguiente lote)
-  // reinvTotal      = ahorro de utilidades que se suma opcionalmente para crecer el lote
-  const cierre         = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
+  const cierre          = JSON.parse(localStorage.getItem('ceniza_cierre_ultimo') || 'null');
   const capitalRecupero = cierre ? (cierre.costos     || 0) : 0;
   const reinvTotal      = cierre ? (cierre.reinversion || 0) : 0;
   const totalDisponible = capitalRecupero + reinvTotal;
   const hayCierre = !!cierre;
 
   // ── Costos del lote
-  const costoMateria    = n * (m.tela + m.liga + m.bolsa + m.etiqueta + m.empaquetado);
+  const matBaseItems = esSublimado
+    ? (m.sublimado + m.tela + m.liga + m.bolsa + m.etiqueta + m.sticker + m.empaquetado)
+    : (m.tela + m.liga + m.bolsa + m.etiqueta + m.sticker + m.empaquetado);
+  const costoMateria    = n * matBaseItems;
   const costoConfeccion = n * m.confeccion;
   const costoAds        = n * m.ads;
   const costoOperativos = FIN.fijosQuinc;
   const costoTotal      = costoMateria + costoConfeccion + costoAds + costoOperativos;
 
   // ── Desglose interno de materia prima
-  const desgloseMat = [
-    { label: `Tela  ·  ${(n * 2.7).toFixed(0)} m  (2.7 m/pant)`, total: n * m.tela       },
-    { label: 'Liga',                                                total: n * m.liga       },
-    { label: 'Bolsa',                                               total: n * m.bolsa      },
-    { label: 'Etiqueta + sticker',                                  total: n * m.etiqueta   },
-    { label: 'Empaquetado',                                         total: n * m.empaquetado },
+  const desgloseMat = esSublimado ? [
+    { label: `Sublimado  ·  ${(n * 3.6).toFixed(0)} m`,            total: n * m.sublimado   },
+    { label: `Tela base  ·  ${(n * 2.7).toFixed(0)} m`,            total: n * m.tela        },
+    { label: 'Liga',                                                 total: n * m.liga        },
+    { label: 'Bolsa',                                                total: n * m.bolsa       },
+    { label: 'Etiqueta de talla',                                    total: n * m.etiqueta    },
+    { label: 'Sticker de nombre',                                    total: n * m.sticker     },
+    { label: 'Empaquetado',                                          total: n * m.empaquetado },
+  ] : [
+    { label: `Tela  ·  ${(n * 2.7).toFixed(0)} m  (2.7 m/pant)`,  total: n * m.tela        },
+    { label: 'Liga',                                                 total: n * m.liga        },
+    { label: 'Bolsa',                                                total: n * m.bolsa       },
+    { label: 'Etiqueta de talla',                                    total: n * m.etiqueta    },
+    { label: 'Sticker de nombre',                                    total: n * m.sticker     },
+    { label: 'Empaquetado',                                          total: n * m.empaquetado },
   ];
 
   function filaDetalle(icon, label, costo, subDetalle) {
@@ -2544,6 +2566,21 @@ function renderFinLote() {
   const sobrante = totalDisponible - costoTotal;
 
   div.innerHTML = `
+    <!-- Selector de producto -->
+    <div class="cierre-bloque">
+      <div class="cierre-titulo">👖 Tipo de pantalón</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="setLoteProducto('unicolor')"
+          style="padding:12px 8px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid ${esSublimado?'var(--bg4)':'var(--gold)'};background:${esSublimado?'var(--bg2)':'var(--gold-bg)'};color:${esSublimado?'var(--text)':'var(--gold-dim)'}">
+          🎨 Unicolor<br><span style="font-size:11px;font-weight:400">$30 · util $13.25</span>
+        </button>
+        <button onclick="setLoteProducto('sublimado')"
+          style="padding:12px 8px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid ${esSublimado?'var(--gold)':'var(--bg4)'};background:${esSublimado?'var(--gold-bg)':'var(--bg2)'};color:${esSublimado?'var(--gold-dim)':'var(--text)'}">
+          🌈 Sublimado<br><span style="font-size:11px;font-weight:400">$45 · util $20.64</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Selector de cantidad -->
     <div class="cierre-bloque">
       <div class="cierre-titulo">🎯 ¿Cuántos pantalones vas a hacer?</div>
@@ -2615,11 +2652,11 @@ function renderFinLote() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Ingresos</div>
-          <div style="font-size:18px;font-weight:800;color:var(--text)">${$f(n * FIN.precio)}</div>
+          <div style="font-size:18px;font-weight:800;color:var(--text)">${$f(n * finP.precio)}</div>
         </div>
         <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Utilidad neta</div>
-          <div style="font-size:18px;font-weight:800;color:var(--gold)">${$f(n * FIN.utilNeta - FIN.fijosQuinc)}</div>
+          <div style="font-size:18px;font-weight:800;color:var(--gold)">${$f(n * finP.utilNeta - FIN.fijosQuinc)}</div>
         </div>
       </div>
     </div>
@@ -2666,6 +2703,12 @@ function setLotePants(v) {
   localStorage.setItem('ceniza_lote_pants', n);
   const inp = document.getElementById('lote-pants-inp');
   if (inp) inp.value = n;
+  renderFinLote();
+}
+
+function setLoteProducto(tipo) {
+  _loteProducto = tipo;
+  localStorage.setItem('ceniza_lote_producto', tipo);
   renderFinLote();
 }
 
