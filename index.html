@@ -953,6 +953,12 @@ function saveEncargos(list) {
   fetch(`${API}?accion=setEncargos&data=${encoded}`).catch(() => {});
 }
 
+// ── Colores de tela ────────────────────────────────────────
+function getColoresTela() { return JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]'); }
+function saveColoresTela(list) { localStorage.setItem('ceniza_colores_tela', JSON.stringify(list)); }
+
+let comprasActiveTab = 'encargos';
+
 function renderEncargosAdmin() {
   const list = getEncargos();
   if (!list.length) return `<div style="font-size:12px;color:var(--text3);padding:8px 0">No hay encargos todavía. Agrégalos abajo.</div>`;
@@ -1157,6 +1163,77 @@ function renderFinCompras() {
         </button>
       </div>
     </details>
+
+    <!-- ── Colores de tela ───────────────────────────────────── -->
+    <div style="margin-top:22px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🎨 Colores de tela</div>
+      <div id="admin-colores-lista">
+        ${(() => {
+          const cols = getColoresTela();
+          if (!cols.length) return `<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Sin colores — agrégalos abajo</div>`;
+          return cols.map((c, i) => `
+            <div id="color-row-${i}" style="background:var(--bg2);border-radius:11px;padding:11px 13px;margin-bottom:7px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="flex-shrink:0;width:32px;height:32px;border-radius:7px;background:${c.hex||'var(--bg4)'};border:2px solid var(--bg4)"></div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">${c.nombre}</div>
+                  <div style="font-size:11px;color:var(--text3);font-family:monospace">${c.codigo}</div>
+                  ${c.nota ? `<div style="font-size:11px;color:var(--text3);font-style:italic">${c.nota}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:5px;flex-shrink:0">
+                  <button onclick="editarColorTela(${i})"
+                    style="background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:5px 9px;font-size:12px;color:var(--text2);cursor:pointer">✏️</button>
+                  <button onclick="eliminarColorTela(${i})"
+                    style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:0 3px;line-height:1">×</button>
+                </div>
+              </div>
+              <!-- Formulario edición -->
+              <div id="color-edit-${i}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--bg4)">
+                <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+                  <input id="cedit-nombre-${i}" value="${c.nombre.replace(/"/g,'&quot;')}" placeholder="Nombre del color" type="text"
+                    style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px">
+                  <input id="cedit-codigo-${i}" value="${c.codigo.replace(/"/g,'&quot;')}" placeholder="Código / Ref" type="text"
+                    style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;font-family:monospace">
+                </div>
+                <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+                  <input id="cedit-nota-${i}" value="${(c.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota (opcional)" type="text"
+                    style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px">
+                  <input id="cedit-hex-${i}" value="${c.hex||''}" type="color"
+                    style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
+                </div>
+                <div style="display:flex;gap:6px">
+                  <button onclick="guardarEditColorTela(${i})"
+                    style="flex:1;background:var(--gold);color:#000;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">Guardar</button>
+                  <button onclick="document.getElementById('color-edit-${i}').style.display='none'"
+                    style="background:var(--bg3);color:var(--text2);border:1px solid var(--bg4);border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer">Cancelar</button>
+                </div>
+              </div>
+            </div>`).join('');
+        })()}
+      </div>
+      <!-- Agregar color -->
+      <details style="margin-top:6px">
+        <summary style="font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;list-style:none">+ Agregar color</summary>
+        <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-top:6px">
+          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+            <input id="nc-nombre" placeholder="Nombre  ej: Azul rey" type="text"
+              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+            <input id="nc-codigo" placeholder="Código / Ref" type="text"
+              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;font-family:monospace">
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+            <input id="nc-nota" placeholder="Nota (opcional)" type="text"
+              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+            <input id="nc-hex" type="color" value="#cccccc"
+              style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
+          </div>
+          <button onclick="agregarColorTela()"
+            style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
+            Agregar color
+          </button>
+        </div>
+      </details>
+    </div>
   `;
 }
 
@@ -1202,6 +1279,44 @@ function guardarCostoEncargo(i, valor) {
   if (document.getElementById('fin-compras')?.style.display !== 'none') renderFinCompras();
 }
 
+// ── CRUD colores de tela (admin) ─────────────────────────
+function agregarColorTela() {
+  const nombre = document.getElementById('nc-nombre')?.value.trim();
+  const codigo = document.getElementById('nc-codigo')?.value.trim();
+  const nota   = document.getElementById('nc-nota')?.value.trim();
+  const hex    = document.getElementById('nc-hex')?.value || '';
+  if (!nombre || !codigo) { mostrarToast('⚠️ Nombre y código son obligatorios'); return; }
+  const list = getColoresTela();
+  list.push({ nombre, codigo, nota: nota||'', hex });
+  saveColoresTela(list);
+  renderFinCompras();
+  mostrarToast('✓ Color agregado');
+}
+function eliminarColorTela(i) {
+  const list = getColoresTela();
+  list.splice(i, 1);
+  saveColoresTela(list);
+  renderFinCompras();
+  mostrarToast('Color eliminado');
+}
+function editarColorTela(i) {
+  const el = document.getElementById(`color-edit-${i}`);
+  if (el) el.style.display = 'block';
+}
+function guardarEditColorTela(i) {
+  const list = getColoresTela();
+  if (!list[i]) return;
+  const nombre = document.getElementById(`cedit-nombre-${i}`)?.value.trim();
+  const codigo = document.getElementById(`cedit-codigo-${i}`)?.value.trim();
+  const nota   = document.getElementById(`cedit-nota-${i}`)?.value.trim();
+  const hex    = document.getElementById(`cedit-hex-${i}`)?.value || '';
+  if (!nombre || !codigo) { mostrarToast('⚠️ Nombre y código son obligatorios'); return; }
+  list[i] = { nombre, codigo, nota: nota||'', hex };
+  saveColoresTela(list);
+  renderFinCompras();
+  mostrarToast('✓ Color actualizado');
+}
+
 // ── Vista Compras (checklist para el mensajero) ──────────
 async function renderCompras() {
   const div = document.getElementById('compras-content');
@@ -1218,72 +1333,117 @@ async function renderCompras() {
     ? `${list.filter(e=>!e.hecho).length} pendiente(s) de ${list.length}`
     : 'Lista de encargos';
 
-  if (!list.length) {
-    div.innerHTML = `
-      <div style="text-align:center;padding:60px 20px">
-        <div style="font-size:48px;margin-bottom:12px">📋</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text2)">Sin encargos por ahora</div>
-        <div style="font-size:13px;color:var(--text3);margin-top:6px">Vivianca te asignará la lista cuando haya algo que buscar</div>
-      </div>
-      <button onclick="renderCompras()" class="btn" style="width:100%;margin-top:8px">↻ Actualizar lista</button>`;
-    return;
-  }
+  // Tab bar + panes
+  const tBtn = (id, tab, label, active) =>
+    `<button id="${id}" onclick="showComprasTab('${tab}')"
+      style="flex:1;padding:11px 6px;font-size:13px;font-weight:700;border:none;cursor:pointer;border-bottom:2px solid ${active ? 'var(--gold)' : 'transparent'};
+             background:transparent;color:${active ? 'var(--gold)' : 'var(--text3)'}">
+      ${label}
+    </button>`;
 
-  const pendientes = list.filter(e => !e.hecho).length;
-  const total      = list.length;
-
+  const isCol = comprasActiveTab === 'colores';
   div.innerHTML = `
-    <!-- Progreso -->
-    <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:700;color:var(--text2)">Progreso</span>
-        <span style="font-size:13px;font-weight:800;color:var(--gold)">${total - pendientes} / ${total}</span>
-      </div>
-      <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
-        <div style="height:100%;border-radius:3px;background:var(--gold);width:${Math.round((total-pendientes)/total*100)}%;transition:width .3s"></div>
-      </div>
-      ${pendientes === 0 ? `<div style="margin-top:8px;text-align:center;font-size:13px;font-weight:700;color:#22c55e">✅ ¡Todo listo!</div>` : ''}
+    <!-- Tab bar -->
+    <div style="display:flex;margin:-12px -16px 14px;border-bottom:1px solid var(--bg4);background:var(--bg);position:sticky;top:0;z-index:5">
+      ${tBtn('ctab-enc','encargos','🛍️ Encargos', !isCol)}
+      ${tBtn('ctab-col','colores','🎨 Colores de tela', isCol)}
     </div>
 
-    <!-- Items -->
-    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
-      🛍️ Encargos
-    </div>
-
-    ${list.map((e, i) => `
-      <div style="background:var(--bg2);border-radius:11px;padding:14px 15px;margin-bottom:8px;opacity:${e.hecho ? '0.75' : '1'};transition:opacity .2s">
-        <!-- Fila principal -->
-        <div onclick="toggleEncargo(${i})" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
-          <!-- Checkbox -->
-          <div style="flex-shrink:0;width:24px;height:24px;border-radius:6px;margin-top:1px;display:flex;align-items:center;justify-content:center;
-                      background:${e.hecho ? 'var(--gold)' : 'var(--bg3)'};border:2px solid ${e.hecho ? 'var(--gold)' : 'var(--bg4)'}">
-            ${e.hecho ? '<span style="font-size:14px;color:#000">✓</span>' : ''}
-          </div>
-          <!-- Texto -->
-          <div style="flex:1;min-width:0">
-            <div style="font-size:15px;font-weight:700;color:var(--text);${e.hecho ? 'text-decoration:line-through' : ''}">${e.item}</div>
-            ${e.cantidad ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">📦 ${e.cantidad}</div>` : ''}
-            ${e.lugar    ? `<div style="font-size:12px;color:var(--text3)">📍 ${e.lugar}</div>` : ''}
-            ${e.nota     ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:2px">${e.nota}</div>` : ''}
-          </div>
+    <!-- Pane: Encargos -->
+    <div id="c-pane-encargos" style="display:${isCol ? 'none' : ''}">
+      ${!list.length ? `
+        <div style="text-align:center;padding:60px 20px">
+          <div style="font-size:48px;margin-bottom:12px">📋</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text2)">Sin encargos por ahora</div>
+          <div style="font-size:13px;color:var(--text3);margin-top:6px">Vivianca te asignará la lista cuando haya algo que buscar</div>
         </div>
-        <!-- Input de costo (siempre visible, no bloquea el click del toggle) -->
-        <div onclick="event.stopPropagation()" style="margin-top:10px;display:flex;align-items:center;gap:8px">
-          <span style="font-size:12px;color:var(--text3);flex:1">💵 ¿Cuánto gastaste?</span>
-          <input type="number" value="${e.costo||''}" placeholder="0.00" step="0.01"
-            style="width:90px;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700;text-align:right"
-            onchange="guardarCostoEncargo(${i}, this.value)">
+        <button onclick="renderCompras()" class="btn" style="width:100%;margin-top:8px">↻ Actualizar</button>` : (() => {
+          const pendientes = list.filter(e => !e.hecho).length;
+          const total = list.length;
+          return `
+        <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:700;color:var(--text2)">Progreso</span>
+            <span style="font-size:13px;font-weight:800;color:var(--gold)">${total - pendientes} / ${total}</span>
+          </div>
+          <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden">
+            <div style="height:100%;border-radius:3px;background:var(--gold);width:${Math.round((total-pendientes)/total*100)}%;transition:width .3s"></div>
+          </div>
+          ${pendientes === 0 ? `<div style="margin-top:8px;text-align:center;font-size:13px;font-weight:700;color:#22c55e">✅ ¡Todo listo!</div>` : ''}
         </div>
-      </div>`).join('')}
-
-    <div class="fin-hint" style="text-align:center;margin-top:8px">
-      Toca cada ítem para marcarlo como completado
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">🛍️ Encargos</div>
+        ${list.map((e, i) => `
+          <div style="background:var(--bg2);border-radius:11px;padding:14px 15px;margin-bottom:8px;opacity:${e.hecho ? '0.75' : '1'};transition:opacity .2s">
+            <div onclick="toggleEncargo(${i})" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
+              <div style="flex-shrink:0;width:24px;height:24px;border-radius:6px;margin-top:1px;display:flex;align-items:center;justify-content:center;
+                          background:${e.hecho ? 'var(--gold)' : 'var(--bg3)'};border:2px solid ${e.hecho ? 'var(--gold)' : 'var(--bg4)'}">
+                ${e.hecho ? '<span style="font-size:14px;color:#000">✓</span>' : ''}
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15px;font-weight:700;color:var(--text);${e.hecho ? 'text-decoration:line-through' : ''}">${e.item}</div>
+                ${e.cantidad ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">📦 ${e.cantidad}</div>` : ''}
+                ${e.lugar    ? `<div style="font-size:12px;color:var(--text3)">📍 ${e.lugar}</div>` : ''}
+                ${e.nota     ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:2px">${e.nota}</div>` : ''}
+              </div>
+            </div>
+            <div onclick="event.stopPropagation()" style="margin-top:10px;display:flex;align-items:center;gap:8px">
+              <span style="font-size:12px;color:var(--text3);flex:1">💵 ¿Cuánto gastaste?</span>
+              <input type="number" value="${e.costo||''}" placeholder="0.00" step="0.01"
+                style="width:90px;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700;text-align:right"
+                onchange="guardarCostoEncargo(${i}, this.value)">
+            </div>
+          </div>`).join('')}
+        <div class="fin-hint" style="text-align:center;margin-top:8px">Toca cada ítem para marcarlo como completado</div>
+        <button onclick="renderCompras()" class="btn" style="width:100%;margin-top:16px">↻ Actualizar lista</button>`;
+        })()}
     </div>
 
-    <button onclick="renderCompras()" class="btn" style="width:100%;margin-top:16px">
-      ↻ Actualizar lista
-    </button>
+    <!-- Pane: Colores -->
+    <div id="c-pane-colores" style="display:${isCol ? '' : 'none'}">
+      ${renderColoresComprasHtml()}
+    </div>
   `;
+}
+
+function showComprasTab(tab) {
+  comprasActiveTab = tab;
+  const enc = document.getElementById('c-pane-encargos');
+  const col = document.getElementById('c-pane-colores');
+  const bEnc = document.getElementById('ctab-enc');
+  const bCol = document.getElementById('ctab-col');
+  if (!enc || !col) return;
+  enc.style.display = tab === 'encargos' ? '' : 'none';
+  col.style.display = tab === 'colores' ? '' : 'none';
+  [bEnc, bCol].forEach((b, i) => {
+    if (!b) return;
+    const active = (i === 0 && tab === 'encargos') || (i === 1 && tab === 'colores');
+    b.style.borderBottomColor = active ? 'var(--gold)' : 'transparent';
+    b.style.color = active ? 'var(--gold)' : 'var(--text3)';
+  });
+  if (tab === 'colores' && col) col.innerHTML = renderColoresComprasHtml();
+}
+
+function renderColoresComprasHtml() {
+  const colores = getColoresTela();
+  if (!colores.length) return `
+    <div style="text-align:center;padding:60px 20px">
+      <div style="font-size:44px;margin-bottom:12px">🎨</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text2)">Sin colores registrados</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px">Vivianca cargará los códigos de tela desde el panel de admin</div>
+    </div>`;
+  return `
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">
+      🎨 Códigos de color — ${colores.length} color${colores.length!==1?'es':''}
+    </div>
+    ${colores.map(c => `
+      <div style="background:var(--bg2);border-radius:11px;padding:13px 15px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:${c.hex || 'var(--bg4)'};border:2px solid var(--bg4)"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:700;color:var(--text)">${c.nombre}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;font-family:monospace">${c.codigo}</div>
+          ${c.nota ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:2px">${c.nota}</div>` : ''}
+        </div>
+      </div>`).join('')}`;
 }
 
 function toggleEncargo(i) {
