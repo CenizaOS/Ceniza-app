@@ -673,10 +673,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
         <div class="del-header-sub" id="compras-sub">Lista de encargos</div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-      <button class="switch-btn" onclick="logoutRol()">Salir</button>
-      <button onclick="renderCompras()" style="background:none;border:none;font-size:11px;color:var(--text3);cursor:pointer;padding:0 2px">↻ Actualizar</button>
-    </div>
+    <button class="switch-btn" onclick="logoutRol()">Salir</button>
   </div>
   <div class="del-body" id="compras-content">
     <div class="loading-msg"><div class="spinner"></div>Cargando...</div>
@@ -1043,7 +1040,8 @@ function renderCompras() {
         <div style="font-size:48px;margin-bottom:12px">📋</div>
         <div style="font-size:15px;font-weight:700;color:var(--text2)">Sin encargos por ahora</div>
         <div style="font-size:13px;color:var(--text3);margin-top:6px">Vivianca te asignará la lista cuando haya algo que buscar</div>
-      </div>`;
+      </div>
+      <button onclick="renderCompras()" class="btn" style="width:100%;margin-top:8px">↻ Actualizar lista</button>`;
     return;
   }
 
@@ -1089,6 +1087,10 @@ function renderCompras() {
     <div class="fin-hint" style="text-align:center;margin-top:8px">
       Toca cada ítem para marcarlo como completado
     </div>
+
+    <button onclick="renderCompras()" class="btn" style="width:100%;margin-top:16px">
+      ↻ Actualizar lista
+    </button>
   `;
 }
 
