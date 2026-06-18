@@ -701,10 +701,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="fin-tab active" onclick="showFinTab('quincena',this)">💰 Quincena</button>
     <button class="fin-tab" onclick="showFinTab('plan',this)">📋 Plan</button>
     <button class="fin-tab" onclick="showFinTab('cierre',this)">📊 Cierre</button>
-    <button class="fin-tab" onclick="showFinTab('tanda',this)">📦 Tanda</button>
     <button class="fin-tab" onclick="showFinTab('lote',this)">📐 Lote</button>
     <button class="fin-tab" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
     <button class="fin-tab" onclick="showFinTab('nuevo',this)">✨ Nuevo</button>
+    <button class="fin-tab" onclick="showFinTab('compras',this)">🛍️ Compras</button>
   </div>
 
   <!-- Contenido -->
@@ -718,9 +718,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div id="fin-cierre" class="fin-screen" style="display:none">
       <div id="fin-cierre-content"></div>
     </div>
-    <div id="fin-tanda" class="fin-screen" style="display:none">
-      <div id="fin-tanda-content"></div>
-    </div>
     <div id="fin-lote" class="fin-screen" style="display:none">
       <div id="fin-lote-content"></div>
     </div>
@@ -729,6 +726,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="fin-nuevo" class="fin-screen" style="display:none">
       <div id="fin-nuevo-content"></div>
+    </div>
+    <div id="fin-compras" class="fin-screen" style="display:none">
+      <div id="fin-compras-content"></div>
     </div>
   </div>
 </div>
@@ -990,8 +990,7 @@ function generarListaTanda() {
     { id: Date.now()+5, item: 'Empaquetado',           cantidad: `${n} unidades`,                   lugar: '', nota: 'bolsas, amarres, etc.',hecho: false },
   ];
   saveEncargos([...actuales, ...nuevos]);
-  const adminDiv = document.getElementById('lote-lista-encargos');
-  if (adminDiv) adminDiv.innerHTML = renderEncargosAdmin();
+  if (document.getElementById('fin-compras')?.style.display !== 'none') renderFinCompras();
   mostrarToast(`✓ Lista generada para ${n} pantalones`);
 }
 
@@ -1008,9 +1007,8 @@ function agregarEncargo() {
   ['enc-item','enc-cantidad','enc-lugar','enc-nota'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  // refrescar bloque admin
-  const adminDiv = document.getElementById('lote-lista-encargos');
-  if (adminDiv) adminDiv.innerHTML = renderEncargosAdmin();
+  // refrescar tab compras
+  if (document.getElementById('fin-compras')?.style.display !== 'none') renderFinCompras();
   mostrarToast('✓ Encargo agregado');
 }
 
@@ -1018,14 +1016,190 @@ function eliminarEncargo(i) {
   const list = getEncargos();
   list.splice(i, 1);
   saveEncargos(list);
-  const adminDiv = document.getElementById('lote-lista-encargos');
-  if (adminDiv) adminDiv.innerHTML = renderEncargosAdmin();
+  if (document.getElementById('fin-compras')?.style.display !== 'none') renderFinCompras();
 }
 
 function limpiarEncargosHechos() {
   saveEncargos(getEncargos().filter(e => !e.hecho));
-  const adminDiv = document.getElementById('lote-lista-encargos');
-  if (adminDiv) adminDiv.innerHTML = renderEncargosAdmin();
+  if (document.getElementById('fin-compras')?.style.display !== 'none') renderFinCompras();
+}
+
+// ── Tab Compras (admin) ───────────────────────────────────
+function renderFinCompras() {
+  const div = document.getElementById('fin-compras-content');
+  if (!div) return;
+  const list = getEncargos();
+  const efectivoEntregado = parseFloat(localStorage.getItem('ceniza_compras_efectivo') || '0');
+  const totalGastado = list.reduce((s, e) => s + (parseFloat(e.costo) || 0), 0);
+  const restante = efectivoEntregado - totalGastado;
+  const pendientes = list.filter(e => !e.hecho).length;
+  const hechos = list.filter(e => e.hecho).length;
+
+  div.innerHTML = `
+    <!-- Tracker de efectivo -->
+    <div style="background:var(--bg2);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">💵 Efectivo</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:13px;color:var(--text2);flex:1">Entregado al delivery</span>
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:13px;color:var(--text3)">$</span>
+          <input type="number" id="compras-efectivo-input" value="${efectivoEntregado || ''}" placeholder="0.00" step="0.01"
+            style="width:90px;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:14px;font-weight:700;text-align:right"
+            onchange="guardarEfectivoCompras(this.value)">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--bg3);border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Gastado</div>
+          <div style="font-size:18px;font-weight:800;color:var(--text)">${$f(totalGastado)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Disponible</div>
+          <div style="font-size:18px;font-weight:800;color:${restante >= 0 ? 'var(--gold)' : '#ef4444'}">${$f(restante)}</div>
+        </div>
+      </div>
+      ${list.length ? `
+      <div style="margin-top:12px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden">
+        <div style="height:100%;border-radius:2px;background:var(--gold);width:${Math.round(hechos/(list.length||1)*100)}%;transition:width .3s"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:5px;text-align:center">${hechos} de ${list.length} compras completadas</div>` : ''}
+    </div>
+
+    <!-- Acciones -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button onclick="generarListaTanda()"
+        style="flex:1;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:9px;padding:9px;font-size:12px;font-weight:700;cursor:pointer">
+        ✨ Generar para ${_lotePants} pants
+      </button>
+      <button onclick="limpiarEncargosHechos()"
+        style="background:var(--bg2);color:var(--text3);border:1px solid var(--bg4);border-radius:9px;padding:9px 12px;font-size:12px;cursor:pointer">
+        🗑 Limpiar hechos
+      </button>
+    </div>
+
+    <!-- Lista de ítems -->
+    ${!list.length ? `
+      <div style="text-align:center;padding:40px 20px;color:var(--text3)">
+        <div style="font-size:44px;margin-bottom:10px">📋</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:6px">Lista vacía</div>
+        <div style="font-size:12px">Genera la lista para la tanda o agrega ítems manualmente</div>
+      </div>` : `
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">
+      📋 Ítems · ${pendientes} pendiente(s)
+    </div>
+    ${list.map((e, i) => `
+      <div id="encargo-row-${i}" style="background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:8px;opacity:${e.hecho ? '0.65' : '1'}">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <!-- Estado del delivery -->
+          <div style="flex-shrink:0;width:22px;height:22px;border-radius:6px;margin-top:2px;display:flex;align-items:center;justify-content:center;
+                      background:${e.hecho ? 'var(--gold)' : 'var(--bg3)'};border:2px solid ${e.hecho ? 'var(--gold)' : 'var(--bg4)'}">
+            ${e.hecho ? '<span style="font-size:12px;color:#000">✓</span>' : ''}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:700;color:var(--text);${e.hecho ? 'text-decoration:line-through' : ''}">${e.item}</div>
+            ${e.cantidad ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">📦 ${e.cantidad}</div>` : ''}
+            ${e.lugar    ? `<div style="font-size:11px;color:var(--text3)">📍 ${e.lugar}</div>` : ''}
+            ${e.nota     ? `<div style="font-size:11px;color:var(--text3);font-style:italic">${e.nota}</div>` : ''}
+            ${e.costo    ? `<div style="font-size:12px;font-weight:700;color:var(--gold);margin-top:4px">💵 Gastado: ${$f(parseFloat(e.costo)||0)}</div>` : ''}
+          </div>
+          <div style="flex-shrink:0;display:flex;gap:5px;align-items:flex-start">
+            <button onclick="editarEncargo(${i})"
+              style="background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:5px 9px;font-size:12px;color:var(--text2);cursor:pointer">✏️</button>
+            <button onclick="eliminarEncargo(${i})"
+              style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:0 3px;line-height:1">×</button>
+          </div>
+        </div>
+        <!-- Formulario de edición (oculto) -->
+        <div id="encargo-edit-${i}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--bg4)">
+          <input id="enc-edit-item-${i}" value="${e.item.replace(/"/g,'&quot;')}" placeholder="¿Qué comprar?" type="text"
+            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;margin-bottom:5px">
+          <div style="display:flex;gap:5px;margin-bottom:5px">
+            <input id="enc-edit-cant-${i}" value="${(e.cantidad||'').replace(/"/g,'&quot;')}" placeholder="Cantidad" type="text"
+              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px">
+            <input id="enc-edit-lugar-${i}" value="${(e.lugar||'').replace(/"/g,'&quot;')}" placeholder="Dónde" type="text"
+              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px">
+          </div>
+          <input id="enc-edit-nota-${i}" value="${(e.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota adicional" type="text"
+            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
+          <div style="display:flex;gap:6px">
+            <button onclick="guardarEditEncargo(${i})"
+              style="flex:1;background:var(--gold);color:#000;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
+              Guardar
+            </button>
+            <button onclick="cancelarEditEncargo(${i})"
+              style="background:var(--bg3);color:var(--text2);border:1px solid var(--bg4);border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>`).join('')}
+    `}
+
+    <!-- Agregar ítem manual -->
+    <details style="margin-top:6px">
+      <summary style="font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;list-style:none">
+        + Agregar ítem manual
+      </summary>
+      <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-top:6px">
+        <input id="enc-item" placeholder="¿Qué comprar? ej: Tela lycra negra" type="text"
+          style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:6px">
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input id="enc-cantidad" placeholder="Cantidad  ej: 27 m" type="text"
+            style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+          <input id="enc-lugar" placeholder="Dónde  ej: Mayoreo centro" type="text"
+            style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+        </div>
+        <input id="enc-nota" placeholder="Nota adicional (opcional)" type="text"
+          style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
+        <button onclick="agregarEncargo()"
+          style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
+          Agregar ítem
+        </button>
+      </div>
+    </details>
+  `;
+}
+
+function editarEncargo(i) {
+  const el = document.getElementById(`encargo-edit-${i}`);
+  if (el) el.style.display = 'block';
+}
+function cancelarEditEncargo(i) {
+  const el = document.getElementById(`encargo-edit-${i}`);
+  if (el) el.style.display = 'none';
+}
+function guardarEditEncargo(i) {
+  const list = getEncargos();
+  if (!list[i]) return;
+  const item     = document.getElementById(`enc-edit-item-${i}`)?.value.trim();
+  const cantidad = document.getElementById(`enc-edit-cant-${i}`)?.value.trim();
+  const lugar    = document.getElementById(`enc-edit-lugar-${i}`)?.value.trim();
+  const nota     = document.getElementById(`enc-edit-nota-${i}`)?.value.trim();
+  if (item) list[i].item = item;
+  list[i].cantidad = cantidad;
+  list[i].lugar    = lugar;
+  list[i].nota     = nota;
+  saveEncargos(list);
+  renderFinCompras();
+  mostrarToast('✓ Ítem actualizado');
+}
+function guardarEfectivoCompras(valor) {
+  localStorage.setItem('ceniza_compras_efectivo', parseFloat(valor) || 0);
+  // re-render solo los totales sin pisar el input que acaba de cambiar
+  const list = getEncargos();
+  const efectivo = parseFloat(localStorage.getItem('ceniza_compras_efectivo') || '0');
+  const gastado  = list.reduce((s, e) => s + (parseFloat(e.costo) || 0), 0);
+  const restante = efectivo - gastado;
+  // buscar los divs de gastado y disponible y actualizarlos directamente
+  renderFinCompras();
+}
+function guardarCostoEncargo(i, valor) {
+  const list = getEncargos();
+  if (!list[i]) return;
+  list[i].costo = parseFloat(valor) || 0;
+  saveEncargos(list);
+  // Actualizar totales en admin si está abierto
+  if (document.getElementById('fin-compras')?.style.display !== 'none') renderFinCompras();
 }
 
 // ── Vista Compras (checklist para el mensajero) ──────────
@@ -1077,20 +1251,28 @@ async function renderCompras() {
     </div>
 
     ${list.map((e, i) => `
-      <div onclick="toggleEncargo(${i})"
-        style="background:var(--bg2);border-radius:11px;padding:14px 15px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;
-               opacity:${e.hecho ? '0.55' : '1'};transition:opacity .2s">
-        <!-- Checkbox -->
-        <div style="flex-shrink:0;width:24px;height:24px;border-radius:6px;margin-top:1px;display:flex;align-items:center;justify-content:center;
-                    background:${e.hecho ? 'var(--gold)' : 'var(--bg3)'};border:2px solid ${e.hecho ? 'var(--gold)' : 'var(--bg4)'}">
-          ${e.hecho ? '<span style="font-size:14px;color:#000">✓</span>' : ''}
+      <div style="background:var(--bg2);border-radius:11px;padding:14px 15px;margin-bottom:8px;opacity:${e.hecho ? '0.75' : '1'};transition:opacity .2s">
+        <!-- Fila principal -->
+        <div onclick="toggleEncargo(${i})" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
+          <!-- Checkbox -->
+          <div style="flex-shrink:0;width:24px;height:24px;border-radius:6px;margin-top:1px;display:flex;align-items:center;justify-content:center;
+                      background:${e.hecho ? 'var(--gold)' : 'var(--bg3)'};border:2px solid ${e.hecho ? 'var(--gold)' : 'var(--bg4)'}">
+            ${e.hecho ? '<span style="font-size:14px;color:#000">✓</span>' : ''}
+          </div>
+          <!-- Texto -->
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;color:var(--text);${e.hecho ? 'text-decoration:line-through' : ''}">${e.item}</div>
+            ${e.cantidad ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">📦 ${e.cantidad}</div>` : ''}
+            ${e.lugar    ? `<div style="font-size:12px;color:var(--text3)">📍 ${e.lugar}</div>` : ''}
+            ${e.nota     ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:2px">${e.nota}</div>` : ''}
+          </div>
         </div>
-        <!-- Texto -->
-        <div style="flex:1;min-width:0">
-          <div style="font-size:15px;font-weight:700;color:var(--text);${e.hecho ? 'text-decoration:line-through' : ''}">${e.item}</div>
-          ${e.cantidad ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">📦 ${e.cantidad}</div>` : ''}
-          ${e.lugar    ? `<div style="font-size:12px;color:var(--text3)">📍 ${e.lugar}</div>` : ''}
-          ${e.nota     ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:2px">${e.nota}</div>` : ''}
+        <!-- Input de costo (siempre visible, no bloquea el click del toggle) -->
+        <div onclick="event.stopPropagation()" style="margin-top:10px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text3);flex:1">💵 ¿Cuánto gastaste?</span>
+          <input type="number" value="${e.costo||''}" placeholder="0.00" step="0.01"
+            style="width:90px;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700;text-align:right"
+            onchange="guardarCostoEncargo(${i}, this.value)">
         </div>
       </div>`).join('')}
 
@@ -1542,15 +1724,15 @@ async function abrirAppDuena() {
 function showFinTab(tab, btn) {
   document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  ['quincena','plan','cierre','tanda','lote','fondos','nuevo'].forEach(t => {
+  ['quincena','plan','cierre','lote','fondos','nuevo','compras'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
-  if (tab === 'plan')   renderFinPlan();
-  if (tab === 'tanda')  renderFinPlanificador();
-  if (tab === 'lote')   renderFinLote();
-  if (tab === 'cierre') renderFinCierre();
-  if (tab === 'nuevo')  renderFinNuevo();
+  if (tab === 'plan')    renderFinPlan();
+  if (tab === 'lote')    renderFinLote();
+  if (tab === 'cierre')  renderFinCierre();
+  if (tab === 'nuevo')   renderFinNuevo();
+  if (tab === 'compras') renderFinCompras();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2661,39 +2843,11 @@ function renderFinLote() {
       </div>
     </div>
 
-    <!-- ══ Lista de encargos para Compras ══ -->
-    <div style="margin-top:16px;border-top:1px solid var(--bg4);padding-top:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">
-          🛍️ Lista de compras
-        </div>
-        <button onclick="generarListaTanda()"
-          style="background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">
-          ✨ Generar para ${n} pants
-        </button>
-      </div>
-      <div id="lote-lista-encargos">${renderEncargosAdmin()}</div>
-      <!-- formulario para agregar ítem extra -->
-      <details style="margin-top:8px">
-        <summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:6px 0">+ Agregar ítem manual</summary>
-        <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-top:6px">
-          <input id="enc-item" placeholder="¿Qué comprar? ej: Tela lycra negra" type="text"
-            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:6px">
-          <div style="display:flex;gap:6px;margin-bottom:6px">
-            <input id="enc-cantidad" placeholder="Cantidad  ej: 27 m" type="text"
-              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-            <input id="enc-lugar" placeholder="Dónde  ej: Mayoreo centro" type="text"
-              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-          </div>
-          <input id="enc-nota" placeholder="Nota adicional (opcional)" type="text"
-            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
-          <button onclick="agregarEncargo()"
-            style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
-            Agregar ítem
-          </button>
-        </div>
-      </details>
-    </div>
+    <!-- Acceso rápido a Compras -->
+    <button onclick="const b=document.querySelector('[onclick*=compras]');showFinTab('compras',b)"
+      style="width:100%;margin-top:14px;background:var(--bg2);border:1px solid var(--bg4);border-radius:12px;padding:12px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;text-align:center">
+      🛍️ Ver lista de compras →
+    </button>
   `;
 }
 
