@@ -1671,10 +1671,10 @@ const FIN = {
   precio:      30,
   varMat:      10.81, // tela $6.49 + liga $0.50 + bolsa $0.46 + etiq $0.07 + sticker $0.04 + confección $3.00 + empaque $0.25
   varAds:      2.00,
-  fijosQuinc:  1182,  // gastos fijos totales por quincena
-  utilNeta:    13.25, // $30 − $16.75 costo total
+  fijosQuinc:  591,   // gastos fijos por QUINCENA (mensual $1182 ÷ 2)
+  utilNeta:    13.25, // $30 − $16.75 costo total (a 150 pants/quincena)
   costoTotal:  16.75,
-  emgTecho:    2364,  // 2 meses gastos fijos: 1182 × 2
+  emgTecho:    2364,  // reserva 2 meses = 4 quincenas × $591
   dist: { sueldo:0.40, crecimiento:0.25, emergencia:0.15, empresa:0.20 },
   tiers: [
     { desde:400, pct:0.15 },
@@ -2720,14 +2720,18 @@ function renderFinProduccion() {
 
   // ── Totales financieros ──────────────────────────────────
   const totalPants = lotes.reduce((s, l) => s + (parseInt(l.cantidad) || 0), 0);
-  const totalCosto = lotes.reduce((s, l) => {
+  // Inversión real = costos variables de todos los lotes + fijosQuinc una sola vez
+  const totalInversion = lotes.reduce((s, l) => {
     const fin = l.producto === 'sublimado' ? FIN_SUBLIMADO : FIN;
-    return s + (parseInt(l.cantidad) || 0) * fin.costoTotal;
-  }, 0);
-  const totalUtil  = lotes.reduce((s, l) => {
-    const fin = l.producto === 'sublimado' ? FIN_SUBLIMADO : FIN;
-    return s + (parseInt(l.cantidad) || 0) * fin.utilNeta;
-  }, 0);
+    return s + (parseInt(l.cantidad) || 0) * (fin.varMat + fin.varAds);
+  }, 0) + (lotes.length > 0 ? FIN.fijosQuinc : 0);
+  // Utilidad estimada = margen de contribución total − fijosQuinc (una sola vez)
+  const utilEstimada = lotes.length > 0
+    ? lotes.reduce((s, l) => {
+        const fin = l.producto === 'sublimado' ? FIN_SUBLIMADO : FIN;
+        return s + (parseInt(l.cantidad) || 0) * (fin.precio - fin.varMat - fin.varAds);
+      }, 0) - FIN.fijosQuinc
+    : 0;
 
   // ── Totales de materiales (agregando todos los lotes) ────
   const totMat = {};
@@ -2770,11 +2774,11 @@ function renderFinProduccion() {
         </div>
         <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Inversión</div>
-          <div style="font-size:14px;font-weight:800;color:var(--text)">${$f(totalCosto)}</div>
+          <div style="font-size:14px;font-weight:800;color:var(--text)">${$f(totalInversion)}</div>
         </div>
         <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Util. est.</div>
-          <div style="font-size:14px;font-weight:800;color:var(--gold)">${$f(totalUtil - FIN.fijosQuinc)}</div>
+          <div style="font-size:14px;font-weight:800;color:${utilEstimada >= 0 ? 'var(--gold)' : '#ef4444'}">${$f(utilEstimada)}</div>
         </div>
       </div>
     </div>
@@ -3227,7 +3231,7 @@ function renderFinLote() {
         </div>
         <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Utilidad neta</div>
-          <div style="font-size:18px;font-weight:800;color:var(--gold)">${$f(n * finP.utilNeta - FIN.fijosQuinc)}</div>
+          <div style="font-size:18px;font-weight:800;color:var(--gold)">${$f(n * finP.precio - costoTotal)}</div>
         </div>
       </div>
     </div>
