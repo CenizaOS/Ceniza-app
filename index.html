@@ -3604,6 +3604,9 @@ function guardarArrastre(nombre) {
   const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
   arrastres[nombre] = val;
   localStorage.setItem('ceniza_arrastres', JSON.stringify(arrastres));
+  // Sincronizar al servidor para que Angie lo vea en su dispositivo
+  const encoded = encodeURIComponent(JSON.stringify(arrastres));
+  fetch(`${API}?accion=setArrastres&data=${encoded}`).catch(() => {});
   mostrarToast(`✓ Arrastre de ${nombre}: ${val} pantalones guardado`);
 }
 
@@ -3834,8 +3837,15 @@ async function loadVendedoraComisiones() {
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
     const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
-    // Leer arrastre de quincena anterior desde localStorage (lo configura la dueña)
-    const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
+    // Intentar obtener arrastres del servidor (los configura la dueña desde su dispositivo)
+    let arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
+    try {
+      const ra = await fetchData('getArrastres');
+      if (ra.arrastres && typeof ra.arrastres === 'object') {
+        arrastres = ra.arrastres;
+        localStorage.setItem('ceniza_arrastres', JSON.stringify(arrastres));
+      }
+    } catch(e) { /* usar localStorage como fallback */ }
     const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
     document.getElementById('vend-mes').textContent = d.mes || '';
     const vend = d.vendedoras.find(v => v.nombre === nombre);
