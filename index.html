@@ -4222,21 +4222,24 @@ function renderDelivery(d, fecha) {
   });
   const tipoIconoMap = {'Delivery':'🛵','Retiro personal':'🙂','Envío MRW':'📦','Envío ZOOM':'📦'};
 
-  // Helper: tarjeta de arreglo listo para entregar
+  // Helper: tarjeta de arreglo listo para entregar (mismo estilo que pedido normal)
   function _renderArregloCard(a) {
     const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
     const tel = (a.telefono||'').replace(/[^0-9]/g,'');
     const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-    return `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308;position:relative">
-      <div style="position:absolute;top:10px;right:10px;background:#eab308;color:#000;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:.05em">🔧 ARREGLO</div>
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;padding-right:64px">${a.cliente}</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
-      ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
-      ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
-      ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
-      <button onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})"
-        style="margin-top:8px;width:100%;background:rgba(34,197,94,.12);border:1px solid #22c55e;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:#22c55e">
-        ✅ Entregado al cliente
+    return `<div class="del-card" style="border-left:3px solid #eab308">
+      <div class="del-card-info">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <div class="del-card-name">${a.cliente}</div>
+          <span style="background:#eab308;color:#000;font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;letter-spacing:.05em;flex-shrink:0">🔧 ARREGLO</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
+        ${a.telefono ? `<div class="del-phone-row"><a class="del-phone-link" href="tel:${a.telefono}">📞 ${a.telefono}</a>${waLink?`<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
+        ${a.direccion ? `<div class="del-card-dir">📍 ${a.direccion}</div>` : ''}
+        ${a.notas ? `<div style="margin-top:4px;font-size:11px;color:var(--text3);font-style:italic">${a.notas}</div>` : ''}
+      </div>
+      <button class="del-check" onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})" title="Marcar como entregado">
+        ${checkSVG}
       </button>
     </div>`;
   }
@@ -4303,8 +4306,9 @@ function renderDelivery(d, fecha) {
           ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
           <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
         </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-      const notasHtml = cg.items.filter(p => p.notas).map(p =>
-        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      const notasUnicas = [...new Set(cg.items.map(p => p.notas).filter(Boolean))];
+      const notasHtml = notasUnicas.map(nota =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${nota}</div>`
       ).join('');
       html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
         <div class="del-card-info">
@@ -4363,8 +4367,9 @@ function renderDelivery(d, fecha) {
           ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
         </div>` : '';
       const infoHtml = `${phoneHtml}${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-      const notasHtml = cg.items.filter(p => p.notas).map(p =>
-        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      const notasUnicas = [...new Set(cg.items.map(p => p.notas).filter(Boolean))];
+      const notasHtml = notasUnicas.map(nota =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${nota}</div>`
       ).join('');
       html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
         <div class="del-card-info">
