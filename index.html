@@ -4206,9 +4206,12 @@ function renderDelivery(d, fecha) {
   // ── Pre-calcular arreglos del día ──────────────────────
   const _allArreglos   = getArreglos();
   const aRecoger       = _allArreglos.filter(a => a.estado === 'pendiente_recogida');
-  // Solo arreglos cuya fechaEntregaProgramada coincide EXACTAMENTE con la fecha vista
+  // fecha está en DD/MM/YYYY; fechaEntregaProgramada viene del <input type="date"> en YYYY-MM-DD
+  // Convertir fecha del delivery a ISO para comparar
+  const _fp = fecha.split('/');
+  const fechaISO = _fp.length === 3 ? `${_fp[2]}-${_fp[1]}-${_fp[0]}` : '';
   const aEntregar      = _allArreglos.filter(a =>
-    a.estado === 'pendiente_entrega' && a.fechaEntregaProgramada === fecha
+    a.estado === 'pendiente_entrega' && a.fechaEntregaProgramada === fechaISO
   );
   // Mapa tipoEntrega → [arreglos del día]
   const arreglosPorTipo = {};
