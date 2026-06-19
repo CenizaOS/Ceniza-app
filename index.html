@@ -648,6 +648,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="cost-tab" id="ctab-semana" onclick="showCostTab('semana')">Semana</button>
     <button class="cost-tab" id="ctab-arreglos" onclick="showCostTab('arreglos')">🔧 Arreglos</button>
     <button class="cost-tab" id="ctab-historial" onclick="showCostTab('historial')">📋 Historial</button>
+    <button class="cost-tab" id="ctab-insumos" onclick="showCostTab('insumos')">📦 Insumos</button>
   </div>
   <div class="cost-body">
     <div id="cost-screen-cola">
@@ -661,6 +662,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="cost-screen-historial" style="display:none">
       <div id="cost-historial-content"></div>
+    </div>
+    <div id="cost-screen-insumos" style="display:none">
+      <div id="cost-insumos-content"></div>
     </div>
   </div>
 </div>
@@ -4045,7 +4049,7 @@ function renderCosturera(d) {
 }
 
 function showCostTab(tab) {
-  ['cola','semana','arreglos','historial'].forEach(t => {
+  ['cola','semana','arreglos','historial','insumos'].forEach(t => {
     document.getElementById('cost-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('ctab-' + t).classList.toggle('active', tab === t);
   });
@@ -4055,6 +4059,7 @@ function showCostTab(tab) {
   }
   if (tab === 'arreglos') renderCostArreglos();
   if (tab === 'historial') loadCostHistorial();
+  if (tab === 'insumos') renderCostInsumos();
 }
 
 async function renderCostArreglos() {
@@ -4198,6 +4203,147 @@ async function historialMarcarEntregado(fila) {
       mostrarToast('✕ Sin conexión');
       if (card) card.style.opacity = '1';
     });
+}
+
+// ── Insumos del taller ──────────────────────────────────────
+function getInsumos() { return JSON.parse(localStorage.getItem('ceniza_insumos') || '{}'); }
+function saveInsumos(data) { localStorage.setItem('ceniza_insumos', JSON.stringify(data)); }
+
+function insumoAjustar(clave, delta) {
+  const d = getInsumos();
+  const cur = parseFloat(d[clave] || 0);
+  const nuevo = Math.max(0, Math.round((cur + delta) * 10) / 10);
+  d[clave] = nuevo;
+  saveInsumos(d);
+  const el = document.getElementById('ins-val-' + clave);
+  if (el) el.value = nuevo;
+}
+
+function insumoSetValor(clave, valor) {
+  const d = getInsumos();
+  const v = parseFloat(valor);
+  d[clave] = isNaN(v) ? 0 : Math.max(0, Math.round(v * 10) / 10);
+  saveInsumos(d);
+}
+
+function telaAjustar(colorNombre, delta) {
+  const d = getInsumos();
+  if (!d.tela) d.tela = {};
+  const cur = parseFloat(d.tela[colorNombre] || 0);
+  const nuevo = Math.max(0, Math.round((cur + delta) * 10) / 10);
+  d.tela[colorNombre] = nuevo;
+  saveInsumos(d);
+  const key = 'tela__' + colorNombre.replace(/\s+/g,'_');
+  const el = document.getElementById('ins-val-' + key);
+  if (el) el.value = nuevo;
+}
+
+function telaSetValor(colorNombre, valor) {
+  const d = getInsumos();
+  if (!d.tela) d.tela = {};
+  const v = parseFloat(valor);
+  d.tela[colorNombre] = isNaN(v) ? 0 : Math.max(0, Math.round(v * 10) / 10);
+  saveInsumos(d);
+}
+
+function _insRow(id, label, icon, value, unidad, step) {
+  const valId = 'ins-val-' + id;
+  const delta = step || 1;
+  return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
+    <div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${icon}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;color:var(--text)">${label}</div>
+      <div style="font-size:11px;color:var(--text3)">${unidad}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <button onclick="${id.startsWith('tela__') ? `telaAjustar('${label}',${-delta})` : `insumoAjustar('${id}',${-delta})`}"
+        style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+      <input id="${valId}" type="number" min="0" step="${delta}" value="${value}"
+        onchange="${id.startsWith('tela__') ? `telaSetValor('${label}',this.value)` : `insumoSetValor('${id}',this.value)`}"
+        style="width:52px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 4px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+      <button onclick="${id.startsWith('tela__') ? `telaAjustar('${label}',${delta})` : `insumoAjustar('${id}',${delta})`}"
+        style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+    </div>
+  </div>`;
+}
+
+function renderCostInsumos() {
+  const el = document.getElementById('cost-insumos-content');
+  const d = getInsumos();
+  const tela = d.tela || {};
+  const colores = getColoresTela();
+
+  let html = `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">📦 Inventario del taller</div>`;
+
+  // ── Sección telas ──
+  html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">🧵 Telas</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Metros disponibles por color</div>`;
+
+  if (!colores.length) {
+    html += `<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin colores registrados. Agrégalos desde el panel de administración.</div>`;
+  } else {
+    colores.forEach(c => {
+      const key = 'tela__' + c.nombre.replace(/\s+/g,'_');
+      const metros = tela[c.nombre] ?? 0;
+      const dot = c.hex
+        ? `<div style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--bg4);background:${c.hex};flex-shrink:0"></div>`
+        : `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🎨</div>`;
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
+        ${dot}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nombre}</div>
+          <div style="font-size:11px;color:var(--text3)">${c.codigo ? 'Cód: ' + c.codigo : 'metros de tela'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <button onclick="telaAjustar('${c.nombre}',-0.5)"
+            style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+          <input id="ins-val-${key}" type="number" min="0" step="0.5" value="${metros}"
+            onchange="telaSetValor('${c.nombre}',this.value)"
+            style="width:52px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 4px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+          <button onclick="telaAjustar('${c.nombre}',0.5)"
+            style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+        </div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // ── Sección insumos generales ──
+  html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🪡 Insumos generales</div>`;
+
+  const generales = [
+    { id:'liga',      label:'Liga elástica',   icon:'🪢', unidad:'rollos',   step:1  },
+    { id:'etiquetas', label:'Etiquetas de talla', icon:'🏷️', unidad:'unidades', step:10 },
+    { id:'stickers',  label:'Stickers',        icon:'⭐', unidad:'unidades', step:10 },
+    { id:'bolsas',    label:'Bolsas',          icon:'🛍️', unidad:'unidades', step:5  },
+  ];
+
+  generales.forEach(g => {
+    const val = d[g.id] ?? 0;
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${g.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${g.label}</div>
+        <div style="font-size:11px;color:var(--text3)">${g.unidad}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <button onclick="insumoAjustar('${g.id}',${-g.step})"
+          style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+        <input id="ins-val-${g.id}" type="number" min="0" step="${g.step}" value="${val}"
+          onchange="insumoSetValor('${g.id}',this.value)"
+          style="width:52px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 4px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+        <button onclick="insumoAjustar('${g.id}',${g.step})"
+          style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+      </div>
+    </div>`;
+  });
+
+  html += `</div>`;
+  html += `<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Los cambios se guardan automáticamente en este dispositivo.</div>`;
+
+  el.innerHTML = html;
 }
 
 async function loadSemanaCosturera() {
