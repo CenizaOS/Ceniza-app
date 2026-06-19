@@ -1105,30 +1105,28 @@ async function renderFinCompras() {
         </div>`).join('') :
         `<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px 0">Sin entregas registradas todavía</div>`}
 
-      <!-- Agregar entrega -->
-      <details style="margin-top:10px">
-        <summary style="font-size:12px;font-weight:700;color:var(--gold-dim);cursor:pointer;padding:6px 0;list-style:none">+ Registrar entrega de efectivo</summary>
-        <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-top:8px">
-          <div style="display:flex;gap:6px;margin-bottom:8px">
-            <div style="flex:1">
-              <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Monto ($)</div>
-              <input type="number" id="efec-monto" placeholder="0.00" step="0.01" min="0"
-                style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:14px;font-weight:700;text-align:right">
-            </div>
-            <div style="flex:1">
-              <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Fecha</div>
-              <input type="date" id="efec-fecha" value="${new Date().toISOString().split('T')[0]}"
-                style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-            </div>
+      <!-- Agregar entrega — siempre visible -->
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">+ Registrar entrega de efectivo</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Monto ($)</div>
+            <input type="number" id="efec-monto" placeholder="0.00" step="0.01" min="0"
+              style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--gold);border-radius:8px;padding:8px 10px;color:var(--text);font-size:16px;font-weight:800;text-align:right">
           </div>
-          <input type="text" id="efec-nota" placeholder="Nota (ej: inicio de semana)"
-            style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
-          <button onclick="agregarEfectivoEntry()"
-            style="width:100%;background:var(--gold);color:#000;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
-            Guardar entrega
-          </button>
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Fecha</div>
+            <input type="date" id="efec-fecha" value="${new Date().toISOString().split('T')[0]}"
+              style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+          </div>
         </div>
-      </details>
+        <input type="text" id="efec-nota" placeholder="Nota (ej: inicio de semana)"
+          style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
+        <button onclick="agregarEfectivoEntry()"
+          style="width:100%;background:var(--gold);color:#000;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:800;cursor:pointer">
+          💵 Guardar entrega
+        </button>
+      </div>
 
       ${list.length ? `
       <div style="margin-top:12px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden">
@@ -2106,7 +2104,6 @@ function renderFinQuincena() {
     empresa:     utilReal > 0 ? utilReal * FIN.dist.empresa + overflow : 0
   };
 
-  const $f = v => '$' + Math.abs(v).toFixed(2);
   const neg = v => v < 0 ? `style="color:var(--red)"` : '';
 
   document.getElementById('fin-quincena-content').innerHTML = `
@@ -2588,12 +2585,26 @@ function renderFinCierre() {
       <div class="cierre-titulo">📥 Datos de la quincena</div>
 
       <!-- Pantalones — auto-rellena ingresos y costos -->
-      <div class="fin-cuenta-row" style="border-bottom:2px solid var(--gold-bg);margin-bottom:4px;padding-bottom:10px">
-        <span class="fin-cuenta-icon">👖</span>
-        <span class="fin-cuenta-label" style="font-weight:700;color:var(--text)">Pantalones vendidos</span>
-        <input class="fin-cuenta-input" type="number" id="ci-pants" placeholder="0"
-          oninput="autoFillCierre()" inputmode="numeric"
-          style="font-size:20px;font-weight:800;color:var(--gold);border-color:var(--gold)">
+      <div style="border-bottom:2px solid var(--gold-bg);margin-bottom:4px;padding-bottom:10px">
+        <div class="fin-cuenta-row" style="border:none;padding-bottom:4px">
+          <span class="fin-cuenta-icon">👖</span>
+          <span class="fin-cuenta-label" style="font-weight:700;color:var(--text)">Unicolor ($${FIN.precio})</span>
+          <input class="fin-cuenta-input" type="number" id="ci-pants-uni" placeholder="0"
+            oninput="autoFillCierre()" inputmode="numeric"
+            style="font-size:18px;font-weight:800;color:var(--gold);border-color:var(--gold)">
+        </div>
+        <div class="fin-cuenta-row" style="border:none;padding-bottom:4px">
+          <span class="fin-cuenta-icon">✨</span>
+          <span class="fin-cuenta-label" style="font-weight:700;color:var(--text)">Sublimados ($${FIN_SUBLIMADO.precio})</span>
+          <input class="fin-cuenta-input" type="number" id="ci-pants-sub" placeholder="0"
+            oninput="autoFillCierre()" inputmode="numeric"
+            style="font-size:18px;font-weight:800;color:#a855f7;border-color:#a855f7">
+        </div>
+        <div class="fin-cuenta-row" style="border:none;padding:4px 0 0 0">
+          <span class="fin-cuenta-icon" style="visibility:hidden">·</span>
+          <span class="fin-cuenta-label" style="color:var(--text3);font-size:12px">Total pantalones</span>
+          <span id="ci-pants-total" style="font-size:15px;font-weight:800;color:var(--text)">0</span>
+        </div>
       </div>
 
       <div class="fin-cuenta-row">
@@ -2716,11 +2727,20 @@ function renderFinCierre() {
 }
 
 function autoFillCierre() {
-  const n = parseInt(document.getElementById('ci-pants')?.value) || 0;
+  const nUni = parseInt(document.getElementById('ci-pants-uni')?.value) || 0;
+  const nSub = parseInt(document.getElementById('ci-pants-sub')?.value) || 0;
+  const n    = nUni + nSub;
+  const totEl = document.getElementById('ci-pants-total');
+  if (totEl) totEl.textContent = n;
   const ingEl = document.getElementById('ci-ingresos');
   const cosEl = document.getElementById('ci-costos');
-  if (ingEl) ingEl.value = n > 0 ? (n * FIN.precio).toFixed(2) : '';
-  if (cosEl) cosEl.value = n > 0 ? (n * FIN.costoTotal).toFixed(2) : '';
+  if (n > 0) {
+    if (ingEl) ingEl.value = (nUni * FIN.precio + nSub * FIN_SUBLIMADO.precio).toFixed(2);
+    if (cosEl) cosEl.value = (nUni * FIN.costoTotal + nSub * FIN_SUBLIMADO.costoTotal).toFixed(2);
+  } else {
+    if (ingEl) ingEl.value = '';
+    if (cosEl) cosEl.value = '';
+  }
   calcCierre();
 }
 
@@ -2729,17 +2749,23 @@ function calcCierre() {
   const gi = id => parseInt(document.getElementById(id)?.value)   || 0;
   const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmt$(val); };
 
-  const n        = gi('ci-pants');
+  const nUni     = gi('ci-pants-uni');
+  const nSub     = gi('ci-pants-sub');
+  const n        = nUni + nSub;
   const ingresos = g('ci-ingresos');
   const costos   = g('ci-costos');
   const salidas  = g('ci-salidas');
   const utilBruta = ingresos - costos - salidas;
 
-  // Comisión vendedora: pants × $12.28 × tier%
+  // Comisión vendedora: (uni × utilNeta_uni + sub × utilNeta_sub) × tier%
   const pctCom   = finComisionPct(n);
-  const comision = n * FIN.utilNeta * pctCom;
+  const utilNetaTotal = nUni * FIN.utilNeta + nSub * FIN_SUBLIMADO.utilNeta;
+  const comision = utilNetaTotal * pctCom;
   const niveles  = [[400,0.15,'400+'],[300,0.12,'300–399'],[200,0.10,'200–299'],[150,0.09,'150–199'],[1,0.08,'1–149']];
   const nivelLabel = n > 0 ? (niveles.find(([min]) => n >= min)?.[2] ?? '—') : '—';
+  // Actualizar total visible
+  const totEl = document.getElementById('ci-pants-total');
+  if (totEl) totEl.textContent = n;
 
   // Utilidad distribuible (después de comisión)
   const utilidad = utilBruta - comision;
@@ -2752,7 +2778,7 @@ function calcCierre() {
   const comLabel = document.getElementById('ci-comision-label');
   const comMonto = document.getElementById('ci-comision-monto');
   if (comLabel) comLabel.textContent = n > 0
-    ? `Nivel ${nivelLabel} pants · ${(pctCom*100).toFixed(0)}% × ${n} pant × $${FIN.utilNeta}`
+    ? `Nivel ${nivelLabel} (${n} total) · ${(pctCom*100).toFixed(0)}% s/utilidad neta`
     : 'Ingresa los pantalones vendidos';
   if (comMonto) { comMonto.textContent = `−${fmt$(comision)}`; comMonto.style.color = comision > 0 ? 'var(--red)' : 'var(--text3)'; }
 
@@ -4852,6 +4878,7 @@ function show(id, btn){
 // UTILS
 // ══════════════════════════════════════════════════════════
 const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
+const $f   = v => '$'+Math.abs(parseFloat(v)||0).toFixed(2); // alias global
 
 function badgeHTML(tipo){
   const map={'En producción':'badge-prod','Empaquetado':'badge-pack','Pagado':'badge-paid',
