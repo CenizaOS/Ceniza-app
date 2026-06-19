@@ -282,8 +282,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 ══════════════════════════════════════════════════════════*/
 .cost-app{min-height:100vh;flex-direction:column;max-width:430px;margin:0 auto}
 .cost-header{padding:calc(env(safe-area-inset-top,0px) + 28px) 20px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bg4);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
-.cost-tabs{display:flex;border-bottom:1px solid var(--bg4);background:var(--bg);position:sticky;top:var(--cost-header-h,72px);z-index:9;flex-shrink:0}
-.cost-tab{flex:1;padding:10px 0;font-size:13px;font-weight:500;color:var(--text2);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.cost-tabs{display:flex;border-bottom:1px solid var(--bg4);background:var(--bg);position:sticky;top:var(--cost-header-h,72px);z-index:9;flex-shrink:0;overflow-x:auto}
+.cost-tab{flex:1;min-width:0;padding:10px 4px;font-size:11.5px;font-weight:500;color:var(--text2);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
 .cost-tab.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:600}
 .cost-body{padding:16px;padding-bottom:80px}
 /* Semana costurera */
@@ -647,6 +647,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="cost-tab active" id="ctab-cola" onclick="showCostTab('cola')">Cola de producción</button>
     <button class="cost-tab" id="ctab-semana" onclick="showCostTab('semana')">Semana</button>
     <button class="cost-tab" id="ctab-arreglos" onclick="showCostTab('arreglos')">🔧 Arreglos</button>
+    <button class="cost-tab" id="ctab-historial" onclick="showCostTab('historial')">📋 Historial</button>
   </div>
   <div class="cost-body">
     <div id="cost-screen-cola">
@@ -657,6 +658,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="cost-screen-arreglos" style="display:none">
       <div id="cost-arreglos-content"></div>
+    </div>
+    <div id="cost-screen-historial" style="display:none">
+      <div id="cost-historial-content"></div>
     </div>
   </div>
 </div>
@@ -4041,7 +4045,7 @@ function renderCosturera(d) {
 }
 
 function showCostTab(tab) {
-  ['cola','semana','arreglos'].forEach(t => {
+  ['cola','semana','arreglos','historial'].forEach(t => {
     document.getElementById('cost-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('ctab-' + t).classList.toggle('active', tab === t);
   });
@@ -4050,6 +4054,7 @@ function showCostTab(tab) {
     if (el.querySelector('.loading-msg')) loadSemanaCosturera();
   }
   if (tab === 'arreglos') renderCostArreglos();
+  if (tab === 'historial') loadCostHistorial();
 }
 
 async function renderCostArreglos() {
@@ -4097,6 +4102,102 @@ async function renderCostArreglos() {
   });
 
   el.innerHTML = html;
+}
+
+async function loadCostHistorial() {
+  const el = document.getElementById('cost-historial-content');
+  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando historial...</div>';
+  try {
+    const d = await fetchData('historial');
+    const pedidos = d.pedidos || [];
+    if (!pedidos.length) {
+      el.innerHTML = `<div class="empty-state" style="margin-top:40px">
+        <div style="font-size:2.2rem;margin-bottom:12px">📋</div>
+        <div style="font-weight:700;margin-bottom:6px">Sin historial aún</div>
+        <div style="font-size:13px;color:var(--text3)">Aquí aparecerán los pantalones entregados a delivery.</div>
+      </div>`;
+      return;
+    }
+
+    // Agrupar por fecha de entrega (o registro si no hay fechaEntrega)
+    const grupos = {};
+    pedidos.forEach(p => {
+      const key = p.fechaEntrega || p.fechaRegistro || 'Sin fecha';
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(p);
+    });
+
+    // Ordenar fechas más recientes primero (DD/MM/YYYY → comparación)
+    const fechasOrdenadas = Object.keys(grupos).sort((a, b) => {
+      const pa = a.split('/').reverse().join('');
+      const pb = b.split('/').reverse().join('');
+      return pb.localeCompare(pa);
+    });
+
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Pantalones entregados a delivery</div>
+      <button onclick="loadCostHistorial()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg3)">${refreshIcon}</button>
+    </div>`;
+
+    fechasOrdenadas.forEach(fecha => {
+      const items = grupos[fecha];
+      const totalDia = items.length;
+      html += `<div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+          <span>${fecha}</span>
+          <span style="background:var(--bg3);color:var(--text3);border-radius:10px;padding:2px 8px;font-size:11px">${totalDia} pant${totalDia !== 1 ? 's' : ''}</span>
+        </div>`;
+
+      items.forEach(p => {
+        const entregadoCliente = p.estado === 'Entregado a cliente';
+        const opacity = entregadoCliente ? '0.38' : '1';
+        const cardStyle = `opacity:${opacity};transition:opacity .3s`;
+        html += `<div id="hcost-card-${p.fila}" class="cost-card" style="${cardStyle}">
+          <div class="cost-info">
+            <div class="cost-name">${p.cliente}</div>
+            <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">${entregadoCliente ? '✅ Entregado a cliente' : '🛵 Con delivery'}</div>
+          </div>
+          ${!entregadoCliente
+            ? `<button class="del-check" onclick="historialMarcarEntregado(${p.fila})" title="Marcar como entregado a cliente">${checkSVG}</button>`
+            : `<div style="width:36px;height:36px;border-radius:50%;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>`
+          }
+        </div>`;
+      });
+
+      html += `</div>`;
+    });
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadCostHistorial()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+async function historialMarcarEntregado(fila) {
+  const card = document.getElementById('hcost-card-' + fila);
+  if (card) card.style.opacity = '0.38';
+  fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent('Entregado a cliente')}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        mostrarToast('✕ ' + (data.error || 'Error al guardar'));
+        if (card) card.style.opacity = '1';
+      } else {
+        // Actualizar el badge y quitar el botón de check
+        const infoDiv = card.querySelector('.cost-info div:last-child');
+        if (infoDiv) infoDiv.textContent = '✅ Entregado a cliente';
+        const btn = card.querySelector('.del-check');
+        if (btn) {
+          btn.outerHTML = `<div style="width:36px;height:36px;border-radius:50%;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>`;
+        }
+        mostrarToast('✓ Entregado a cliente');
+      }
+    })
+    .catch(() => {
+      mostrarToast('✕ Sin conexión');
+      if (card) card.style.opacity = '1';
+    });
 }
 
 async function loadSemanaCosturera() {
