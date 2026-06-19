@@ -1502,6 +1502,14 @@ function renderVendRecogidas() {
       ? `Ruedo · quitar ${a.cm||'?'} cm`
       : a.tipo === 'descosido' ? 'Descosido / error de fábrica' : a.tipo;
     const esListo = a.estado === 'arreglado';
+    const esPendienteEntrega = a.estado === 'pendiente_entrega';
+    // Formatear fecha programada si existe
+    let fechaEntregaStr = '';
+    if (a.fechaEntregaProgramada) {
+      const [y,m,d] = a.fechaEntregaProgramada.split('-');
+      const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      fechaEntregaStr = `${d} ${meses[parseInt(m)-1]} ${y}`;
+    }
     return `
       <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:8px;
                   opacity:${a.estado==='entregado'?'.45':'1'}">
@@ -1515,6 +1523,7 @@ function renderVendRecogidas() {
         <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
         ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
         ${a.notas     ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+        ${esPendienteEntrega && fechaEntregaStr ? `<div style="font-size:12px;color:var(--gold-dim);font-weight:600;margin-top:5px">📅 Entrega: ${fechaEntregaStr}</div>` : ''}
         <div style="font-size:11px;color:var(--text3);margin-top:6px">Registrado ${a.fecha||''}</div>
         <div style="display:flex;gap:6px;margin-top:10px">
           ${esListo ? `
@@ -1522,9 +1531,14 @@ function renderVendRecogidas() {
             style="flex:1;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">
             📅 Agendar entrega
           </button>` : ''}
+          ${esPendienteEntrega ? `
+          <button onclick="arregloAgendarEntrega(${i})"
+            style="flex:1;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">
+            ✏️ Cambiar fecha
+          </button>` : ''}
           ${a.estado === 'entregado' ? '' : `
           <button onclick="eliminarArreglo(${i})"
-            style="${esListo?'':'flex:1;'}background:none;border:1px solid var(--bg4);border-radius:8px;padding:8px;font-size:12px;color:var(--text3);cursor:pointer">
+            style="${(esListo||esPendienteEntrega)?'':'flex:1;'}background:none;border:1px solid var(--bg4);border-radius:8px;padding:8px;font-size:12px;color:var(--text3);cursor:pointer">
             Eliminar
           </button>`}
         </div>
@@ -1647,12 +1661,50 @@ function agregarArreglo(destino) {
 }
 
 function arregloAgendarEntrega(i) {
+  // Mostrar mini-modal de fecha
+  const existing = document.getElementById('modal-fecha-arreglo');
+  if (existing) existing.remove();
+
+  const hoy = new Date().toISOString().split('T')[0];
+  const modal = document.createElement('div');
+  modal.id = 'modal-fecha-arreglo';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;display:flex;align-items:flex-end;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border-radius:20px 20px 0 0;width:100%;max-width:430px;padding:24px 20px 40px;animation:slideUp 0.2s ease">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">📅 Fecha de entrega</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px">¿Cuándo lo entrega el delivery al cliente?</div>
+      <input type="date" id="input-fecha-arreglo" value="${hoy}" min="${hoy}"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1.5px solid var(--gold);border-radius:10px;padding:12px 14px;font-size:16px;color:var(--text);font-family:inherit;outline:none;margin-bottom:14px">
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('modal-fecha-arreglo').remove()"
+          style="flex:1;background:var(--bg3);border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;color:var(--text2);cursor:pointer">
+          Cancelar
+        </button>
+        <button onclick="confirmarFechaArreglo(${i})"
+          style="flex:2;background:var(--gold);border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;color:#000;cursor:pointer">
+          Confirmar
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+function confirmarFechaArreglo(i) {
+  const input = document.getElementById('input-fecha-arreglo');
+  const fecha = input ? input.value : '';
+  if (!fecha) { mostrarToast('⚠️ Selecciona una fecha'); return; }
   const list = getArreglos();
   if (!list[i]) return;
   list[i].estado = 'pendiente_entrega';
+  list[i].fechaEntregaProgramada = fecha;
   saveArreglos(list);
+  document.getElementById('modal-fecha-arreglo')?.remove();
   renderVendRecogidas();
-  mostrarToast('📅 Agendado · el delivery lo entregará');
+  // Formatear fecha para el toast
+  const [y,m,d] = fecha.split('-');
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  mostrarToast(`📅 Agendado para el ${d} ${meses[parseInt(m)-1]}`);
 }
 
 function eliminarArreglo(i) {
@@ -4307,9 +4359,16 @@ function renderDelivery(d, fecha) {
         const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
         const tel = (a.telefono||'').replace(/[^0-9]/g,'');
         const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+        let fechaEntregaStr = '';
+        if (a.fechaEntregaProgramada) {
+          const [y,m,d] = a.fechaEntregaProgramada.split('-');
+          const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+          fechaEntregaStr = `${d} ${meses[parseInt(m)-1]} ${y}`;
+        }
         html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308">
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
+          ${fechaEntregaStr ? `<div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:4px">📅 Fecha acordada: ${fechaEntregaStr}</div>` : ''}
           ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
           ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
           <button onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})"
