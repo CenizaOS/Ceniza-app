@@ -965,6 +965,24 @@ function saveEncargos(list) {
 function getColoresTela() { return JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]'); }
 function saveColoresTela(list) { localStorage.setItem('ceniza_colores_tela', JSON.stringify(list)); }
 
+// Devuelve el CSS de fondo del swatch según tipo de tela
+function _swatchStyle(c) {
+  const tipo = c.tipo || 'solido';
+  if (tipo === 'rayas') {
+    return 'background:repeating-linear-gradient(45deg,#6b7280 0px,#6b7280 3px,#d1d5db 3px,#d1d5db 9px)';
+  } else if (tipo === 'puntos') {
+    return 'background-color:#d1d5db;background-image:radial-gradient(circle,#6b7280 30%,transparent 30%);background-size:8px 8px';
+  } else {
+    return `background:${c.hex || 'var(--bg4)'}`;
+  }
+}
+function _swatchTipoLabel(c) {
+  const tipo = c.tipo || 'solido';
+  if (tipo === 'rayas') return '〰️ Rayas';
+  if (tipo === 'puntos') return '🔵 Puntos';
+  return '';
+}
+
 let comprasActiveTab = 'encargos';
 
 function renderEncargosAdmin() {
@@ -1219,12 +1237,18 @@ async function renderFinCompras() {
         ${(() => {
           const cols = getColoresTela();
           if (!cols.length) return `<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Sin colores — agrégalos abajo</div>`;
-          return cols.map((c, i) => `
+          return cols.map((c, i) => {
+            const tipoLabel = _swatchTipoLabel(c);
+            const tipoActual = c.tipo || 'solido';
+            return `
             <div id="color-row-${i}" style="background:var(--bg2);border-radius:11px;padding:11px 13px;margin-bottom:7px">
               <div style="display:flex;align-items:center;gap:10px">
-                <div style="flex-shrink:0;width:32px;height:32px;border-radius:7px;background:${c.hex||'var(--bg4)'};border:2px solid var(--bg4)"></div>
+                <div style="flex-shrink:0;width:32px;height:32px;border-radius:7px;border:2px solid var(--bg4);${_swatchStyle(c)}"></div>
                 <div style="flex:1;min-width:0">
-                  <div style="font-size:14px;font-weight:700;color:var(--text)">${c.nombre}</div>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div style="font-size:14px;font-weight:700;color:var(--text)">${c.nombre}</div>
+                    ${tipoLabel ? `<span style="font-size:10px;font-weight:700;color:var(--text3);background:var(--bg3);border-radius:4px;padding:1px 5px">${tipoLabel}</span>` : ''}
+                  </div>
                   <div style="font-size:11px;color:var(--text3);font-family:monospace">${c.codigo}</div>
                   ${c.nota ? `<div style="font-size:11px;color:var(--text3);font-style:italic">${c.nota}</div>` : ''}
                 </div>
@@ -1244,11 +1268,19 @@ async function renderFinCompras() {
                     style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;font-family:monospace">
                 </div>
                 <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-                  <input id="cedit-nota-${i}" value="${(c.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota (opcional)" type="text"
+                  <select id="cedit-tipo-${i}" onchange="document.getElementById('cedit-hex-wrap-${i}').style.display=this.value==='solido'?'':'none'"
                     style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px">
-                  <input id="cedit-hex-${i}" value="${c.hex||''}" type="color"
-                    style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
+                    <option value="solido"${tipoActual==='solido'?' selected':''}>🎨 Color sólido</option>
+                    <option value="rayas"${tipoActual==='rayas'?' selected':''}>〰️ Rayas / estampado</option>
+                    <option value="puntos"${tipoActual==='puntos'?' selected':''}>🔵 Puntos / lunares</option>
+                  </select>
+                  <div id="cedit-hex-wrap-${i}" style="display:${tipoActual==='solido'?'':'none'}">
+                    <input id="cedit-hex-${i}" value="${c.hex||'#cccccc'}" type="color"
+                      style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
+                  </div>
                 </div>
+                <input id="cedit-nota-${i}" value="${(c.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota (opcional)" type="text"
+                  style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
                 <div style="display:flex;gap:6px">
                   <button onclick="guardarEditColorTela(${i})"
                     style="flex:1;background:var(--gold);color:#000;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">Guardar</button>
@@ -1256,7 +1288,8 @@ async function renderFinCompras() {
                     style="background:var(--bg3);color:var(--text2);border:1px solid var(--bg4);border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer">Cancelar</button>
                 </div>
               </div>
-            </div>`).join('');
+            </div>`;
+          }).join('');
         })()}
       </div>
       <!-- Agregar color -->
@@ -1269,12 +1302,20 @@ async function renderFinCompras() {
             <input id="nc-codigo" placeholder="Código / Ref" type="text"
               style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;font-family:monospace">
           </div>
-          <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-            <input id="nc-nota" placeholder="Nota (opcional)" type="text"
+          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+            <select id="nc-tipo" onchange="document.getElementById('nc-hex-wrap').style.display=this.value==='solido'?'':'none'"
               style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-            <input id="nc-hex" type="color" value="#cccccc"
-              style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
+              <option value="solido">🎨 Color sólido</option>
+              <option value="rayas">〰️ Rayas / estampado</option>
+              <option value="puntos">🔵 Puntos / lunares</option>
+            </select>
+            <div id="nc-hex-wrap">
+              <input id="nc-hex" type="color" value="#cccccc"
+                style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
+            </div>
           </div>
+          <input id="nc-nota" placeholder="Nota (opcional)" type="text"
+            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
           <button onclick="agregarColorTela()"
             style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
             Agregar color
@@ -1341,10 +1382,11 @@ function agregarColorTela() {
   const nombre = document.getElementById('nc-nombre')?.value.trim();
   const codigo = document.getElementById('nc-codigo')?.value.trim();
   const nota   = document.getElementById('nc-nota')?.value.trim();
-  const hex    = document.getElementById('nc-hex')?.value || '';
+  const tipo   = document.getElementById('nc-tipo')?.value || 'solido';
+  const hex    = tipo === 'solido' ? (document.getElementById('nc-hex')?.value || '') : '';
   if (!nombre || !codigo) { mostrarToast('⚠️ Nombre y código son obligatorios'); return; }
   const list = getColoresTela();
-  list.push({ nombre, codigo, nota: nota||'', hex });
+  list.push({ nombre, codigo, nota: nota||'', hex, tipo });
   saveColoresTela(list);
   renderFinCompras();
   mostrarToast('✓ Color agregado');
@@ -1366,9 +1408,10 @@ function guardarEditColorTela(i) {
   const nombre = document.getElementById(`cedit-nombre-${i}`)?.value.trim();
   const codigo = document.getElementById(`cedit-codigo-${i}`)?.value.trim();
   const nota   = document.getElementById(`cedit-nota-${i}`)?.value.trim();
-  const hex    = document.getElementById(`cedit-hex-${i}`)?.value || '';
+  const tipo   = document.getElementById(`cedit-tipo-${i}`)?.value || 'solido';
+  const hex    = tipo === 'solido' ? (document.getElementById(`cedit-hex-${i}`)?.value || '') : '';
   if (!nombre || !codigo) { mostrarToast('⚠️ Nombre y código son obligatorios'); return; }
-  list[i] = { nombre, codigo, nota: nota||'', hex };
+  list[i] = { nombre, codigo, nota: nota||'', hex, tipo };
   saveColoresTela(list);
   renderFinCompras();
   mostrarToast('✓ Color actualizado');
@@ -1494,9 +1537,12 @@ function renderColoresComprasHtml() {
     </div>
     ${colores.map(c => `
       <div style="background:var(--bg2);border-radius:11px;padding:13px 15px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
-        <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:${c.hex || 'var(--bg4)'};border:2px solid var(--bg4)"></div>
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;border:2px solid var(--bg4);${_swatchStyle(c)}"></div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:15px;font-weight:700;color:var(--text)">${c.nombre}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="font-size:15px;font-weight:700;color:var(--text)">${c.nombre}</div>
+            ${_swatchTipoLabel(c) ? `<span style="font-size:10px;color:var(--text3);background:var(--bg3);border-radius:4px;padding:1px 5px">${_swatchTipoLabel(c)}</span>` : ''}
+          </div>
           <div style="font-size:12px;color:var(--text3);margin-top:2px;font-family:monospace">${c.codigo}</div>
           ${c.nota ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:2px">${c.nota}</div>` : ''}
         </div>
@@ -4286,23 +4332,27 @@ function renderCostInsumos() {
     colores.forEach(c => {
       const key = 'tela__' + c.nombre.replace(/\s+/g,'_');
       const metros = tela[c.nombre] ?? 0;
-      const dot = c.hex
-        ? `<div style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--bg4);background:${c.hex};flex-shrink:0"></div>`
-        : `<div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🎨</div>`;
+      const tipoLbl = _swatchTipoLabel(c);
       html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
-        ${dot}
+        <div style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--bg4);flex-shrink:0;${_swatchStyle(c)}"></div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nombre}</div>
-          <div style="font-size:11px;color:var(--text3)">${c.codigo ? 'Cód: ' + c.codigo : 'metros de tela'}</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nombre}</div>
+            ${tipoLbl ? `<span style="font-size:10px;color:var(--text3);background:var(--bg4);border-radius:4px;padding:1px 4px">${tipoLbl}</span>` : ''}
+          </div>
+          <div style="font-size:11px;color:var(--text3)">${c.codigo ? 'Cód: ' + c.codigo : ''}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <button onclick="telaAjustar('${c.nombre}',-0.5)"
-            style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
-          <input id="ins-val-${key}" type="number" min="0" step="0.5" value="${metros}"
-            onchange="telaSetValor('${c.nombre}',this.value)"
-            style="width:52px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 4px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
-          <button onclick="telaAjustar('${c.nombre}',0.5)"
-            style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">metros</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <button onclick="telaAjustar('${c.nombre}',-0.5)"
+              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+            <input id="ins-val-${key}" type="number" min="0" step="0.5" value="${metros}"
+              onchange="telaSetValor('${c.nombre}',this.value)"
+              style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+            <button onclick="telaAjustar('${c.nombre}',0.5)"
+              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+          </div>
         </div>
       </div>`;
     });
@@ -4326,16 +4376,18 @@ function renderCostInsumos() {
       <div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${g.icon}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;color:var(--text)">${g.label}</div>
-        <div style="font-size:11px;color:var(--text3)">${g.unidad}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <button onclick="insumoAjustar('${g.id}',${-g.step})"
-          style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
-        <input id="ins-val-${g.id}" type="number" min="0" step="${g.step}" value="${val}"
-          onchange="insumoSetValor('${g.id}',this.value)"
-          style="width:52px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 4px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
-        <button onclick="insumoAjustar('${g.id}',${g.step})"
-          style="width:30px;height:30px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:18px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">${g.unidad}</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <button onclick="insumoAjustar('${g.id}',${-g.step})"
+            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+          <input id="ins-val-${g.id}" type="number" min="0" step="${g.step}" value="${val}"
+            onchange="insumoSetValor('${g.id}',this.value)"
+            style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+          <button onclick="insumoAjustar('${g.id}',${g.step})"
+            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+        </div>
       </div>
     </div>`;
   });
