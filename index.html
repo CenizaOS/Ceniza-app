@@ -1559,6 +1559,15 @@ function renderVendRecogidas() {
       <input id="arr-dir" placeholder="Dirección o punto de encuentro" type="text"
         style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
 
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Tipo de entrega</div>
+      <select id="arr-tipo-entrega"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px;-webkit-appearance:none">
+        <option value="Retiro personal">🏪 Retiro personal</option>
+        <option value="Delivery">🛵 Delivery</option>
+        <option value="Envío MRW">📦 Envío MRW</option>
+        <option value="Envío ZOOM">📦 Envío ZOOM</option>
+      </select>
+
       <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Tipo de arreglo</div>
       <div style="display:flex;gap:6px;margin-bottom:7px">
         <button id="arr-tipo-ruedo" onclick="arrSelTipo('ruedo')"
@@ -1638,12 +1647,13 @@ function agregarArreglo(destino) {
     cliente,
     telefono:  document.getElementById('arr-tel')?.value.trim()   || '',
     direccion: document.getElementById('arr-dir')?.value.trim()   || '',
-    tipo:      _arrTipo,
-    cm:        parseInt(document.getElementById('arr-cm')?.value) || null,
-    notas:     document.getElementById('arr-notas')?.value.trim() || '',
-    estado:    destino,
-    fecha:     now,
-    vendedora: localStorage.getItem('vendedora_nombre') || ''
+    tipo:         _arrTipo,
+    tipoEntrega:  document.getElementById('arr-tipo-entrega')?.value || 'Retiro personal',
+    cm:           parseInt(document.getElementById('arr-cm')?.value) || null,
+    notas:        document.getElementById('arr-notas')?.value.trim() || '',
+    estado:       destino,
+    fecha:        now,
+    vendedora:    localStorage.getItem('vendedora_nombre') || ''
   };
   // Si va directo a costurera, ya tiene fecha de recibido
   if (destino === 'recibido') a.fechaRecibido = now;
@@ -4193,202 +4203,206 @@ function renderDelivery(d, fecha) {
     });
   }
 
-  if (!d.pedidos.length && !rezagadas.length) {
-    html += '<div class="empty-state">Sin entregas para este día</div>';
-  } else if (d.pedidos.length) {
-    const tiposEntrega = [
-      { tipo: 'Delivery',        icono: '🛵', label: 'Delivery' },
-      { tipo: 'Retiro personal', icono: '🙂', label: 'Retiro personal' },
-      { tipo: 'Envío MRW',       icono: '📦', label: 'Envío MRW' },
-      { tipo: 'Envío ZOOM',      icono: '📦', label: 'Envío ZOOM' },
-    ];
-    const tiposConocidos = tiposEntrega.map(t => t.tipo);
-    const mostrados = new Set();
+  // ── Pre-calcular arreglos del día ──────────────────────
+  const _allArreglos   = getArreglos();
+  const aRecoger       = _allArreglos.filter(a => a.estado === 'pendiente_recogida');
+  // Solo arreglos cuya fechaEntregaProgramada coincide EXACTAMENTE con la fecha vista
+  const aEntregar      = _allArreglos.filter(a =>
+    a.estado === 'pendiente_entrega' && a.fechaEntregaProgramada === fecha
+  );
+  // Mapa tipoEntrega → [arreglos del día]
+  const arreglosPorTipo = {};
+  aEntregar.forEach(a => {
+    const t = a.tipoEntrega || 'Retiro personal';
+    if (!arreglosPorTipo[t]) arreglosPorTipo[t] = [];
+    arreglosPorTipo[t].push(a);
+  });
+  const tipoIconoMap = {'Delivery':'🛵','Retiro personal':'🙂','Envío MRW':'📦','Envío ZOOM':'📦'};
 
-    tiposEntrega.forEach(t => {
-      const rawItems = d.pedidos.filter(p => p.tipoEntrega === t.tipo);
-      if (!rawItems.length) return;
-      rawItems.forEach(p => mostrados.add(p.fila));
-      const clienteGrupos = agruparPorCliente(rawItems);
-      html += `<div class="del-section">
-        <div class="del-section-title">${t.icono} ${t.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
-      clienteGrupos.forEach((cg, idx) => {
-        const cardId = `del-card-${t.tipo.replace(/\s/g,'-')}-${idx}`;
-        const tipo = t.tipo;
-        const filas = cg.items.map(p => p.fila);
-        const done = cg.items.every(p => p.estado === 'Entregado a cliente');
-        const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
-        const nPants = cg.items.length;
-        const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
-        const esCobrar = metodoPago.includes('efectivo') && monto > 0;
-        const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
-        const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
-        const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
-        const telDisplay = cg.items[0].telefono || '';
-        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-        const cedula = cg.items[0].cedula || '';
-        const itemsHtml = cg.items.map(p => {
-          const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
-          return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
-        }).join('');
-        const vueltoHtml = esCobrar ? `
-          <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
-          ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
-          ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
-        // Info section varía según tipo de entrega
-        const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
-        const phoneHtml = telDisplay ? `
-          <div class="del-phone-row">
-            <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
-            ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
-          </div>` : '';
-        const infoHtml = esEnvio ? `
-          <div class="del-envio-block" data-nombre="${cg.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(cg.direccion||'').replace(/"/g,'&quot;')}">
-            ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
-            ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
-            ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
-            <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
-          </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-        const notasHtml = cg.items.filter(p => p.notas).map(p =>
-          `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
-        ).join('');
-        html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
-          <div class="del-card-info">
-            <div class="del-card-name">${cg.cliente}</div>
-            <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
-            ${itemsHtml}
-            ${infoHtml}
-            ${notasHtml}
-            ${vueltoHtml}
-          </div>
-          <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
-            ${checkSVG}
-          </button>
-        </div>`;
-      });
-      html += `</div>`;
+  // Helper: tarjeta de arreglo listo para entregar
+  function _renderArregloCard(a) {
+    const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
+    const tel = (a.telefono||'').replace(/[^0-9]/g,'');
+    const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+    return `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308;position:relative">
+      <div style="position:absolute;top:10px;right:10px;background:#eab308;color:#000;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:.05em">🔧 ARREGLO</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;padding-right:64px">${a.cliente}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
+      ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
+      ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+      ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+      <button onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})"
+        style="margin-top:8px;width:100%;background:rgba(34,197,94,.12);border:1px solid #22c55e;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:#22c55e">
+        ✅ Entregado al cliente
+      </button>
+    </div>`;
+  }
+
+  // ── Lista de tipos de entrega conocidos ────────────────
+  const tiposEntrega = [
+    { tipo: 'Delivery',        icono: '🛵', label: 'Delivery' },
+    { tipo: 'Retiro personal', icono: '🙂', label: 'Retiro personal' },
+    { tipo: 'Envío MRW',       icono: '📦', label: 'Envío MRW' },
+    { tipo: 'Envío ZOOM',      icono: '📦', label: 'Envío ZOOM' },
+  ];
+  const mostrados = new Set();
+
+  if (!d.pedidos.length && !rezagadas.length && !aEntregar.length) {
+    html += '<div class="empty-state">Sin entregas para este día</div>';
+  }
+
+  // ── Secciones por tipo de entrega ──────────────────────
+  tiposEntrega.forEach(t => {
+    const rawItems       = d.pedidos.filter(p => p.tipoEntrega === t.tipo);
+    const arreglosDelTipo = arreglosPorTipo[t.tipo] || [];
+    if (!rawItems.length && !arreglosDelTipo.length) return;
+
+    rawItems.forEach(p => mostrados.add(p.fila));
+    const clienteGrupos = agruparPorCliente(rawItems);
+    const totalCount = clienteGrupos.length + arreglosDelTipo.length;
+    html += `<div class="del-section">
+      <div class="del-section-title">${t.icono} ${t.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${totalCount})</span></div>`;
+
+    // Pedidos normales
+    clienteGrupos.forEach((cg, idx) => {
+      const cardId = `del-card-${t.tipo.replace(/\s/g,'-')}-${idx}`;
+      const tipo = t.tipo;
+      const filas = cg.items.map(p => p.fila);
+      const done = cg.items.every(p => p.estado === 'Entregado a cliente');
+      const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
+      const nPants = cg.items.length;
+      const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
+      const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+      const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
+      const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
+      const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
+      const telDisplay = cg.items[0].telefono || '';
+      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+      const cedula = cg.items[0].cedula || '';
+      const itemsHtml = cg.items.map(p => {
+        const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
+        return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
+      }).join('');
+      const vueltoHtml = esCobrar ? `
+        <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+        ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
+        ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
+      const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
+      const phoneHtml = telDisplay ? `
+        <div class="del-phone-row">
+          <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
+          ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
+        </div>` : '';
+      const infoHtml = esEnvio ? `
+        <div class="del-envio-block" data-nombre="${cg.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(cg.direccion||'').replace(/"/g,'&quot;')}">
+          ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
+          ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
+          ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
+          <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
+        </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
+      const notasHtml = cg.items.filter(p => p.notas).map(p =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      ).join('');
+      html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
+        <div class="del-card-info">
+          <div class="del-card-name">${cg.cliente}</div>
+          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
+          ${itemsHtml}
+          ${infoHtml}
+          ${notasHtml}
+          ${vueltoHtml}
+        </div>
+        <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
+          ${checkSVG}
+        </button>
+      </div>`;
     });
 
-    // Catch-all: pedidos que no encajan en ningún grupo conocido
-    const extras = d.pedidos.filter(p => !mostrados.has(p.fila));
-    if (extras.length) {
-      const clienteGrupos = agruparPorCliente(extras);
-      html += `<div class="del-section">
-        <div class="del-section-title">📋 Sin tipo de entrega <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
-      clienteGrupos.forEach((cg, idx) => {
-        const cardId = `del-card-extra-${idx}`;
-        const tipo = '';
-        const filas = cg.items.map(p => p.fila);
-        const done = cg.items.every(p => p.estado === 'Entregado a cliente');
-        const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
-        const nPants = cg.items.length;
-        const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
-        const esCobrar = metodoPago.includes('efectivo') && monto > 0;
-        const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
-        const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
-        const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
-        const telDisplay = cg.items[0].telefono || '';
-        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-        const cedula = cg.items[0].cedula || '';
-        const itemsHtml = cg.items.map(p => {
-          const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
-          return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
-        }).join('');
-        const vueltoHtml = esCobrar ? `
-          <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
-          ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
-          ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
-        // Info section varía según tipo de entrega
-        const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
-        const phoneHtml = telDisplay ? `
-          <div class="del-phone-row">
-            <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
-            ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
-          </div>` : '';
-        const infoHtml = esEnvio ? `
-          <div class="del-envio-block" data-nombre="${cg.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(cg.direccion||'').replace(/"/g,'&quot;')}">
-            ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
-            ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
-            ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
-            <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
-          </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-        const notasHtml = cg.items.filter(p => p.notas).map(p =>
-          `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
-        ).join('');
-        html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
-          <div class="del-card-info">
-            <div class="del-card-name">${cg.cliente}</div>
-            <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
-            ${itemsHtml}
-            ${infoHtml}
-            ${notasHtml}
-            ${vueltoHtml}
-          </div>
-          <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
-            ${checkSVG}
-          </button>
-        </div>`;
-      });
-      html += `</div>`;
-    }
+    // Arreglos del día en este mismo grupo de tipo de entrega
+    arreglosDelTipo.forEach(a => { html += _renderArregloCard(a); });
+
+    html += `</div>`;
+  });
+
+  // Catch-all: pedidos sin tipo de entrega conocido
+  const extras = d.pedidos.filter(p => !mostrados.has(p.fila));
+  if (extras.length) {
+    const clienteGrupos = agruparPorCliente(extras);
+    html += `<div class="del-section">
+      <div class="del-section-title">📋 Sin tipo de entrega <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
+    clienteGrupos.forEach((cg, idx) => {
+      const cardId = `del-card-extra-${idx}`;
+      const tipo = '';
+      const filas = cg.items.map(p => p.fila);
+      const done = cg.items.every(p => p.estado === 'Entregado a cliente');
+      const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
+      const nPants = cg.items.length;
+      const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
+      const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+      const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
+      const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
+      const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
+      const telDisplay = cg.items[0].telefono || '';
+      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+      const cedula = cg.items[0].cedula || '';
+      const itemsHtml = cg.items.map(p => {
+        const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
+        return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
+      }).join('');
+      const vueltoHtml = esCobrar ? `
+        <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+        ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
+        ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
+      const esEnvio = false;
+      const phoneHtml = telDisplay ? `
+        <div class="del-phone-row">
+          <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
+          ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
+        </div>` : '';
+      const infoHtml = `${phoneHtml}${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
+      const notasHtml = cg.items.filter(p => p.notas).map(p =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      ).join('');
+      html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
+        <div class="del-card-info">
+          <div class="del-card-name">${cg.cliente}</div>
+          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
+          ${itemsHtml}
+          ${infoHtml}
+          ${notasHtml}
+          ${vueltoHtml}
+        </div>
+        <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
+          ${checkSVG}
+        </button>
+      </div>`;
+    });
+    html += `</div>`;
   }
+
   html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
 
-  // ── Sección de Arreglos (recogidas y reentregas) ──────
-  const arreglos = getArreglos();
-  const aRecoger  = arreglos.filter(a => a.estado === 'pendiente_recogida');
-  const aEntregar = arreglos.filter(a => a.estado === 'pendiente_entrega');
-
-  if (aRecoger.length || aEntregar.length) {
+  // ── Arreglos pendientes de recogida (sin filtro de fecha, siempre visibles) ──
+  if (aRecoger.length) {
     html += `<div style="margin-top:16px;border-top:2px dashed var(--bg4);padding-top:14px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Arreglos de prendas</div>`;
-
-    if (aRecoger.length) {
-      html += `<div style="font-size:11px;font-weight:700;color:#f97316;margin-bottom:6px">📦 Recoger del cliente (${aRecoger.length})</div>`;
-      aRecoger.forEach(a => {
-        const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitar ${a.cm||'?'} cm` : 'Descosido / error de fábrica';
-        const tel = (a.telefono||'').replace(/[^0-9]/g,'');
-        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-        html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #f97316">
-          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
-          ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
-          ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
-          ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
-          <button onclick="arregloSetEstado(${a.id},'recibido',()=>{loadDelivery(0)})"
-            style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text)">
-            ✅ Recibido · lo tengo
-          </button>
-        </div>`;
-      });
-    }
-
-    if (aEntregar.length) {
-      html += `<div style="font-size:11px;font-weight:700;color:#eab308;margin:10px 0 6px">🚚 Entregar al cliente (${aEntregar.length})</div>`;
-      aEntregar.forEach(a => {
-        const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
-        const tel = (a.telefono||'').replace(/[^0-9]/g,'');
-        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-        let fechaEntregaStr = '';
-        if (a.fechaEntregaProgramada) {
-          const [y,m,d] = a.fechaEntregaProgramada.split('-');
-          const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-          fechaEntregaStr = `${d} ${meses[parseInt(m)-1]} ${y}`;
-        }
-        html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308">
-          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
-          ${fechaEntregaStr ? `<div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:4px">📅 Fecha acordada: ${fechaEntregaStr}</div>` : ''}
-          ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
-          ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
-          <button onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})"
-            style="margin-top:8px;width:100%;background:rgba(34,197,94,.12);border:1px solid #22c55e;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:#22c55e">
-            ✅ Entregado al cliente
-          </button>
-        </div>`;
-      });
-    }
-
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Arreglos · pendientes de recogida</div>`;
+    aRecoger.forEach(a => {
+      const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitar ${a.cm||'?'} cm` : 'Descosido / error de fábrica';
+      const tel = (a.telefono||'').replace(/[^0-9]/g,'');
+      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+      html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #f97316">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
+        ${a.tipoEntrega ? `<div style="font-size:11px;color:#f97316;font-weight:600;margin-bottom:4px">${tipoIconoMap[a.tipoEntrega]||'📦'} ${a.tipoEntrega}</div>` : ''}
+        ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
+        ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+        ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+        <button onclick="arregloSetEstado(${a.id},'recibido',()=>{loadDelivery(0)})"
+          style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text)">
+          ✅ Recibido · lo tengo
+        </button>
+      </div>`;
+    });
     html += '</div>';
   }
 
