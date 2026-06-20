@@ -644,10 +644,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
   </div>
   <div class="cost-tabs">
-    <button class="cost-tab active" id="ctab-cola" onclick="showCostTab('cola')">Cola de producción</button>
-    <button class="cost-tab" id="ctab-semana" onclick="showCostTab('semana')">Semana</button>
-    <button class="cost-tab" id="ctab-arreglos" onclick="showCostTab('arreglos')">🔧 Arreglos</button>
-    <button class="cost-tab" id="ctab-historial" onclick="showCostTab('historial')">📋 Historial</button>
+    <button class="cost-tab active" id="ctab-cola" onclick="showCostTab('cola')">🧵 Producción</button>
+    <button class="cost-tab" id="ctab-semana" onclick="showCostTab('semana')">📅 Semana</button>
     <button class="cost-tab" id="ctab-insumos" onclick="showCostTab('insumos')">📦 Insumos</button>
   </div>
   <div class="cost-body">
@@ -656,12 +654,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="cost-screen-semana" style="display:none">
       <div id="cost-semana-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
-    </div>
-    <div id="cost-screen-arreglos" style="display:none">
-      <div id="cost-arreglos-content"></div>
-    </div>
-    <div id="cost-screen-historial" style="display:none">
-      <div id="cost-historial-content"></div>
     </div>
     <div id="cost-screen-insumos" style="display:none">
       <div id="cost-insumos-content"></div>
@@ -4079,6 +4071,7 @@ function renderCosturera(d) {
   const itemsHoy = grupoHoy ? grupoHoy.items : [];
 
   // Estadísticas del día seleccionado
+  const arreglosCount = getArreglos().filter(a => a.estado === 'recibido').length;
   const porCoser     = itemsHoy.filter(i => i.estado === 'En producción' || i.estado === 'Pagado').length;
   const empaquetados = itemsHoy.filter(i => i.estado === 'Empaquetado').length;
   const aDelivery    = itemsHoy.filter(i => i.estado === 'Entregado a delivery').length;
@@ -4096,9 +4089,13 @@ function renderCosturera(d) {
       <div class="metric-card"><div class="metric-label">Por coser</div><div class="metric-value blue">${porCoser}</div></div>
       <div class="metric-card"><div class="metric-label">Empaquetados</div><div class="metric-value gold">${empaquetados}</div></div>
       <div class="metric-card"><div class="metric-label">A delivery</div><div class="metric-value" style="color:var(--green)">${aDelivery}</div></div>
+      ${arreglosCount ? `<div class="metric-card" style="border-left:3px solid #3b82f6"><div class="metric-label">🔧 Arreglos</div><div class="metric-value" style="color:#3b82f6">${arreglosCount}</div></div>` : ''}
     </div>`;
 
-  if (!itemsHoy.length) {
+  // Arreglos en taller (siempre visibles, sin filtro de fecha)
+  const arreglosEnTaller = getArreglos().filter(a => a.estado === 'recibido');
+
+  if (!itemsHoy.length && !arreglosEnTaller.length) {
     html += '<div class="empty-state">Sin pedidos para este día.</div>';
   } else {
     itemsHoy.forEach(p => {
@@ -4115,13 +4112,42 @@ function renderCosturera(d) {
         <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)">${opts}</select>
       </div>`;
     });
+
+    // ── Arreglos pendientes integrados en la cola ──
+    if (arreglosEnTaller.length) {
+      html += `<div style="font-size:10px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px;display:flex;align-items:center;gap:6px">
+        <div style="height:1px;flex:1;background:#3b82f680"></div>
+        🔧 Arreglos en taller (${arreglosEnTaller.length})
+        <div style="height:1px;flex:1;background:#3b82f680"></div>
+      </div>`;
+      arreglosEnTaller.forEach(a => {
+        const tipoLabel = a.tipo === 'ruedo'
+          ? `Ruedo · quitar ${a.cm||'?'} cm`
+          : 'Descosido / reparar costura';
+        html += `<div class="cost-card" id="arr-cost-card-${a.id}" style="border-left:4px solid #3b82f6">
+          <div class="cost-info">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <div class="cost-name">${a.cliente}</div>
+              <span style="background:#3b82f6;color:#fff;font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;letter-spacing:.04em;flex-shrink:0">ARREGLO</span>
+            </div>
+            <div class="cost-det">🔧 ${tipoLabel}</div>
+            ${a.telefono ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">📞 ${a.telefono}</div>` : ''}
+            ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:2px">${a.notas}</div>` : ''}
+          </div>
+          <button onclick="arregloSetEstado(${a.id},'arreglado',()=>{_costData=null;loadCosturera()})"
+            style="flex-shrink:0;background:rgba(168,85,247,.12);border:1.5px solid #a855f7;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;color:#a855f7;white-space:nowrap">
+            ✅ Listo
+          </button>
+        </div>`;
+      });
+    }
   }
   html += `<button class="btn" onclick="_costData=null;loadCosturera()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
   document.getElementById('cost-content').innerHTML = html;
 }
 
 function showCostTab(tab) {
-  ['cola','semana','arreglos','historial','insumos'].forEach(t => {
+  ['cola','semana','insumos'].forEach(t => {
     document.getElementById('cost-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('ctab-' + t).classList.toggle('active', tab === t);
   });
@@ -4129,8 +4155,6 @@ function showCostTab(tab) {
     const el = document.getElementById('cost-semana-content');
     if (el.querySelector('.loading-msg')) loadSemanaCosturera();
   }
-  if (tab === 'arreglos') renderCostArreglos();
-  if (tab === 'historial') loadCostHistorial();
   if (tab === 'insumos') renderCostInsumos();
 }
 
@@ -4298,6 +4322,33 @@ function insumoSetValor(clave, valor) {
   saveInsumos(d);
 }
 
+function etiquetaAjustar(talla, delta) {
+  const d = getInsumos();
+  if (!d.etiquetasTalla) d.etiquetasTalla = {};
+  const cur  = parseInt(d.etiquetasTalla[talla] || 0);
+  const nuevo = Math.max(0, cur + delta);
+  d.etiquetasTalla[talla] = nuevo;
+  saveInsumos(d);
+  const key = `etq_${talla.replace(/\W/g,'_')}`;
+  const el = document.getElementById('ins-val-' + key);
+  if (el) el.value = nuevo;
+  // Actualizar total visible
+  const TALLAS = ['XS','S','M','L','XL','2XL'];
+  const total = TALLAS.reduce((s,t) => s + (parseInt(d.etiquetasTalla[t]||0)), 0);
+  const allCards = document.querySelectorAll('#cost-insumos-content *');
+  // Re-render solo el total (buscar el span con "Total:")
+  const spans = document.querySelectorAll('#cost-insumos-content div');
+  spans.forEach(el => { if (el.textContent.startsWith('Total:')) el.textContent = `Total: ${total} unidades`; });
+}
+
+function etiquetaSetValor(talla, valor) {
+  const d = getInsumos();
+  if (!d.etiquetasTalla) d.etiquetasTalla = {};
+  const v = parseInt(valor);
+  d.etiquetasTalla[talla] = isNaN(v) ? 0 : Math.max(0, v);
+  saveInsumos(d);
+}
+
 function telaAjustar(colorNombre, delta) {
   const d = getInsumos();
   if (!d.tela) d.tela = {};
@@ -4390,10 +4441,9 @@ function renderCostInsumos() {
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🪡 Insumos generales</div>`;
 
   const generales = [
-    { id:'liga',      label:'Liga elástica',   icon:'🪢', unidad:'rollos',   step:1  },
-    { id:'etiquetas', label:'Etiquetas de talla', icon:'🏷️', unidad:'unidades', step:10 },
-    { id:'stickers',  label:'Stickers',        icon:'⭐', unidad:'unidades', step:10 },
-    { id:'bolsas',    label:'Bolsas',          icon:'🛍️', unidad:'unidades', step:5  },
+    { id:'liga',     label:'Liga elástica', icon:'🪢', unidad:'rollos',   step:1  },
+    { id:'stickers', label:'Stickers',      icon:'⭐', unidad:'unidades', step:10 },
+    { id:'bolsas',   label:'Bolsas',        icon:'🛍️', unidad:'unidades', step:5  },
   ];
 
   generales.forEach(g => {
@@ -4418,6 +4468,39 @@ function renderCostInsumos() {
     </div>`;
   });
 
+  // ── Etiquetas de talla por talla ──
+  const TALLAS = ['XS','S','M','L','XL','2XL'];
+  const etqTallas = d.etiquetasTalla || {};
+  const totalEtq  = TALLAS.reduce((s, t) => s + (parseInt(etqTallas[t]) || 0), 0);
+
+  html += `<div style="padding:10px 0 4px 0">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🏷️</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Etiquetas de talla</div>
+        <div style="font-size:11px;color:var(--text3)">Total: ${totalEtq} unidades</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-left:36px">`;
+
+  TALLAS.forEach(t => {
+    const val = etqTallas[t] ?? 0;
+    const key = `etq_${t.replace(/\W/g,'_')}`;
+    html += `<div style="background:var(--bg3);border-radius:10px;padding:8px 6px;text-align:center">
+      <div style="font-size:10px;font-weight:800;color:var(--text2);letter-spacing:.05em;margin-bottom:6px">${t}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:3px">
+        <button onclick="etiquetaAjustar('${t}',-1)"
+          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">−</button>
+        <input id="ins-val-${key}" type="number" min="0" step="1" value="${val}"
+          onchange="etiquetaSetValor('${t}',this.value)"
+          style="width:38px;text-align:center;background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;padding:3px 2px;font-size:13px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+        <button onclick="etiquetaAjustar('${t}',1)"
+          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">+</button>
+      </div>
+    </div>`;
+  });
+
+  html += `</div></div>`;
   html += `</div>`;
   html += `<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Los cambios se guardan automáticamente en este dispositivo.</div>`;
 
