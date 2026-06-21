@@ -927,6 +927,52 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
+
+// ══════════════════════════════════════════════════════════
+// CONFIG SYNC — persiste en Google Sheets, usa localStorage como caché
+// ══════════════════════════════════════════════════════════
+const CONFIG_KEYS = [
+  'ceniza_colores_tela','ceniza_fin','ceniza_inventario','ceniza_insumos',
+  'ceniza_arrastres','ceniza_encargos','ceniza_arreglos','ceniza_lote_pants',
+  'ceniza_lote_producto','ceniza_compras_efectivo_log','ceniza_produccion_lotes',
+  'ceniza_historial_cierres','ceniza_cierre_ultimo','delivery_wa_number'
+];
+
+// Carga config desde Sheets → localStorage al iniciar
+async function syncConfigDesdeSheets() {
+  try {
+    const res = await fetch(`${API}?accion=leerConfig`);
+    const data = await res.json();
+    let restored = 0;
+    for (const [clave, valor] of Object.entries(data)) {
+      if (CONFIG_KEYS.includes(clave) && valor && valor !== '') {
+        // Solo restaurar si no hay dato local ya (prioridad al local fresco)
+        if (!localStorage.getItem(clave)) {
+          localStorage.setItem(clave, valor);
+          restored++;
+        }
+      }
+    }
+    if (restored > 0) console.log(`[Config] ${restored} claves restauradas desde Sheets`);
+  } catch(e) {
+    console.warn('[Config] No se pudo cargar desde Sheets:', e.message);
+  }
+}
+
+// Guarda una clave en Sheets (fire & forget, no bloquea UI)
+function pushConfig(clave, valor) {
+  const encoded = encodeURIComponent(typeof valor === 'string' ? valor : JSON.stringify(valor));
+  fetch(`${API}?accion=guardarConfig&clave=${encodeURIComponent(clave)}&valor=${encoded}`)
+    .catch(() => {});
+}
+
+// Wrapper: guarda en localStorage + sincroniza a Sheets
+function cfgSet(clave, valor) {
+  const str = typeof valor === 'string' ? valor : JSON.stringify(valor);
+  localStorage.setItem(clave, str);
+  pushConfig(clave, str);
+}
+
 const PINES = {
   vendedora: '1818',
   costurera: '5690',
@@ -956,7 +1002,7 @@ function getEncargos() {
   return JSON.parse(localStorage.getItem('ceniza_encargos') || '[]');
 }
 function saveEncargos(list) {
-  localStorage.setItem('ceniza_encargos', JSON.stringify(list));
+  cfgSet('ceniza_encargos', JSON.stringify(list));
   // Sincronizar al servidor (fire & forget — no bloquea la UI)
   const encoded = encodeURIComponent(JSON.stringify(list));
   fetch(`${API}?accion=setEncargos&data=${encoded}`).catch(() => {});
@@ -964,7 +1010,7 @@ function saveEncargos(list) {
 
 // ── Colores de tela ────────────────────────────────────────
 function getColoresTela() { return JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]'); }
-function saveColoresTela(list) { localStorage.setItem('ceniza_colores_tela', JSON.stringify(list)); }
+function saveColoresTela(list) { cfgSet('ceniza_colores_tela', list); }
 
 // Devuelve el CSS de fondo del swatch según tipo de tela
 function _swatchStyle(c) {
@@ -1066,7 +1112,7 @@ async function renderFinCompras() {
   // Sincronizar encargos desde el servidor (el delivery los actualiza desde su dispositivo)
   try {
     const ra = await fetchData('getEncargos');
-    if (Array.isArray(ra.encargos)) localStorage.setItem('ceniza_encargos', JSON.stringify(ra.encargos));
+    if (Array.isArray(ra.encargos)) cfgSet('ceniza_encargos', JSON.stringify(ra.encargos));
   } catch(e) {}
   const list = getEncargos();
   // Historial de efectivo entregado (array de {monto, fecha, nota})
@@ -1359,14 +1405,14 @@ function agregarEfectivoEntry() {
   const nota  = document.getElementById('efec-nota')?.value.trim() || '';
   const log = JSON.parse(localStorage.getItem('ceniza_compras_efectivo_log') || '[]');
   log.push({ monto, fecha, nota });
-  localStorage.setItem('ceniza_compras_efectivo_log', JSON.stringify(log));
+  cfgSet('ceniza_compras_efectivo_log', JSON.stringify(log));
   renderFinCompras();
   mostrarToast(`✓ ${fmt$(monto)} registrado para el ${fecha}`);
 }
 function eliminarEfectivoEntry(i) {
   const log = JSON.parse(localStorage.getItem('ceniza_compras_efectivo_log') || '[]');
   log.splice(i, 1);
-  localStorage.setItem('ceniza_compras_efectivo_log', JSON.stringify(log));
+  cfgSet('ceniza_compras_efectivo_log', JSON.stringify(log));
   renderFinCompras();
 }
 function guardarCostoEncargo(i, valor) {
@@ -1425,7 +1471,7 @@ async function renderCompras() {
   try {
     const d = await fetchData('getEncargos');
     if (Array.isArray(d.encargos)) {
-      localStorage.setItem('ceniza_encargos', JSON.stringify(d.encargos));
+      cfgSet('ceniza_encargos', JSON.stringify(d.encargos));
     }
   } catch(e) { /* usa localStorage como fallback */ }
   const list = getEncargos();
@@ -1566,7 +1612,7 @@ function getArreglos() {
   return JSON.parse(localStorage.getItem('ceniza_arreglos') || '[]');
 }
 function saveArreglos(list) {
-  localStorage.setItem('ceniza_arreglos', JSON.stringify(list));
+  cfgSet('ceniza_arreglos', JSON.stringify(list));
   // Sincronizar al servidor para compartir entre dispositivos
   const encoded = encodeURIComponent(JSON.stringify(list));
   fetch(`${API}?accion=setArreglos&data=${encoded}`).catch(() => {});
@@ -1577,7 +1623,7 @@ async function syncArreglos() {
   try {
     const d = await fetchData('getArreglos');
     if (Array.isArray(d.arreglos)) {
-      localStorage.setItem('ceniza_arreglos', JSON.stringify(d.arreglos));
+      cfgSet('ceniza_arreglos', JSON.stringify(d.arreglos));
     }
   } catch(e) { /* usa localStorage como fallback */ }
 }
@@ -1851,12 +1897,15 @@ function arregloSetEstado(id, nuevoEstado, callback) {
 }
 
 function initApp() {
-  const rol = localStorage.getItem('ceniza_rol');
-  if (!rol) {
-    showScreen('screen-rol');
-  } else {
-    showApp(rol);
-  }
+  // Restaurar config desde Sheets si hay datos perdidos
+  syncConfigDesdeSheets().then(() => {
+    const rol = localStorage.getItem('ceniza_rol');
+    if (!rol) {
+      showScreen('screen-rol');
+    } else {
+      showApp(rol);
+    }
+  });
 }
 
 function showScreen(id) {
@@ -2808,7 +2857,7 @@ function calcCierre() {
   try {
     const saved = JSON.parse(localStorage.getItem('ceniza_fin') || '{}');
     saved.porcentajes = _porcentajes;
-    localStorage.setItem('ceniza_fin', JSON.stringify(saved));
+    cfgSet('ceniza_fin', JSON.stringify(saved));
   } catch(e) {}
 
   const aviso  = document.getElementById('ci-pct-aviso');
@@ -2884,12 +2933,12 @@ async function guardarCierre() {
     pctEmergencia:  _porcentajes.emergencia,
     pctCrecimiento: _porcentajes.crecimiento
   };
-  localStorage.setItem('ceniza_cierre_ultimo', JSON.stringify(cierreData));
+  cfgSet('ceniza_cierre_ultimo', JSON.stringify(cierreData));
 
   // Acumular historial de cierres
   const historial = JSON.parse(localStorage.getItem('ceniza_historial_cierres') || '[]');
   historial.push(cierreData);
-  localStorage.setItem('ceniza_historial_cierres', JSON.stringify(historial));
+  cfgSet('ceniza_historial_cierres', JSON.stringify(historial));
 
   mostrarToast(`✅ Quincena cerrada · +${fmt$(aEme)} emergencia · +${fmt$(aCre)} crecimiento`);
   const planBtn = [...document.querySelectorAll('.fin-tab')].find(b => b.textContent.includes('Plan'));
@@ -3021,10 +3070,10 @@ function eliminarUltimoCierre() {
   if (!historial.length) return;
   if (!confirm('¿Eliminar el último cierre? Esta acción no se puede deshacer.')) return;
   historial.pop();
-  localStorage.setItem('ceniza_historial_cierres', JSON.stringify(historial));
+  cfgSet('ceniza_historial_cierres', JSON.stringify(historial));
   // actualizar cierre_ultimo
   if (historial.length) {
-    localStorage.setItem('ceniza_cierre_ultimo', JSON.stringify(historial[historial.length - 1]));
+    cfgSet('ceniza_cierre_ultimo', JSON.stringify(historial[historial.length - 1]));
   } else {
     localStorage.removeItem('ceniza_cierre_ultimo');
   }
@@ -3060,13 +3109,13 @@ function getProduccionLotes() {
   return JSON.parse(localStorage.getItem('ceniza_produccion_lotes') || '[]');
 }
 function saveProduccionLotes(list) {
-  localStorage.setItem('ceniza_produccion_lotes', JSON.stringify(list));
+  cfgSet('ceniza_produccion_lotes', JSON.stringify(list));
 }
 function getInventario() {
   return JSON.parse(localStorage.getItem('ceniza_inventario') || '{}');
 }
 function saveInventario(inv) {
-  localStorage.setItem('ceniza_inventario', JSON.stringify(inv));
+  cfgSet('ceniza_inventario', JSON.stringify(inv));
 }
 function actualizarStock(key, valor) {
   const inv = getInventario();
@@ -3610,7 +3659,7 @@ function renderFinLote() {
 function setLotePants(v) {
   const n = Math.max(1, parseInt(v) || 1);
   _lotePants = n;
-  localStorage.setItem('ceniza_lote_pants', n);
+  cfgSet('ceniza_lote_pants', n);
   const inp = document.getElementById('lote-pants-inp');
   if (inp) inp.value = n;
   renderFinLote();
@@ -3618,7 +3667,7 @@ function setLotePants(v) {
 
 function setLoteProducto(tipo) {
   _loteProducto = tipo;
-  localStorage.setItem('ceniza_lote_producto', tipo);
+  cfgSet('ceniza_lote_producto', tipo);
   renderFinLote();
 }
 
@@ -3722,7 +3771,7 @@ function calcFinNuevo() {
 
 // ── Helper: guardar en localStorage ──────────────────────
 function _guardarFinLocal() {
-  try { localStorage.setItem('ceniza_fin', JSON.stringify({ fondos:_fondos, cuentas:_cuentas, tasas:_tasas })); } catch(_) {}
+  try { cfgSet('ceniza_fin', JSON.stringify({ fondos:_fondos, cuentas:_cuentas, tasas:_tasas })); } catch(_) {}
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3754,7 +3803,7 @@ function guardarArrastre(nombre) {
   const val = parseInt(inp.value) || 0;
   const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
   arrastres[nombre] = val;
-  localStorage.setItem('ceniza_arrastres', JSON.stringify(arrastres));
+  cfgSet('ceniza_arrastres', JSON.stringify(arrastres));
   // Sincronizar al servidor para que Angie lo vea en su dispositivo
   const encoded = encodeURIComponent(JSON.stringify(arrastres));
   fetch(`${API}?accion=setArrastres&data=${encoded}`).catch(() => {});
@@ -3994,7 +4043,7 @@ async function loadVendedoraComisiones() {
       const ra = await fetchData('getArrastres');
       if (ra.arrastres && typeof ra.arrastres === 'object') {
         arrastres = ra.arrastres;
-        localStorage.setItem('ceniza_arrastres', JSON.stringify(arrastres));
+        cfgSet('ceniza_arrastres', JSON.stringify(arrastres));
       }
     } catch(e) { /* usar localStorage como fallback */ }
     const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
@@ -4323,7 +4372,7 @@ async function historialMarcarEntregado(fila) {
 
 // ── Insumos del taller ──────────────────────────────────────
 function getInsumos() { return JSON.parse(localStorage.getItem('ceniza_insumos') || '{}'); }
-function saveInsumos(data) { localStorage.setItem('ceniza_insumos', JSON.stringify(data)); }
+function saveInsumos(data) { cfgSet('ceniza_insumos', JSON.stringify(data)); }
 
 function insumoAjustar(clave, delta) {
   const d = getInsumos();
@@ -5263,7 +5312,7 @@ function generarMensajeDelivery(pedidos, fecha){
 }
 function enviarADelivery(){
   let num=localStorage.getItem('delivery_wa_number');
-  if(!num){ num=prompt('Número WhatsApp del delivery\n(con código de país, sin espacios)\nEj: 584141234567'); if(!num) return; num=num.replace(/\D/g,''); localStorage.setItem('delivery_wa_number',num); }
+  if(!num){ num=prompt('Número WhatsApp del delivery\n(con código de país, sin espacios)\nEj: 584141234567'); if(!num) return; num=num.replace(/\D/g,''); cfgSet('delivery_wa_number',num); }
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(generarMensajeDelivery(_entPedidos,_entFecha))}`, '_blank');
 }
 function cambiarNumeroDelivery(){ localStorage.removeItem('delivery_wa_number'); enviarADelivery(); }
