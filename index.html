@@ -874,7 +874,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
                   <option>Marrón</option><option>Beige</option><option>Azul rey</option>
                   <option>Terracota</option><option>Fucsia</option><option>Rojo</option>
                   <option>Blanco</option><option>Amarillo</option><option>Morado</option>
-                  <option>Neón</option><option>Rayas</option><option>Puntos</option>
+                  <option>Neón</option><option>Rayas</option><option>Puntos</option><option>Puntos negros fondo blanco</option><option>Puntos blancos fondo negro</option>
                 </select>
               </div>
               <div class="form-group">
@@ -968,6 +968,8 @@ function saveColoresTela(list) { localStorage.setItem('ceniza_colores_tela', JSO
 
 // Devuelve el CSS de fondo del swatch según tipo de tela
 function _swatchStyle(c) {
+  if (c.nombre === 'Puntos negros fondo blanco') return 'background-color:#ffffff;background-image:radial-gradient(circle,#1c1917 30%,transparent 30%);background-size:8px 8px;border:1.5px solid #ddd';
+  if (c.nombre === 'Puntos blancos fondo negro') return 'background-color:#1c1917;background-image:radial-gradient(circle,#ffffff 30%,transparent 30%);background-size:8px 8px';
   const tipo = c.tipo || 'solido';
   if (tipo === 'rayas') {
     return 'background:repeating-linear-gradient(45deg,#6b7280 0px,#6b7280 3px,#d1d5db 3px,#d1d5db 9px)';
