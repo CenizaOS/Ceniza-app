@@ -426,9 +426,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .fin-topbar-brand{display:flex;align-items:center;gap:14px}
 .fin-topbar-name{font-size:18px;font-weight:700;letter-spacing:-0.3px}
 .fin-topbar-sub{font-size:12px;color:var(--text2);font-weight:500}
-.fin-tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);overflow-x:auto;scrollbar-width:none;flex-shrink:0;padding:10px 16px;gap:8px}
-.fin-tabs::-webkit-scrollbar{display:none}
-.fin-tab{flex:0 0 auto;padding:9px 16px;font-size:12px;font-weight:500;color:var(--text2);background:var(--bg3);border:none;border-radius:12px;cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
+.fin-tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);flex-shrink:0;padding:10px 12px;gap:6px}
+.fin-tab{flex:1;padding:9px 4px;font-size:12px;font-weight:500;color:var(--text2);background:var(--bg3);border:none;border-radius:12px;cursor:pointer;white-space:nowrap;text-align:center;transition:color .15s,background .15s}
 .fin-tab.active{color:var(--gold);background:var(--gold-bg);font-weight:700}
 .fin-body{padding:20px;padding-bottom:calc(var(--sab) + 360px);overflow-y:auto;flex:1;min-height:0}
 .fin-screen{animation:fadeIn .15s ease}
@@ -5188,15 +5187,25 @@ let fechaEntregasActual=new Date(), _entPedidos=[], _entFecha='', _entCache={};
 async function loadEntregas(offset, forzar=false){
   if(offset!==undefined){ fechaEntregasActual=new Date(fechaEntregasActual); fechaEntregasActual.setDate(fechaEntregasActual.getDate()+offset); }
   const fecha=fechaStr(fechaEntregasActual);
-  if(!forzar && _entCache[fecha]){ renderEntregas(_entCache[fecha],fecha); return; }
+  if(!forzar && _entCache[fecha]){ renderEntregas(_entCache[fecha],fecha); _prefetchEntregas(); return; }
   document.getElementById('ent-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try{
     const d=await fetchData('entregas',`&fecha=${fecha}`);
     _entCache[fecha]=d;
     renderEntregas(d, fecha);
+    _prefetchEntregas();
   }catch(e){
     document.getElementById('ent-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas(undefined,true)">${refreshIcon}Reintentar</button>`;
   }
+}
+
+function _prefetchEntregas(){
+  [-1,+1,+2].forEach(delta=>{
+    const d=new Date(fechaEntregasActual);
+    d.setDate(d.getDate()+delta);
+    const f=fechaStr(d);
+    if(!_entCache[f]) fetchData('entregas',`&fecha=${f}`).then(data=>{_entCache[f]=data;}).catch(()=>{});
+  });
 }
 
 function renderEntregas(d, fecha){
@@ -5817,7 +5826,7 @@ async function submitPedidos(){
   } catch (err) {
     mostrarToast('⚠ Error: ' + err.message);
   } finally {
-        btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
+    btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
     btn.disabled = false;
   }
 }
