@@ -1779,15 +1779,15 @@ function _initPinPad() {
 }
 
 function initApp() {
-  // Restaurar config desde Sheets si hay datos perdidos
-  syncConfigDesdeSheets().then(() => {
-    const rol = localStorage.getItem('ceniza_rol');
-    if (!rol) {
-      showScreen('screen-rol');
-    } else {
-      showApp(rol);
-    }
-  });
+  // Show initial screen immediately — never wait on network for navigation
+  const rol = localStorage.getItem('ceniza_rol');
+  if (!rol) {
+    showScreen('screen-rol');
+  } else {
+    showApp(rol);
+  }
+  // Sync config in background (fire & forget — must NOT affect navigation)
+  syncConfigDesdeSheets();
 }
 
 function showScreen(id) {
