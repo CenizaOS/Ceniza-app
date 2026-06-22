@@ -426,9 +426,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .fin-topbar-brand{display:flex;align-items:center;gap:14px}
 .fin-topbar-name{font-size:18px;font-weight:700;letter-spacing:-0.3px}
 .fin-topbar-sub{font-size:12px;color:var(--text2);font-weight:500}
-.fin-tabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);flex-shrink:0;padding:10px 12px;gap:6px}
-.fin-tab{flex:1;padding:9px 4px;font-size:12px;font-weight:500;color:var(--text2);background:var(--bg3);border:none;border-radius:12px;cursor:pointer;white-space:nowrap;text-align:center;transition:color .15s,background .15s}
-.fin-tab.active{color:var(--gold);background:var(--gold-bg);font-weight:700}
+.fin-cats{display:flex;background:var(--bg);padding:12px 16px 10px;gap:8px;flex-shrink:0}
+.fin-cat{flex:1;padding:14px 4px;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);border:none;border-radius:14px;cursor:pointer;text-align:center;transition:all .2s}
+.fin-cat.active{color:var(--gold);background:var(--gold-bg);font-weight:700}
+.fin-subtabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);padding:0 16px 10px;gap:6px;flex-shrink:0}
+.fin-subtab{flex:1;padding:9px 4px;font-size:12px;font-weight:500;color:var(--text2);background:var(--bg3);border:none;border-radius:10px;cursor:pointer;text-align:center;transition:all .15s}
+.fin-subtab.active{color:var(--gold);background:var(--gold-bg);font-weight:700}
 .fin-body{padding:20px;padding-bottom:calc(var(--sab) + 360px);overflow-y:auto;flex:1;min-height:0}
 .fin-screen{animation:fadeIn .15s ease}
 .fin-card{background:var(--bg2);border-radius:14px;padding:18px 20px;margin-bottom:12px}
@@ -713,15 +716,26 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="switch-btn" onclick="logoutRol()">Salir</button>
   </div>
 
-  <!-- Tabs -->
-  <div class="fin-tabs">
-    <button class="fin-tab active" onclick="showFinTab('quincena',this)">🏠 Inicio</button>
-    <button class="fin-tab" onclick="showFinTab('produccion',this)">🏭 Producción</button>
-    <button class="fin-tab" onclick="showFinTab('lote',this)">📐 Lote</button>
-    <button class="fin-tab" onclick="showFinTab('historial',this)">📋 Historial</button>
-    <button class="fin-tab" onclick="showFinTab('cierre',this)">📊 Cierre</button>
-    <button class="fin-tab" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
-    <button class="fin-tab" onclick="showFinTab('compras',this)">🛍️ Compras</button>
+  <!-- Categorias -->
+  <div class="fin-cats">
+    <button class="fin-cat active" id="fcat-resumen" onclick="showFinCat('resumen')">📊 Resumen</button>
+    <button class="fin-cat" id="fcat-taller" onclick="showFinCat('taller')">🏭 Producción</button>
+    <button class="fin-cat" id="fcat-gestion" onclick="showFinCat('gestion')">📦 Gestión</button>
+  </div>
+  <!-- Sub-tabs por categoría -->
+  <div class="fin-subtabs" id="fsub-resumen">
+    <button class="fin-subtab active" id="fstab-quincena" onclick="showFinTab('quincena',this)">🏠 Inicio</button>
+    <button class="fin-subtab" id="fstab-historial" onclick="showFinTab('historial',this)">📋 Historial</button>
+    <button class="fin-subtab" id="fstab-cierre" onclick="showFinTab('cierre',this)">📊 Cierre</button>
+  </div>
+  <div class="fin-subtabs" id="fsub-taller" style="display:none">
+    <button class="fin-subtab active" id="fstab-produccion" onclick="showFinTab('produccion',this)">🏭 Cola</button>
+    <button class="fin-subtab" id="fstab-lote" onclick="showFinTab('lote',this)">📐 Lotes</button>
+  </div>
+  <div class="fin-subtabs" id="fsub-gestion" style="display:none">
+    <button class="fin-subtab active" id="fstab-compras" onclick="showFinTab('compras',this)">🛍️ Compras</button>
+    <button class="fin-subtab" id="fstab-fondos" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
+    <button class="fin-subtab" id="fstab-inventario" onclick="showFinTab('inventario',this)">📦 Inventario</button>
   </div>
 
   <!-- Contenido -->
@@ -746,6 +760,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="fin-compras" class="fin-screen" style="display:none">
       <div id="fin-compras-content"></div>
+    </div>
+    <div id="fin-inventario" class="fin-screen" style="display:none">
+      <div id="fin-inventario-content"></div>
     </div>
   </div>
 </div>
@@ -2113,18 +2130,84 @@ async function abrirAppDuena() {
 }
 
 // ── Tabs ─────────────────────────────────────────────────────
+function showFinCat(cat) {
+  ['resumen','taller','gestion'].forEach(c => {
+    document.getElementById('fcat-'+c).classList.toggle('active', c===cat);
+    document.getElementById('fsub-'+c).style.display = c===cat ? 'flex' : 'none';
+  });
+  const firstTab = {resumen:'quincena', taller:'produccion', gestion:'compras'};
+  const subtabs = document.querySelectorAll('#fsub-'+cat+' .fin-subtab');
+  subtabs.forEach(b => b.classList.remove('active'));
+  if (subtabs[0]) subtabs[0].classList.add('active');
+  showFinTab(firstTab[cat]);
+}
+
 function showFinTab(tab, btn) {
-  document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  ['quincena','produccion','lote','historial','cierre','fondos','compras'].forEach(t => {
+  ['quincena','produccion','lote','historial','cierre','fondos','compras','inventario'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
-  if (tab === 'produccion') renderFinProduccion();
-  if (tab === 'lote')       renderFinLote();
-  if (tab === 'historial')  renderFinHistorial();
-  if (tab === 'cierre')     renderFinCierre();
-  if (tab === 'compras')    renderFinCompras();
+  if (btn) {
+    const parent = btn.closest('.fin-subtabs');
+    if (parent) parent.querySelectorAll('.fin-subtab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  if (tab === 'produccion')  renderFinProduccion();
+  if (tab === 'lote')        renderFinLote();
+  if (tab === 'historial')   renderFinHistorial();
+  if (tab === 'cierre')      renderFinCierre();
+  if (tab === 'compras')     renderFinCompras();
+  if (tab === 'fondos')      renderFinFondos();
+  if (tab === 'inventario')  renderFinInventario();
+}
+
+function renderFinInventario() {
+  const el = document.getElementById('fin-inventario-content');
+  if (!el) return;
+  const colores = JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]');
+  const insumos = JSON.parse(localStorage.getItem('ceniza_insumos') || '[]');
+
+  let colHtml = colores.length ? colores.map((c,i) =>
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">'
+    + '<div style="width:28px;height:28px;border-radius:6px;flex-shrink:0;border:1px solid var(--bg4);background:'+c.hex+'"></div>'
+    + '<div style="flex:1"><div style="font-size:14px;font-weight:600">'+c.nombre+'</div>'
+    + '<div style="font-size:11px;color:var(--text3)">'+c.codigo+'</div></div>'
+    + '<button onclick="eliminarColorTela('+i+')" style="border:none;background:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>'
+    + '</div>'
+  ).join('') : '<div style="color:var(--text3);font-size:13px;padding:12px 0">Sin colores registrados</div>';
+
+  el.innerHTML = '<div class="card" style="margin-bottom:14px">'
+    + '<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Colores de tela</div>'
+    + colHtml
+    + '<div style="margin-top:14px;border-top:1px solid var(--bg4);padding-top:14px">'
+    + '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Agregar color</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+    + '<input id="inv-color-nombre" placeholder="Nombre (ej. Negro)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">'
+    + '<input id="inv-color-codigo" placeholder="Código (ej. T-001)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:8px">'
+    + '<input id="inv-color-hex" type="color" value="#000000" style="width:48px;height:40px;padding:2px;border:1.5px solid var(--bg4);border-radius:10px;cursor:pointer;background:var(--bg)">'
+    + '<button class="btn" onclick="agregarColorTela()" style="flex:1">+ Agregar color</button>'
+    + '</div></div></div>';
+}
+
+function agregarColorTela() {
+  const nombre = document.getElementById('inv-color-nombre').value.trim();
+  const codigo = document.getElementById('inv-color-codigo').value.trim();
+  const hex    = document.getElementById('inv-color-hex').value;
+  if (!nombre) { mostrarToast('Ingresa el nombre del color'); return; }
+  const colores = JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]');
+  colores.push({nombre, codigo, hex});
+  cfgSet('ceniza_colores_tela', JSON.stringify(colores));
+  mostrarToast('Color agregado');
+  renderFinInventario();
+}
+
+function eliminarColorTela(i) {
+  const colores = JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]');
+  colores.splice(i,1);
+  cfgSet('ceniza_colores_tela', JSON.stringify(colores));
+  renderFinInventario();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2949,8 +3032,7 @@ async function guardarCierre() {
   cfgSet('ceniza_historial_cierres', JSON.stringify(historial));
 
   mostrarToast(`✅ Quincena cerrada · +${fmt$(aEme)} emergencia · +${fmt$(aCre)} crecimiento`);
-  const planBtn = [...document.querySelectorAll('.fin-tab')].find(b => b.textContent.includes('Plan'));
-  showFinTab('plan', planBtn);
+  showFinCat('taller'); showFinTab('produccion', document.getElementById('fstab-produccion'));
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3657,7 +3739,7 @@ function renderFinLote() {
     </div>
 
     <!-- Acceso rápido a Compras -->
-    <button onclick="showFinTab('compras', [...document.querySelectorAll('.fin-tab')].find(b=>b.textContent.includes('Compras')))"
+    <button onclick="showFinCat('gestion'); showFinTab('compras', document.getElementById('fstab-compras'))"
       style="width:100%;margin-top:14px;background:var(--bg2);border:1px solid var(--bg4);border-radius:12px;padding:12px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;text-align:center">
       🛍️ Ver lista de compras →
     </button>
