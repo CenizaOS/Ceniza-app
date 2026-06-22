@@ -5817,11 +5817,10 @@ async function submitPedidos(){
   } catch (err) {
     mostrarToast('⚠ Error: ' + err.message);
   } finally {
-    btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
+        btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
     btn.disabled = false;
   }
 }
-
 window.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
