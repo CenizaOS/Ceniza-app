@@ -5749,6 +5749,9 @@ async function submitPedidos(){
   try {
     if (esEdicion) {
       const item = carrito[0] || {};
+      // Convertir YYYY-MM-DD → DD/MM/YYYY para Apps Script
+      const [fy, fm, fd] = fechaEntrega.split('-');
+      const fechaEntregaFmt = `${fd}/${fm}/${fy}`;
       const params = new URLSearchParams({
         fila:          filaEdicion,
         telefono:      g('f-telefono'),
@@ -5757,7 +5760,7 @@ async function submitPedidos(){
         talla:         item.talla    || '',
         ruedo:         item.ruedo    || '',
         tipoEntrega,
-        fechaEntrega,
+        fechaEntrega:  fechaEntregaFmt,
         direccion:     g('f-direccion'),
         montoProducto: item.montoProducto || '0',
         montoDelivery: g('f-monto-delivery') || '0',
