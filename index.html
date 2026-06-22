@@ -1352,15 +1352,15 @@ async function renderCompras() {
   // Tab bar + panes
   const tBtn = (id, tab, label, active) =>
     `<button id="${id}" onclick="showComprasTab('${tab}')"
-      style="flex:1;padding:11px 6px;font-size:13px;font-weight:700;border:none;cursor:pointer;border-bottom:2px solid ${active ? 'var(--gold)' : 'transparent'};
-             background:transparent;color:${active ? 'var(--gold)' : 'var(--text3)'}">
+      style="flex:1;padding:14px 8px;font-size:14px;font-weight:${active ? '700' : '600'};border:none;border-radius:12px;cursor:pointer;
+             background:${active ? 'var(--gold-bg)' : 'var(--bg3)'};color:${active ? 'var(--gold)' : 'var(--text2)'};transition:all .2s;text-align:center">
       ${label}
     </button>`;
 
   const isCol = comprasActiveTab === 'colores';
   div.innerHTML = `
     <!-- Tab bar -->
-    <div style="display:flex;margin:-12px -16px 14px;border-bottom:1px solid var(--bg4);background:var(--bg);position:sticky;top:0;z-index:5">
+    <div style="display:flex;gap:8px;margin:-12px -16px 18px;padding:10px 16px;border-bottom:1px solid var(--bg4);background:var(--bg);position:sticky;top:0;z-index:5">
       ${tBtn('ctab-enc','encargos','🛍️ Encargos', !isCol)}
       ${tBtn('ctab-col','colores','🎨 Colores de tela', isCol)}
     </div>
@@ -1377,7 +1377,7 @@ async function renderCompras() {
           const pendientes = list.filter(e => !e.hecho).length;
           const total = list.length;
           return `
-        <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+        <div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-top:4px;margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <span style="font-size:13px;font-weight:700;color:var(--text2)">Progreso</span>
             <span style="font-size:13px;font-weight:800;color:var(--gold)">${total - pendientes} / ${total}</span>
@@ -1427,14 +1427,15 @@ function showComprasTab(tab) {
   const col = document.getElementById('c-pane-colores');
   const bEnc = document.getElementById('ctab-enc');
   const bCol = document.getElementById('ctab-col');
-  if (!enc || !col) return;
+  if (!enc || !col || !bEnc || !bCol) return;
   enc.style.display = tab === 'encargos' ? '' : 'none';
   col.style.display = tab === 'colores' ? '' : 'none';
   [bEnc, bCol].forEach((b, i) => {
     if (!b) return;
     const active = (i === 0 && tab === 'encargos') || (i === 1 && tab === 'colores');
-    b.style.borderBottomColor = active ? 'var(--gold)' : 'transparent';
-    b.style.color = active ? 'var(--gold)' : 'var(--text3)';
+    b.style.background = active ? 'var(--gold-bg)' : 'var(--bg3)';
+    b.style.color = active ? 'var(--gold)' : 'var(--text2)';
+    b.style.fontWeight = active ? '700' : '600';
   });
   if (tab === 'colores' && col) col.innerHTML = renderColoresComprasHtml();
 }
