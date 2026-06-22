@@ -2052,12 +2052,12 @@ function renderFinInventario() {
           <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">metros</div>
           <div style="display:flex;align-items:center;gap:5px">
             <button onclick="telaAjustar('${c.nombre}',-0.5)"
-              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+              style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
             <input id="fininv-tela-${c.nombre.replace(/\s+/g,'_')}" type="number" min="0" step="0.5" value="${metros}"
               onchange="telaSetValor('${c.nombre}',this.value)"
-              style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+              style="width:58px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:16px;font-weight:700;color:var(--text);-moz-appearance:textfield">
             <button onclick="telaAjustar('${c.nombre}',0.5)"
-              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+              style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
           </div>
         </div>
       </div>`;
@@ -2082,12 +2082,12 @@ function renderFinInventario() {
         <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">${g.unidad}</div>
         <div style="display:flex;align-items:center;gap:5px">
           <button onclick="insumoAjustar('${g.id}',${-g.step})"
-            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+            style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
           <input id="fininv-${g.id}" type="number" min="0" step="${g.step}" value="${val}"
             onchange="insumoSetValor('${g.id}',this.value)"
-            style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+            style="width:58px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:16px;font-weight:700;color:var(--text);-moz-appearance:textfield">
           <button onclick="insumoAjustar('${g.id}',${g.step})"
-            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+            style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
         </div>
       </div>
     </div>`;
@@ -2105,20 +2105,20 @@ function renderFinInventario() {
         <div style="font-size:11px;color:var(--text3)">Total: ${totalEtq} unidades</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">`;
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px">`;
   TALLAS.forEach(t => {
     const val = etqTallas[t] ?? 0;
     const key = `fininv_etq_${t.replace(/\W/g,'_')}`;
-    html += `<div style="background:var(--bg3);border-radius:10px;padding:8px 6px;text-align:center">
-      <div style="font-size:10px;font-weight:800;color:var(--text2);letter-spacing:.05em;margin-bottom:6px">${t}</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:3px">
+    html += `<div style="background:var(--bg3);border-radius:12px;padding:14px 8px;text-align:center">
+      <div style="font-size:13px;font-weight:800;color:var(--text2);letter-spacing:.05em;margin-bottom:10px">${t}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px">
         <button onclick="etiquetaAjustar('${t}',-1)"
-          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">−</button>
+          style="width:36px;height:36px;border-radius:50%;background:var(--bg4);border:none;font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">−</button>
         <input id="${key}" type="number" min="0" step="1" value="${val}"
           onchange="etiquetaSetValor('${t}',this.value)"
-          style="width:38px;text-align:center;background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;padding:3px 2px;font-size:13px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+          style="width:52px;text-align:center;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 2px;font-size:18px;font-weight:700;color:var(--text);-moz-appearance:textfield">
         <button onclick="etiquetaAjustar('${t}',1)"
-          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">+</button>
+          style="width:36px;height:36px;border-radius:50%;background:var(--bg4);border:none;font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">+</button>
       </div>
     </div>`;
   });
@@ -4611,12 +4611,12 @@ function renderCostInsumos() {
           <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">metros</div>
           <div style="display:flex;align-items:center;gap:5px">
             <button onclick="telaAjustar('${c.nombre}',-0.5)"
-              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+              style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
             <input id="ins-val-${key}" type="number" min="0" step="0.5" value="${metros}"
               onchange="telaSetValor('${c.nombre}',this.value)"
-              style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+              style="width:58px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:16px;font-weight:700;color:var(--text);-moz-appearance:textfield">
             <button onclick="telaAjustar('${c.nombre}',0.5)"
-              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+              style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
           </div>
         </div>
       </div>`;
@@ -4645,12 +4645,12 @@ function renderCostInsumos() {
         <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">${g.unidad}</div>
         <div style="display:flex;align-items:center;gap:5px">
           <button onclick="insumoAjustar('${g.id}',${-g.step})"
-            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+            style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
           <input id="ins-val-${g.id}" type="number" min="0" step="${g.step}" value="${val}"
             onchange="insumoSetValor('${g.id}',this.value)"
-            style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+            style="width:58px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:16px;font-weight:700;color:var(--text);-moz-appearance:textfield">
           <button onclick="insumoAjustar('${g.id}',${g.step})"
-            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+            style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
         </div>
       </div>
     </div>`;
@@ -4669,21 +4669,21 @@ function renderCostInsumos() {
         <div style="font-size:11px;color:var(--text3)">Total: ${totalEtq} unidades</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">`;
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px">`;
 
   TALLAS.forEach(t => {
     const val = etqTallas[t] ?? 0;
     const key = `etq_${t.replace(/\W/g,'_')}`;
-    html += `<div style="background:var(--bg3);border-radius:10px;padding:8px 6px;text-align:center">
-      <div style="font-size:10px;font-weight:800;color:var(--text2);letter-spacing:.05em;margin-bottom:6px">${t}</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:3px">
+    html += `<div style="background:var(--bg3);border-radius:12px;padding:14px 8px;text-align:center">
+      <div style="font-size:13px;font-weight:800;color:var(--text2);letter-spacing:.05em;margin-bottom:10px">${t}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px">
         <button onclick="etiquetaAjustar('${t}',-1)"
-          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">−</button>
+          style="width:36px;height:36px;border-radius:50%;background:var(--bg4);border:none;font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">−</button>
         <input id="ins-val-${key}" type="number" min="0" step="1" value="${val}"
           onchange="etiquetaSetValor('${t}',this.value)"
-          style="width:38px;text-align:center;background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;padding:3px 2px;font-size:13px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+          style="width:52px;text-align:center;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 2px;font-size:18px;font-weight:700;color:var(--text);-moz-appearance:textfield">
         <button onclick="etiquetaAjustar('${t}',1)"
-          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">+</button>
+          style="width:36px;height:36px;border-radius:50%;background:var(--bg4);border:none;font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">+</button>
       </div>
     </div>`;
   });
