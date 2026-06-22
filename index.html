@@ -499,7 +499,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="role-card locked" onclick="selectRole('delivery')">
       <div class="role-icon">🛵</div>
       <div>
-        <div class="role-card-name">Delivery</div>
+        <div class="role-card-name">Delivery de entregas</div>
         <div class="role-card-desc">Entregas del día · marcar entregado</div>
       </div>
     </button>
@@ -561,8 +561,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <input id="nombre-input" type="text" placeholder="Tu nombre" autocomplete="given-name"
       style="background:var(--bg2);border:none;border-radius:var(--radius-sm);padding:16px 18px;font-size:18px;font-family:inherit;color:var(--text);outline:none;text-align:center;width:100%;box-shadow:var(--shadow)"
       onfocus="this.style.boxShadow='0 0 0 2.5px rgba(0,0,0,0.25),0 4px 24px rgba(0,0,0,0.07)'" onblur="this.style.boxShadow='var(--shadow)'"
-      onkeydown="if(event.key==='Enter')guardarNombreVendedora()">
-    <button onclick="guardarNombreVendedora()"
+      onkeydown="if(event.key==='Enter')guardarNombreRol()">
+    <button onclick="guardarNombreRol()"
       style="width:100%;padding:16px;background:var(--gold);color:#fff;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer">
       Entrar
     </button>
@@ -582,7 +582,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
       </div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-      <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+      <button class="switch-btn" onclick="logoutRol()">← Volver</button>
       <button onclick="cambiarNombreVendedora()" style="background:none;border:none;font-size:10px;color:var(--text3);cursor:pointer;padding:0 2px">¿No eres tú?</button>
     </div>
   </div>
@@ -629,11 +629,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div style="display:flex;align-items:center;gap:10px">
       <div class="topbar-logo">C</div>
       <div>
-        <div style="font-size:16px;font-weight:700">Entregas</div>
+        <div style="font-size:16px;font-weight:700" id="del-saludo">Entregas</div>
         <div style="font-size:12px;color:var(--text2)" id="del-mes"></div>
+        <button onclick="cambiarNombreRol('delivery')" style="background:none;border:none;font-size:10px;color:var(--text3);cursor:pointer;padding:0;text-align:left">¿No eres tú?</button>
       </div>
     </div>
-    <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+    <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
   <div class="cost-tabs" style="position:sticky;top:calc(var(--sat) + 62px);z-index:9">
     <button class="cost-tab active" id="dtab-entregas" onclick="showDelTab('entregas')" style="padding:14px 4px;font-size:14px">📦 Entregas</button>
@@ -657,11 +658,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div style="display:flex;align-items:center;gap:10px">
       <div class="topbar-logo">C</div>
       <div>
-        <div style="font-size:16px;font-weight:700">Taller</div>
+        <div style="font-size:16px;font-weight:700" id="cost-saludo">Taller</div>
         <div style="font-size:12px;color:var(--text2)" id="cost-mes"></div>
+        <button onclick="cambiarNombreRol('costurera')" style="background:none;border:none;font-size:10px;color:var(--text3);cursor:pointer;padding:0;text-align:left">¿No eres tú?</button>
       </div>
     </div>
-    <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
+    <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
   <div class="cost-tabs">
     <button class="cost-tab active" id="ctab-cola" onclick="showCostTab('cola')">🧵 Producción</button>
@@ -689,11 +691,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div style="display:flex;align-items:center;gap:10px">
       <div class="topbar-logo">C</div>
       <div>
-        <div class="del-header-title">Delivery de compras</div>
+        <div class="del-header-title" id="compras-saludo">Delivery de compras</div>
         <div class="del-header-sub" id="compras-sub">Lista de encargos</div>
+        <button onclick="cambiarNombreRol('compras')" style="background:none;border:none;font-size:10px;color:var(--text3);cursor:pointer;padding:0;text-align:left">¿No eres tú?</button>
       </div>
     </div>
-    <button class="switch-btn" onclick="logoutRol()">Salir</button>
+    <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
   <div class="del-body" id="compras-content">
     <div class="loading-msg"><div class="spinner"></div>Cargando...</div>
@@ -709,11 +712,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div class="fin-topbar-brand">
       <div class="topbar-logo">C</div>
       <div>
-        <div class="fin-topbar-name">Administración</div>
+        <div class="fin-topbar-name" id="fin-saludo">Administración</div>
         <div class="fin-topbar-sub" id="fin-mes-label">Ceniza</div>
+        <button onclick="cambiarNombreRol('duena')" style="background:none;border:none;font-size:10px;color:var(--text3);cursor:pointer;padding:0;text-align:left">¿No eres tú?</button>
       </div>
     </div>
-    <button class="switch-btn" onclick="logoutRol()">Salir</button>
+    <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
 
   <!-- Categorias -->
@@ -1780,6 +1784,11 @@ function _initPinPad() {
 }
 
 function initApp() {
+  // Pre-seed names (only if not already stored)
+  const _defaults = { costurera:'Gamaliel', delivery:'Yonaiker', compras:'Julio', duena:'Vivianka' };
+  for (const [rol, nombre] of Object.entries(_defaults)) {
+    if (!localStorage.getItem('ceniza_nombre_' + rol)) localStorage.setItem('ceniza_nombre_' + rol, nombre);
+  }
   // Show initial screen immediately — never wait on network for navigation
   const rol = localStorage.getItem('ceniza_rol');
   if (!rol) {
@@ -1832,27 +1841,45 @@ function selectRole(rol) {
   showScreen('screen-pin');
 }
 
+let _rolNombrePendiente = null;
+
+function _getNombreRol(rol) {
+  // vendedora uses legacy key for backwards compat
+  if (rol === 'vendedora') return localStorage.getItem('vendedora_nombre') || localStorage.getItem('ceniza_nombre_vendedora');
+  return localStorage.getItem('ceniza_nombre_' + rol);
+}
+function _setNombreRol(rol, nombre) {
+  localStorage.setItem('ceniza_nombre_' + rol, nombre);
+  if (rol === 'vendedora') localStorage.setItem('vendedora_nombre', nombre);
+}
+
+function _pedirNombre(rol) {
+  _rolNombrePendiente = rol;
+  document.getElementById('nombre-input').value = '';
+  showScreen('screen-nombre');
+  setTimeout(() => document.getElementById('nombre-input').focus(), 300);
+}
+
 function showApp(rol) {
+  const nombre = _getNombreRol(rol);
+  if (!nombre) { _pedirNombre(rol); return; }
   if (rol === 'vendedora') {
-    const nombre = localStorage.getItem('vendedora_nombre');
-    if (!nombre) {
-      // Primera vez en este dispositivo — pedir nombre
-      showScreen('screen-nombre');
-      setTimeout(() => document.getElementById('nombre-input').focus(), 300);
-      return;
-    }
     abrirAppVendedora(nombre);
   } else if (rol === 'costurera') {
     showScreen('app-c');
+    document.getElementById('cost-saludo').textContent = 'Hola, ' + nombre + ' 👋';
     loadCosturera();
   } else if (rol === 'delivery') {
     showScreen('app-del');
+    document.getElementById('del-saludo').textContent = 'Hola, ' + nombre + ' 👋';
     fechaDeliveryActual = new Date();
     loadDelivery();
   } else if (rol === 'compras') {
     showScreen('app-compras');
+    document.getElementById('compras-saludo').textContent = 'Hola, ' + nombre + ' 👋';
     renderCompras();
   } else if (rol === 'duena') {
+    document.getElementById('fin-saludo').textContent = 'Hola, ' + nombre + ' 👋';
     abrirAppDuena();
   } else {
     localStorage.removeItem('ceniza_rol');
@@ -1868,22 +1895,26 @@ function abrirAppVendedora(nombre) {
   cargarClientes();
 }
 
-function guardarNombreVendedora() {
+function guardarNombreRol() {
   const nombre = document.getElementById('nombre-input').value.trim();
   if (!nombre) {
     document.getElementById('nombre-input').style.borderColor = 'var(--red)';
     return;
   }
-  localStorage.setItem('vendedora_nombre', nombre);
-  abrirAppVendedora(nombre);
+  const rol = _rolNombrePendiente || 'vendedora';
+  _setNombreRol(rol, nombre);
+  showApp(rol);
 }
+// Legacy alias
+function guardarNombreVendedora() { guardarNombreRol(); }
 
-function cambiarNombreVendedora() {
-  localStorage.removeItem('vendedora_nombre');
-  document.getElementById('nombre-input').value = '';
-  showScreen('screen-nombre');
-  setTimeout(() => document.getElementById('nombre-input').focus(), 300);
+function cambiarNombreRol(rol) {
+  localStorage.removeItem('ceniza_nombre_' + rol);
+  if (rol === 'vendedora') localStorage.removeItem('vendedora_nombre');
+  _pedirNombre(rol);
 }
+// Legacy alias
+function cambiarNombreVendedora() { cambiarNombreRol('vendedora'); }
 
 function logoutRol() {
   localStorage.removeItem('ceniza_rol');
