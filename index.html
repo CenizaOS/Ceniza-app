@@ -5918,6 +5918,41 @@ function resetForm(){
   const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
   document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
 }
+let _eliminarConfirm = {};
+function confirmarEliminar(fila, cliente) {
+  const btn = document.getElementById('del-btn-' + fila);
+  if (!btn) return;
+  if (!_eliminarConfirm[fila]) {
+    _eliminarConfirm[fila] = true;
+    btn.textContent = '¿Eliminar?';
+    btn.classList.add('confirmando');
+    setTimeout(() => {
+      _eliminarConfirm[fila] = false;
+      if (btn) { btn.textContent = '🗑'; btn.classList.remove('confirmando'); }
+    }, 3000);
+    return;
+  }
+  _eliminarConfirm[fila] = false;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  fetch(`${API}?accion=eliminarPedido&fila=${encodeURIComponent(fila)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        mostrarToast('Pedido de ' + cliente + ' eliminado');
+        _prodCache = null;
+        loadVendedoraPedidos();
+      } else {
+        mostrarToast('Error: ' + (data.error || 'No se pudo eliminar'));
+        if (btn) { btn.textContent = '🗑'; btn.disabled = false; }
+      }
+    })
+    .catch(e => {
+      mostrarToast('Error: ' + e.message);
+      if (btn) { btn.textContent = '🗑'; btn.disabled = false; }
+    });
+}
+
 function abrirEdicion(fila) {
   const p = pedidosMap[fila];
   if (!p) { mostrarToast('⚠ Error: pedido no encontrado'); return; }
