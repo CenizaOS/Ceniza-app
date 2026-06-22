@@ -4815,21 +4815,40 @@ function renderCajaSemanal() {
     + '</div>';
 }
 
-async function loadDelivery(offset) {
+let _delCache = {};
+
+async function loadDelivery(offset, forzar=false) {
   if (offset !== undefined) {
     fechaDeliveryActual = new Date(fechaDeliveryActual);
     fechaDeliveryActual.setDate(fechaDeliveryActual.getDate() + offset);
   }
+  const fecha = fechaStr(fechaDeliveryActual);
+  // Hit de cache: renderizar instantaneamente
+  if (!forzar && _delCache[fecha]) {
+    renderDelivery(_delCache[fecha], fecha);
+    _prefetchDelivery();
+    return;
+  }
   document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  await syncArreglos(); // sincronizar arreglos antes de renderizar
+  await syncArreglos();
   try {
-    const fecha = fechaStr(fechaDeliveryActual);
     const d = await fetchData('entregas', `&fecha=${fecha}`);
+    _delCache[fecha] = d;
     document.getElementById('del-mes').textContent = d.fecha || '';
     renderDelivery(d, fecha);
+    _prefetchDelivery();
   } catch(e) {
-    document.getElementById('del-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadDelivery(0)">${refreshIcon}Reintentar</button>`;
+    document.getElementById('del-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadDelivery(0,true)">${refreshIcon}Reintentar</button>`;
   }
+}
+
+function _prefetchDelivery() {
+  [-1, +1, +2].forEach(delta => {
+    const d = new Date(fechaDeliveryActual);
+    d.setDate(d.getDate() + delta);
+    const f = fechaStr(d);
+    if (!_delCache[f]) fetchData('entregas', `&fecha=${f}`).then(data => { _delCache[f] = data; }).catch(() => {});
+  });
 }
 
 function renderDelivery(d, fecha) {
@@ -5105,7 +5124,7 @@ function renderDelivery(d, fecha) {
       + '<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Cierre del dia</div>'
       + '<div id="del-cierre-status" style="font-size:13px;color:'+(_yaGuardado?'var(--green)':'var(--text3)')+';margin-bottom:10px">'+(_yaGuardado?('Guardado: $'+_cajaDia.recibido.toFixed(2)):'Sin registrar aun')+'</div>'
       + '<input id="del-cierre-monto" type="number" min="0" step="0.01" placeholder="Monto recibido ($)" value="'+(_yaGuardado?_cajaDia.recibido:'')+'" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:16px;background:var(--bg);color:var(--text);margin-bottom:8px">'
-      + '<button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia(\'' + fecha + '\')" style="width:100%">'+(_yaGuardado?'Actualizar':'Guardar')+'</button>'
+      + '<button id="del-cierre-btn" onclick="registrarCierreDelDia(\'' + fecha + '\')" style="width:100%;padding:13px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;background:#22c55e;color:#fff">'+(_yaGuardado?'Actualizar cierre':'Guardar cierre')+'</button>'
       + '</div>';
   }
 
