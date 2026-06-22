@@ -3948,10 +3948,10 @@ function _guardarFinLocal() {
 // ══════════════════════════════════════════════════════════
 function renderArrastreAdmin() {
   const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
-  // Lista de vendedoras conocidas (si hay datos de comisiones cargados, úsalos; sino, fallback a Angie)
+  // Lista de vendedoras conocidas (si hay datos de comisiones cargados, úsalos; sino, fallback a Angi)
   const nombres = window._finVendedoras && window._finVendedoras.length
     ? window._finVendedoras
-    : ['Angie'];
+    : ['Angi'];
   return nombres.map(nombre => {
     const val = arrastres[nombre] || 0;
     return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bg3)">
@@ -3973,7 +3973,7 @@ function guardarArrastre(nombre) {
   const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
   arrastres[nombre] = val;
   cfgSet('ceniza_arrastres', JSON.stringify(arrastres));
-  // Sincronizar al servidor para que Angie lo vea en su dispositivo
+  // Sincronizar al servidor para que Angi lo vea en su dispositivo
   const encoded = encodeURIComponent(JSON.stringify(arrastres));
   fetch(`${API}?accion=setArrastres&data=${encoded}`).catch(() => {});
   mostrarToast(`✓ Arrastre de ${nombre}: ${val} pantalones guardado`);
@@ -4138,7 +4138,7 @@ async function loadVendedoraPedidos() {
   try {
     const d = await fetchData('produccion');
     document.getElementById('vend-mes').textContent = d.mes || '';
-    const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
+    const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
 
     // Recolectar todos los pedidos de esta vendedora
     const misOrdenes = [];
@@ -4205,7 +4205,7 @@ async function loadVendedoraComisiones() {
   const el = document.getElementById('vend-com-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
-    const nombre = localStorage.getItem('vendedora_nombre') || 'Angie';
+    const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
     // Intentar obtener arrastres del servidor (los configura la dueña desde su dispositivo)
     let arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
     try {
@@ -5846,7 +5846,7 @@ function abrirFormulario(){
   formModo = 'nuevo';
   filaEdicion = null;
   document.querySelector('.form-title').textContent = 'Nuevo pedido';
-  const v = localStorage.getItem('vendedora_nombre') || 'Angie';
+  const v = localStorage.getItem('vendedora_nombre') || 'Angi';
   document.getElementById('form-vendedora-nombre').textContent = v;
   const man=new Date(); man.setDate(man.getDate()+2);
   const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
