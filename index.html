@@ -2105,7 +2105,7 @@ function renderFinInventario() {
         <div style="font-size:11px;color:var(--text3)">Total: ${totalEtq} unidades</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-left:36px">`;
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">`;
   TALLAS.forEach(t => {
     const val = etqTallas[t] ?? 0;
     const key = `fininv_etq_${t.replace(/\W/g,'_')}`;
@@ -4669,7 +4669,7 @@ function renderCostInsumos() {
         <div style="font-size:11px;color:var(--text3)">Total: ${totalEtq} unidades</div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-left:36px">`;
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">`;
 
   TALLAS.forEach(t => {
     const val = etqTallas[t] ?? 0;
