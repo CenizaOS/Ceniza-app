@@ -633,8 +633,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
   </div>
   <div class="cost-tabs" style="position:sticky;top:calc(var(--sat) + 62px);z-index:9">
-    <button class="cost-tab active" id="dtab-entregas" onclick="showDelTab('entregas')">📦 Entregas</button>
-    <button class="cost-tab" id="dtab-caja" onclick="showDelTab('caja')">💰 Caja</button>
+    <button class="cost-tab active" id="dtab-entregas" onclick="showDelTab('entregas')" style="padding:14px 4px;font-size:14px">📦 Entregas</button>
+    <button class="cost-tab" id="dtab-caja" onclick="showDelTab('caja')" style="padding:14px 4px;font-size:14px">💰 Caja</button>
   </div>
   <div class="del-body">
     <div id="del-screen-entregas">
@@ -4661,99 +4661,63 @@ function _getLunesSemana() {
   return lunes;
 }
 
-function _claveSemanaCaja() {
-  const l = _getLunesSemana();
-  return 'del_caja_' + l.toISOString().slice(0,10);
+function _getCajaDia(fechaISO) {
+  try { return JSON.parse(localStorage.getItem('del_caja_'+fechaISO) || '{"recibido":0,"guardado":false}'); }
+  catch(e) { return {recibido:0, guardado:false}; }
 }
 
-function _getCajaSemanal() {
-  const key = _claveSemanaCaja();
-  try { return JSON.parse(localStorage.getItem(key) || '{"entradas":[]}'); } catch(e) { return {entradas:[]}; }
+function _saveCajaDia(fechaISO, data) {
+  localStorage.setItem('del_caja_'+fechaISO, JSON.stringify(data));
 }
 
-function _saveCajaSemanal(data) {
-  localStorage.setItem(_claveSemanaCaja(), JSON.stringify(data));
+function registrarCierreDelDia(fechaStr) {
+  const parts = fechaStr.split('/');
+  const fechaISO = parts[2]+'-'+parts[1]+'-'+parts[0];
+  const monto = parseFloat(document.getElementById('del-cierre-monto').value) || 0;
+  if (monto === 0) { mostrarToast('Ingresa el monto recibido'); return; }
+  _saveCajaDia(fechaISO, { recibido: monto, guardado: true });
+  mostrarToast('Cierre del dia registrado');
+  document.getElementById('del-cierre-status').textContent = 'Guardado: $'+monto.toFixed(2);
+  document.getElementById('del-cierre-btn').textContent = 'Actualizar';
 }
 
 function renderCajaSemanal() {
   const lunes = _getLunesSemana();
-  const sabado = new Date(lunes);
-  sabado.setDate(lunes.getDate() + 5);
-  const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-  const semLabel = `Lun ${fmt(lunes)} – Sáb ${fmt(sabado)}`;
+  const DIAS_ES = ['Lun','Mar','Mie','Jue','Vie','Sab'];
+  const hoyISO = new Date().toISOString().slice(0,10);
+  let totalSemana = 0;
+  let rowsHtml = '';
 
-  const data = _getCajaSemanal();
-  const entradas = data.entradas || [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(lunes);
+    d.setDate(lunes.getDate() + i);
+    const iso = d.toISOString().slice(0,10);
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const label = DIAS_ES[i]+' '+dd+'/'+mm;
+    const caja = _getCajaDia(iso);
+    const esHoy = iso === hoyISO;
+    const recibido = caja.guardado ? caja.recibido : null;
+    if (recibido !== null) totalSemana += recibido;
+    rowsHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--bg4)">'
+      + '<div style="font-size:14px;color:'+(esHoy?'var(--gold)':'var(--text)')+';font-weight:'+(esHoy?'700':'400')+'">'+label+(esHoy?' · Hoy':'')+'</div>'
+      + '<div style="font-size:15px;font-weight:700;color:'+(recibido!==null?'var(--green)':'var(--text3)')+'">'+( recibido!==null?('$'+recibido.toFixed(2)):'—')+'</div>'
+      + '</div>';
+  }
 
-  const totalEsperado = entradas.reduce((s,e) => s + (parseFloat(e.esperado)||0), 0);
-  const totalRecibido = entradas.reduce((s,e) => s + (parseFloat(e.recibido)||0), 0);
-  const diferencia = totalRecibido - totalEsperado;
+  const sabado = new Date(lunes); sabado.setDate(lunes.getDate()+5);
+  const fmtD = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+  const semLabel = 'Lun '+fmtD(lunes)+' - Sab '+fmtD(sabado);
 
-  const rowsHtml = entradas.map((e,i) => `
-    <div style="display:grid;grid-template-columns:1fr 1fr 36px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg4)">
-      <div>
-        <div style="font-size:11px;color:var(--text3)">${e.fecha||''}</div>
-        <div style="font-size:13px;font-weight:600;color:var(--text)">${e.nota||'Entrega'}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:11px;color:var(--text3)">Esperado / Recibido</div>
-        <div style="font-size:13px;font-weight:700">${fmt$(parseFloat(e.esperado)||0)} / <span style="color:var(--green)">${fmt$(parseFloat(e.recibido)||0)}</span></div>
-      </div>
-      <button onclick="delCajaEliminar(${i})" style="border:none;background:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px">✕</button>
-    </div>`).join('');
-
-  document.getElementById('del-caja-content').innerHTML = `
-    <div class="card" style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">📅 Semana actual — ${semLabel}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-        <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Total esperado</div>
-          <div style="font-size:22px;font-weight:700;color:var(--gold)">${fmt$(totalEsperado)}</div>
-        </div>
-        <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Total recibido</div>
-          <div style="font-size:22px;font-weight:700;color:var(--green)">${fmt$(totalRecibido)}</div>
-        </div>
-      </div>
-      ${diferencia !== 0 ? `<div style="text-align:center;font-size:13px;font-weight:600;color:${diferencia>=0?'var(--green)':'var(--red)'};margin-bottom:12px">${diferencia>=0?'Diferencia a favor':'Diferencia faltante'}: ${fmt$(Math.abs(diferencia))}</div>` : ''}
-      <div style="margin-bottom:12px">${rowsHtml || '<div style="text-align:center;color:var(--text3);font-size:13px;padding:12px 0">Sin registros esta semana</div>'}</div>
-      <div style="border-top:1px solid var(--bg4);padding-top:12px">
-        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Agregar registro</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <div>
-            <label style="font-size:11px;color:var(--text3)">Saldo esperado ($)</label>
-            <input id="del-caja-esp" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:8px 10px;border:1.5px solid var(--bg4);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-top:3px">
-          </div>
-          <div>
-            <label style="font-size:11px;color:var(--text3)">Saldo recibido ($)</label>
-            <input id="del-caja-rec" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:8px 10px;border:1.5px solid var(--bg4);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-top:3px">
-          </div>
-        </div>
-        <input id="del-caja-nota" type="text" placeholder="Nota (opcional)" style="width:100%;padding:8px 10px;border:1.5px solid var(--bg4);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-bottom:8px">
-        <button class="btn" onclick="delCajaAgregar()" style="width:100%">+ Agregar</button>
-      </div>
-    </div>`;
-}
-
-function delCajaAgregar() {
-  const esp = parseFloat(document.getElementById('del-caja-esp').value) || 0;
-  const rec = parseFloat(document.getElementById('del-caja-rec').value) || 0;
-  const nota = document.getElementById('del-caja-nota').value.trim() || 'Entrega';
-  if (esp === 0 && rec === 0) { mostrarToast('⚠ Ingresa al menos un monto'); return; }
-  const data = _getCajaSemanal();
-  const hoy = new Date();
-  const fecha = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}`;
-  data.entradas.push({ fecha, nota, esperado: esp, recibido: rec });
-  _saveCajaSemanal(data);
-  renderCajaSemanal();
-  mostrarToast('✓ Registro agregado');
-}
-
-function delCajaEliminar(i) {
-  const data = _getCajaSemanal();
-  data.entradas.splice(i, 1);
-  _saveCajaSemanal(data);
-  renderCajaSemanal();
+  document.getElementById('del-caja-content').innerHTML =
+    '<div class="card" style="margin-bottom:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px">Semana: '+semLabel+'</div>'
+    + rowsHtml
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding-top:16px;margin-top:4px">'
+    + '<div style="font-size:15px;font-weight:700;color:var(--text)">Total semana</div>'
+    + '<div style="font-size:22px;font-weight:800;color:var(--gold)">$'+totalSemana.toFixed(2)+'</div>'
+    + '</div>'
+    + '</div>';
 }
 
 async function loadDelivery(offset) {
@@ -5036,6 +5000,20 @@ function renderDelivery(d, fecha) {
   }
 
   html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
+  // Cierre del dia
+  const _fp2 = fecha.split('/');
+  const _fechaISO2 = _fp2.length===3 ? _fp2[2]+'-'+_fp2[1]+'-'+_fp2[0] : '';
+  if (_fechaISO2) {
+    const _cajaDia = _getCajaDia(_fechaISO2);
+    const _yaGuardado = _cajaDia.guardado;
+    html += '<div class="card" style="margin-top:16px;border-left:3px solid var(--gold)">'
+      + '<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Cierre del dia</div>'
+      + '<div id="del-cierre-status" style="font-size:13px;color:'+(_yaGuardado?'var(--green)':'var(--text3)')+';margin-bottom:10px">'+(_yaGuardado?('Guardado: $'+_cajaDia.recibido.toFixed(2)):'Sin registrar aun')+'</div>'
+      + '<div style="display:flex;gap:8px;align-items:center">'
+      + '<input id="del-cierre-monto" type="number" min="0" step="0.01" placeholder="Monto recibido ($)" value="'+(_yaGuardado?_cajaDia.recibido:'')+'" style="flex:1;padding:10px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:15px;background:var(--bg);color:var(--text)">'
+      + '<button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia(\'' + fecha + '\')" style="flex-shrink:0;padding:10px 16px">'+(_yaGuardado?'Actualizar':'Guardar')+'</button>'
+      + '</div></div>';
+  }
 
   // ── Arreglos pendientes de recogida (sin filtro de fecha, siempre visibles) ──
   if (aRecoger.length) {
