@@ -307,6 +307,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
    DELIVERY APP
 ══════════════════════════════════════════════════════════*/
 .del-app{min-height:100dvh;flex-direction:column;max-width:430px;margin:0 auto}
+.del-header-title{font-size:16px;font-weight:700;color:var(--text)}
+.del-header-sub{font-size:12px;color:var(--text2);margin-top:1px}
 .del-header{padding:calc(var(--sat) + 20px) 20px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bg4);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:10;box-shadow:0 1px 6px rgba(0,0,0,0.06)}
 .del-body{padding:16px 20px calc(var(--sab) + 80px);overflow-y:auto}
 .del-date-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;box-shadow:var(--shadow-sm)}
@@ -975,8 +977,18 @@ async function syncConfigDesdeSheets() {
     let restored = 0;
     for (const [clave, valor] of Object.entries(data)) {
       if (CONFIG_KEYS.includes(clave) && valor && valor !== '') {
-        // Solo restaurar si no hay dato local ya (prioridad al local fresco)
-        if (!localStorage.getItem(clave)) {
+        // Para el historial de cierres: tomar el que tenga más entradas (Sheets o local)
+        if (clave === 'ceniza_historial_cierres') {
+          try {
+            const local  = JSON.parse(localStorage.getItem(clave) || '[]');
+            const remote = JSON.parse(valor || '[]');
+            if (remote.length > local.length) {
+              localStorage.setItem(clave, valor);
+              restored++;
+            }
+          } catch(_) {}
+        } else if (!localStorage.getItem(clave)) {
+          // Para el resto: solo restaurar si no hay dato local ya
           localStorage.setItem(clave, valor);
           restored++;
         }
@@ -1349,9 +1361,7 @@ async function renderCompras() {
   } catch(e) { /* usa localStorage como fallback */ }
   const list = getEncargos();
 
-  document.getElementById('compras-sub').textContent = list.length
-    ? `${list.filter(e=>!e.hecho).length} pendiente(s) de ${list.length}`
-    : 'Lista de encargos';
+  // (subtitle shows date, set on open)
 
   // Tab bar + panes
   const tBtn = (id, tab, label, active) =>
@@ -1785,7 +1795,7 @@ function _initPinPad() {
 
 function initApp() {
   // Pre-seed names (only if not already stored)
-  const _defaults = { costurera:'Gamaliel', delivery:'Yonaiker', compras:'Julio', duena:'Vivianka' };
+  const _defaults = { vendedora:'Angi', costurera:'Gamaliel', delivery:'Yonaiker', compras:'Julio', duena:'Vivianka' };
   for (const [rol, nombre] of Object.entries(_defaults)) {
     if (!localStorage.getItem('ceniza_nombre_' + rol)) localStorage.setItem('ceniza_nombre_' + rol, nombre);
   }
@@ -1861,8 +1871,13 @@ function _pedirNombre(rol) {
 }
 
 function showApp(rol) {
-  const nombre = _getNombreRol(rol);
-  if (!nombre) { _pedirNombre(rol); return; }
+  let nombre = _getNombreRol(rol);
+  if (!nombre) {
+    // Teléfono nuevo: usar nombre por defecto sin pedir nada
+    const _defs = { vendedora:'Angi', costurera:'Gamaliel', delivery:'Yonaiker', compras:'Julio', duena:'Vivianka' };
+    nombre = _defs[rol] || rol;
+    _setNombreRol(rol, nombre);
+  }
   if (rol === 'vendedora') {
     abrirAppVendedora(nombre);
   } else if (rol === 'costurera') {
@@ -1877,6 +1892,10 @@ function showApp(rol) {
   } else if (rol === 'compras') {
     showScreen('app-compras');
     document.getElementById('compras-saludo').textContent = 'Hola, ' + nombre + ' 👋';
+    const _dc = new Date();
+    const _dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const _meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    document.getElementById('compras-sub').textContent = _dias[_dc.getDay()] + ', ' + _dc.getDate() + ' de ' + _meses[_dc.getMonth()];
     renderCompras();
   } else if (rol === 'duena') {
     document.getElementById('fin-saludo').textContent = 'Hola, ' + nombre + ' 👋';
