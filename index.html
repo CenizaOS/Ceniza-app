@@ -273,8 +273,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .pin-dots.shake{animation:shake 0.4s ease}
 .pin-error-msg{font-size:13px;color:var(--red);text-align:center;height:20px;margin-top:8px;margin-bottom:16px}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:280px;width:100%}
-.pin-key{aspect-ratio:1;background:var(--bg2);border:none;border-radius:var(--radius);font-size:26px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s,transform 0.1s;min-height:68px;box-shadow:var(--shadow)}
-.pin-key:active{background:var(--bg3);transform:scale(0.94)}
+.pin-key{aspect-ratio:1;background:var(--bg2);border:none;border-radius:var(--radius);font-size:26px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.08s,transform 0.08s,box-shadow 0.08s;min-height:68px;box-shadow:var(--shadow);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.pin-key:active,.pin-key.pressed{background:var(--gold-bg);color:var(--gold);transform:scale(0.88);box-shadow:none}
 .pin-key.del{font-size:16px;color:var(--text2)}
 .pin-key.empty{background:transparent;cursor:default;pointer-events:none}
 
@@ -1919,6 +1919,19 @@ function arregloSetEstado(id, nuevoEstado, callback) {
   if (nuevoEstado === 'entregado')         list[idx].fechaEntregado = now;
   saveArreglos(list);
   if (callback) callback();
+}
+
+function _initPinPad() {
+  document.querySelectorAll('.pin-key').forEach(btn => {
+    btn.addEventListener('pointerdown', () => {
+      btn.classList.add('pressed');
+      if (navigator.vibrate) navigator.vibrate(10);
+    });
+    const release = () => setTimeout(() => btn.classList.remove('pressed'), 80);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointerleave', () => btn.classList.remove('pressed'));
+  });
 }
 
 function initApp() {
@@ -5091,10 +5104,9 @@ function renderDelivery(d, fecha) {
     html += '<div class="card" style="margin-top:16px;border-left:3px solid var(--gold)">'
       + '<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Cierre del dia</div>'
       + '<div id="del-cierre-status" style="font-size:13px;color:'+(_yaGuardado?'var(--green)':'var(--text3)')+';margin-bottom:10px">'+(_yaGuardado?('Guardado: $'+_cajaDia.recibido.toFixed(2)):'Sin registrar aun')+'</div>'
-      + '<div style="display:flex;gap:8px;align-items:center">'
-      + '<input id="del-cierre-monto" type="number" min="0" step="0.01" placeholder="Monto recibido ($)" value="'+(_yaGuardado?_cajaDia.recibido:'')+'" style="flex:1;padding:10px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:15px;background:var(--bg);color:var(--text)">'
-      + '<button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia(\'' + fecha + '\')" style="flex-shrink:0;padding:10px 16px">'+(_yaGuardado?'Actualizar':'Guardar')+'</button>'
-      + '</div></div>';
+      + '<input id="del-cierre-monto" type="number" min="0" step="0.01" placeholder="Monto recibido ($)" value="'+(_yaGuardado?_cajaDia.recibido:'')+'" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:16px;background:var(--bg);color:var(--text);margin-bottom:8px">'
+      + '<button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia(\'' + fecha + '\')" style="width:100%">'+(_yaGuardado?'Actualizar':'Guardar')+'</button>'
+      + '</div>';
   }
 
   // ── Arreglos pendientes de recogida (sin filtro de fecha, siempre visibles) ──
@@ -5950,7 +5962,7 @@ async function submitPedidos() {
     btn.disabled = false;
   }
 }
-window.addEventListener('DOMContentLoaded', initApp);
+window.addEventListener('DOMContentLoaded', () => { initApp(); _initPinPad(); });
 </script>
 </body>
 </html>
