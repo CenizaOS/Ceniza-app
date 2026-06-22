@@ -432,7 +432,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .fin-subtabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);padding:8px 16px 14px;gap:6px;flex-shrink:0}
 .fin-subtab{flex:1;padding:12px 4px;font-size:12px;font-weight:500;color:var(--text2);background:var(--bg3);border:none;border-radius:10px;cursor:pointer;text-align:center;transition:all .15s}
 .fin-subtab.active{color:var(--gold);background:var(--gold-bg);font-weight:700}
-.fin-body{padding:20px;padding-bottom:calc(var(--sab) + 360px);overflow-y:auto;flex:1;min-height:0}
+.fin-body{padding:20px;padding-bottom:calc(var(--sab) + 360px);overflow-y:auto;overflow-x:hidden;flex:1;min-height:0}
 .fin-screen{animation:fadeIn .15s ease}
 .fin-card{background:var(--bg2);border-radius:14px;padding:18px 20px;margin-bottom:12px}
 .fin-sec-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin:24px 0 12px}
@@ -2145,12 +2145,12 @@ function renderFinInventario() {
   html += `<details style="margin-top:12px"><summary style="font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;list-style:none">+ Agregar color</summary>
     <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-top:6px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <input id="inv-color-nombre" placeholder="Nombre (ej. Negro)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">
-        <input id="inv-color-codigo" placeholder="Código (ej. T-001)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">
+        <input id="inv-color-nombre" placeholder="Nombre (ej. Negro)" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">
+        <input id="inv-color-codigo" placeholder="Código" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
-        <input id="inv-color-hex" type="color" value="#000000" style="width:48px;height:40px;padding:2px;border:1.5px solid var(--bg4);border-radius:10px;cursor:pointer;background:var(--bg)">
-        <button class="btn" onclick="agregarColorTela()" style="flex:1">+ Agregar color</button>
+        <input id="inv-color-hex" type="color" value="#000000" style="width:44px;height:40px;flex-shrink:0;padding:2px;border:1.5px solid var(--bg4);border-radius:10px;cursor:pointer;background:var(--bg)">
+        <button class="btn" onclick="agregarColorTela()" style="flex:1;min-width:0">+ Agregar color</button>
       </div>
     </div>
   </details></div>`;
