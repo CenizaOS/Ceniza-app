@@ -1140,74 +1140,11 @@ async function renderFinCompras() {
     if (Array.isArray(ra.encargos)) cfgSet('ceniza_encargos', JSON.stringify(ra.encargos));
   } catch(e) {}
   const list = getEncargos();
-  // Historial de efectivo entregado (array de {monto, fecha, nota})
-  const efectivoLog    = JSON.parse(localStorage.getItem('ceniza_compras_efectivo_log') || '[]');
-  const totalEntregado = efectivoLog.reduce((s, e) => s + (parseFloat(e.monto) || 0), 0);
-  const totalGastado   = list.reduce((s, e) => s + (parseFloat(e.costo) || 0), 0);
-  const restante       = totalEntregado - totalGastado;
   const pendientes     = list.filter(e => !e.hecho).length;
   const hechos         = list.filter(e => e.hecho).length;
 
   div.innerHTML = `
-    <!-- Tracker de efectivo con historial -->
-    <div style="background:var(--bg2);border-radius:14px;padding:16px;margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">💵 Efectivo al delivery</div>
 
-      <!-- Totales -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-        <div style="background:var(--bg3);border-radius:9px;padding:10px;text-align:center">
-          <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Entregado</div>
-          <div style="font-size:17px;font-weight:800;color:var(--text)">${fmt$(totalEntregado)}</div>
-        </div>
-        <div style="background:var(--bg3);border-radius:9px;padding:10px;text-align:center">
-          <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Gastado</div>
-          <div style="font-size:17px;font-weight:800;color:var(--text)">${fmt$(totalGastado)}</div>
-        </div>
-        <div style="background:${restante < 0 ? 'rgba(239,68,68,.12)' : 'var(--bg3)'};border-radius:9px;padding:10px;text-align:center">
-          <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Disponible</div>
-          <div style="font-size:17px;font-weight:800;color:${restante >= 0 ? 'var(--gold)' : '#ef4444'}">${fmt$(restante)}</div>
-        </div>
-      </div>
-
-      <!-- Historial de entregas -->
-      ${efectivoLog.length ? efectivoLog.map((e, i) => `
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg3)">
-          <div style="font-size:12px;color:var(--text3);flex-shrink:0">📅 ${e.fecha}</div>
-          <div style="font-size:13px;font-weight:700;color:var(--text);flex:1">${fmt$(e.monto)}</div>
-          ${e.nota ? `<div style="font-size:11px;color:var(--text3);font-style:italic;flex:1">${e.nota}</div>` : ''}
-          <button onclick="eliminarEfectivoEntry(${i})" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 3px;line-height:1;flex-shrink:0">×</button>
-        </div>`).join('') :
-        `<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px 0">Sin entregas registradas todavía</div>`}
-
-      <!-- Agregar entrega — siempre visible -->
-      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-top:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">+ Registrar entrega de efectivo</div>
-        <div style="display:flex;gap:6px;margin-bottom:8px">
-          <div style="flex:1">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Monto ($)</div>
-            <input type="number" id="efec-monto" placeholder="0.00" step="0.01" min="0"
-              style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--gold);border-radius:8px;padding:8px 10px;color:var(--text);font-size:16px;font-weight:800;text-align:right">
-          </div>
-          <div style="flex:1">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Fecha</div>
-            <input type="date" id="efec-fecha" value="${new Date().toISOString().split('T')[0]}"
-              style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-          </div>
-        </div>
-        <input type="text" id="efec-nota" placeholder="Nota (ej: inicio de semana)"
-          style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
-        <button onclick="agregarEfectivoEntry()"
-          style="width:100%;background:var(--gold);color:#000;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:800;cursor:pointer">
-          💵 Guardar entrega
-        </button>
-      </div>
-
-      ${list.length ? `
-      <div style="margin-top:12px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden">
-        <div style="height:100%;border-radius:2px;background:var(--gold);width:${Math.round(hechos/(list.length||1)*100)}%;transition:width .3s"></div>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-top:5px;text-align:center">${hechos} de ${list.length} compras completadas</div>` : ''}
-    </div>
 
     <!-- Acciones -->
     <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -1302,99 +1239,6 @@ async function renderFinCompras() {
       </div>
     </details>
 
-    <!-- ── Colores de tela ───────────────────────────────────── -->
-    <div style="margin-top:22px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🎨 Colores de tela</div>
-      <div id="admin-colores-lista">
-        ${(() => {
-          const cols = getColoresTela();
-          if (!cols.length) return `<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Sin colores — agrégalos abajo</div>`;
-          return cols.map((c, i) => {
-            const tipoLabel = _swatchTipoLabel(c);
-            const tipoActual = c.tipo || 'solido';
-            return `
-            <div id="color-row-${i}" style="background:var(--bg2);border-radius:11px;padding:11px 13px;margin-bottom:7px">
-              <div style="display:flex;align-items:center;gap:10px">
-                <div style="flex-shrink:0;width:32px;height:32px;border-radius:7px;border:2px solid var(--bg4);${_swatchStyle(c)}"></div>
-                <div style="flex:1;min-width:0">
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <div style="font-size:14px;font-weight:700;color:var(--text)">${c.nombre}</div>
-                    ${tipoLabel ? `<span style="font-size:10px;font-weight:700;color:var(--text3);background:var(--bg3);border-radius:4px;padding:1px 5px">${tipoLabel}</span>` : ''}
-                  </div>
-                  <div style="font-size:11px;color:var(--text3);font-family:monospace">${c.codigo}</div>
-                  ${c.nota ? `<div style="font-size:11px;color:var(--text3);font-style:italic">${c.nota}</div>` : ''}
-                </div>
-                <div style="display:flex;gap:5px;flex-shrink:0">
-                  <button onclick="editarColorTela(${i})"
-                    style="background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:5px 9px;font-size:12px;color:var(--text2);cursor:pointer">✏️</button>
-                  <button onclick="eliminarColorTela(${i})"
-                    style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:0 3px;line-height:1">×</button>
-                </div>
-              </div>
-              <!-- Formulario edición -->
-              <div id="color-edit-${i}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--bg4)">
-                <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
-                  <input id="cedit-nombre-${i}" value="${c.nombre.replace(/"/g,'&quot;')}" placeholder="Nombre del color" type="text"
-                    style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px">
-                  <input id="cedit-codigo-${i}" value="${c.codigo.replace(/"/g,'&quot;')}" placeholder="Código / Ref" type="text"
-                    style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;font-family:monospace">
-                </div>
-                <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
-                  <select id="cedit-tipo-${i}" onchange="document.getElementById('cedit-hex-wrap-${i}').style.display=this.value==='solido'?'':'none'"
-                    style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px">
-                    <option value="solido"${tipoActual==='solido'?' selected':''}>🎨 Color sólido</option>
-                    <option value="rayas"${tipoActual==='rayas'?' selected':''}>〰️ Rayas / estampado</option>
-                    <option value="puntos"${tipoActual==='puntos'?' selected':''}>🔵 Puntos / lunares</option>
-                  </select>
-                  <div id="cedit-hex-wrap-${i}" style="display:${tipoActual==='solido'?'':'none'}">
-                    <input id="cedit-hex-${i}" value="${c.hex||'#cccccc'}" type="color"
-                      style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
-                  </div>
-                </div>
-                <input id="cedit-nota-${i}" value="${(c.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota (opcional)" type="text"
-                  style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
-                <div style="display:flex;gap:6px">
-                  <button onclick="guardarEditColorTela(${i})"
-                    style="flex:1;background:var(--gold);color:#000;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">Guardar</button>
-                  <button onclick="document.getElementById('color-edit-${i}').style.display='none'"
-                    style="background:var(--bg3);color:var(--text2);border:1px solid var(--bg4);border-radius:8px;padding:9px 14px;font-size:13px;cursor:pointer">Cancelar</button>
-                </div>
-              </div>
-            </div>`;
-          }).join('');
-        })()}
-      </div>
-      <!-- Agregar color -->
-      <details style="margin-top:6px">
-        <summary style="font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;list-style:none">+ Agregar color</summary>
-        <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-top:6px">
-          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
-            <input id="nc-nombre" placeholder="Nombre  ej: Azul rey" type="text"
-              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-            <input id="nc-codigo" placeholder="Código / Ref" type="text"
-              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;font-family:monospace">
-          </div>
-          <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
-            <select id="nc-tipo" onchange="document.getElementById('nc-hex-wrap').style.display=this.value==='solido'?'':'none'"
-              style="flex:1;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
-              <option value="solido">🎨 Color sólido</option>
-              <option value="rayas">〰️ Rayas / estampado</option>
-              <option value="puntos">🔵 Puntos / lunares</option>
-            </select>
-            <div id="nc-hex-wrap">
-              <input id="nc-hex" type="color" value="#cccccc"
-                style="width:42px;height:36px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);cursor:pointer;padding:2px">
-            </div>
-          </div>
-          <input id="nc-nota" placeholder="Nota (opcional)" type="text"
-            style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
-          <button onclick="agregarColorTela()"
-            style="width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
-            Agregar color
-          </button>
-        </div>
-      </details>
-    </div>
   `;
 }
 
@@ -1431,14 +1275,14 @@ function agregarEfectivoEntry() {
   const log = JSON.parse(localStorage.getItem('ceniza_compras_efectivo_log') || '[]');
   log.push({ monto, fecha, nota });
   cfgSet('ceniza_compras_efectivo_log', JSON.stringify(log));
-  renderFinCompras();
+  renderFinFondos();
   mostrarToast(`✓ ${fmt$(monto)} registrado para el ${fecha}`);
 }
 function eliminarEfectivoEntry(i) {
   const log = JSON.parse(localStorage.getItem('ceniza_compras_efectivo_log') || '[]');
   log.splice(i, 1);
   cfgSet('ceniza_compras_efectivo_log', JSON.stringify(log));
-  renderFinCompras();
+  renderFinFondos();
 }
 function guardarCostoEncargo(i, valor) {
   const list = getEncargos();
@@ -2175,33 +2019,150 @@ function showFinTab(tab, btn) {
 }
 
 function renderFinInventario() {
+  // Render the full inventory (same as costurera taller) into the admin panel
   const el = document.getElementById('fin-inventario-content');
   if (!el) return;
+  const d = getInsumos();
+  const tela = d.tela || {};
+  const colores = getColoresTela();
+
+  let html = `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">📦 Inventario del taller</div>`;
+
+  // Telas
+  html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">🧵 Telas</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Metros disponibles por color</div>`;
+  if (!colores.length) {
+    html += `<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin colores registrados.</div>`;
+  } else {
+    colores.forEach(c => {
+      const metros = tela[c.nombre] ?? 0;
+      const tipoLbl = _swatchTipoLabel(c);
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
+        <div style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--bg4);flex-shrink:0;${_swatchStyle(c)}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:5px">
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nombre}</div>
+            ${tipoLbl ? `<span style="font-size:10px;color:var(--text3);background:var(--bg4);border-radius:4px;padding:1px 4px">${tipoLbl}</span>` : ''}
+          </div>
+          <div style="font-size:11px;color:var(--text3)">${c.codigo ? 'Cód: ' + c.codigo : ''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">metros</div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <button onclick="telaAjustar('${c.nombre}',-0.5)"
+              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+            <input id="fininv-tela-${c.nombre.replace(/\s+/g,'_')}" type="number" min="0" step="0.5" value="${metros}"
+              onchange="telaSetValor('${c.nombre}',this.value)"
+              style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+            <button onclick="telaAjustar('${c.nombre}',0.5)"
+              style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // Insumos generales
+  const generales = [
+    { id:'liga',     label:'Liga elástica', icon:'🪢', unidad:'rollos',   step:1  },
+    { id:'stickers', label:'Stickers',      icon:'⭐', unidad:'unidades', step:10 },
+    { id:'bolsas',   label:'Bolsas',        icon:'🛍️', unidad:'unidades', step:5  },
+  ];
+  html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🪡 Insumos generales</div>`;
+  generales.forEach(g => {
+    const val = d[g.id] ?? 0;
+    html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">${g.icon}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">${g.label}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">${g.unidad}</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <button onclick="insumoAjustar('${g.id}',${-g.step})"
+            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+          <input id="fininv-${g.id}" type="number" min="0" step="${g.step}" value="${val}"
+            onchange="insumoSetValor('${g.id}',this.value)"
+            style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:5px 2px;font-size:14px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+          <button onclick="insumoAjustar('${g.id}',${g.step})"
+            style="width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:17px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // Etiquetas de talla
+  const TALLAS = ['XS','S','M','L','XL','2XL'];
+  const etqTallas = d.etiquetasTalla || {};
+  const totalEtq  = TALLAS.reduce((s, t) => s + (parseInt(etqTallas[t]) || 0), 0);
+  html += `<div style="padding:10px 0 4px 0">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🏷️</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Etiquetas de talla</div>
+        <div style="font-size:11px;color:var(--text3)">Total: ${totalEtq} unidades</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-left:36px">`;
+  TALLAS.forEach(t => {
+    const val = etqTallas[t] ?? 0;
+    const key = `fininv_etq_${t.replace(/\W/g,'_')}`;
+    html += `<div style="background:var(--bg3);border-radius:10px;padding:8px 6px;text-align:center">
+      <div style="font-size:10px;font-weight:800;color:var(--text2);letter-spacing:.05em;margin-bottom:6px">${t}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:3px">
+        <button onclick="etiquetaAjustar('${t}',-1)"
+          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">−</button>
+        <input id="${key}" type="number" min="0" step="1" value="${val}"
+          onchange="etiquetaSetValor('${t}',this.value)"
+          style="width:38px;text-align:center;background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;padding:3px 2px;font-size:13px;font-weight:700;color:var(--text);-moz-appearance:textfield">
+        <button onclick="etiquetaAjustar('${t}',1)"
+          style="width:24px;height:24px;border-radius:50%;background:var(--bg4);border:none;font-size:15px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">+</button>
+      </div>
+    </div>`;
+  });
+  html += `</div></div></div>`;
+
+  // Colores registrados (para referencia y gestión)
+  html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🎨 Colores de tela</div>`;
+  if (!colores.length) {
+    html += `<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin colores registrados — agrégalos abajo</div>`;
+  } else {
+    colores.forEach((c, i) => {
+      const tipoLabel = _swatchTipoLabel(c);
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
+        <div style="width:28px;height:28px;border-radius:7px;border:1.5px solid var(--bg4);flex-shrink:0;${_swatchStyle(c)}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nombre}${tipoLabel ? ` <span style="font-size:10px;color:var(--text3);background:var(--bg3);border-radius:4px;padding:1px 5px">${tipoLabel}</span>` : ''}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:monospace">${c.codigo}</div>
+        </div>
+        <button onclick="eliminarColorDesdeInventario(${i})" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:0 3px;line-height:1">×</button>
+      </div>`;
+    });
+  }
+  html += `<details style="margin-top:12px"><summary style="font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;list-style:none">+ Agregar color</summary>
+    <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-top:6px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="inv-color-nombre" placeholder="Nombre (ej. Negro)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">
+        <input id="inv-color-codigo" placeholder="Código (ej. T-001)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="inv-color-hex" type="color" value="#000000" style="width:48px;height:40px;padding:2px;border:1.5px solid var(--bg4);border-radius:10px;cursor:pointer;background:var(--bg)">
+        <button class="btn" onclick="agregarColorTela()" style="flex:1">+ Agregar color</button>
+      </div>
+    </div>
+  </details></div>`;
+
+  html += `<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Los cambios se guardan automáticamente.</div>`;
+  el.innerHTML = html;
+}
+
+function eliminarColorDesdeInventario(i) {
   const colores = JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]');
-  const insumos = JSON.parse(localStorage.getItem('ceniza_insumos') || '[]');
-
-  let colHtml = colores.length ? colores.map((c,i) =>
-    '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">'
-    + '<div style="width:28px;height:28px;border-radius:6px;flex-shrink:0;border:1px solid var(--bg4);background:'+c.hex+'"></div>'
-    + '<div style="flex:1"><div style="font-size:14px;font-weight:600">'+c.nombre+'</div>'
-    + '<div style="font-size:11px;color:var(--text3)">'+c.codigo+'</div></div>'
-    + '<button onclick="eliminarColorTela('+i+')" style="border:none;background:none;color:var(--text3);font-size:18px;cursor:pointer">✕</button>'
-    + '</div>'
-  ).join('') : '<div style="color:var(--text3);font-size:13px;padding:12px 0">Sin colores registrados</div>';
-
-  el.innerHTML = '<div class="card" style="margin-bottom:14px">'
-    + '<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Colores de tela</div>'
-    + colHtml
-    + '<div style="margin-top:14px;border-top:1px solid var(--bg4);padding-top:14px">'
-    + '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Agregar color</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
-    + '<input id="inv-color-nombre" placeholder="Nombre (ej. Negro)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">'
-    + '<input id="inv-color-codigo" placeholder="Código (ej. T-001)" style="padding:9px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:13px;background:var(--bg);color:var(--text)">'
-    + '</div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:8px">'
-    + '<input id="inv-color-hex" type="color" value="#000000" style="width:48px;height:40px;padding:2px;border:1.5px solid var(--bg4);border-radius:10px;cursor:pointer;background:var(--bg)">'
-    + '<button class="btn" onclick="agregarColorTela()" style="flex:1">+ Agregar color</button>'
-    + '</div></div></div>';
+  colores.splice(i, 1);
+  cfgSet('ceniza_colores_tela', JSON.stringify(colores));
+  renderFinInventario();
 }
 
 function agregarColorTela() {
@@ -2466,7 +2427,61 @@ function renderFinFondos() {
   const aporteCre  = utilRealQ > 0 ? utilRealQ * FIN.dist.crecimiento : 0;
   const aporteEmp  = utilRealQ > 0 ? utilRealQ * FIN.dist.empresa + Math.max(0, utilRealQ * FIN.dist.emergencia - aporteEmg) : 0;
 
+  // Datos efectivo al delivery
+  const _efLog2    = JSON.parse(localStorage.getItem('ceniza_compras_efectivo_log') || '[]');
+  const _efTotal   = _efLog2.reduce((s, e) => s + (parseFloat(e.monto) || 0), 0);
+  const _efGastado = (JSON.parse(localStorage.getItem('ceniza_encargos') || '[]')).reduce((s, e) => s + (parseFloat(e.costo) || 0), 0);
+  const _efDisp    = _efTotal - _efGastado;
+
   document.getElementById('fin-fondos-content').innerHTML = `
+    <!-- Efectivo al delivery -->
+    <div style="background:var(--bg2);border-radius:14px;padding:16px;margin-bottom:18px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">💵 Efectivo al delivery</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:var(--bg3);border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Entregado</div>
+          <div style="font-size:17px;font-weight:800;color:var(--text)">${fmt$(_efTotal)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Gastado</div>
+          <div style="font-size:17px;font-weight:800;color:var(--text)">${fmt$(_efGastado)}</div>
+        </div>
+        <div style="background:${_efDisp < 0 ? 'rgba(239,68,68,.12)' : 'var(--bg3)'};border-radius:9px;padding:10px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Disponible</div>
+          <div style="font-size:17px;font-weight:800;color:${_efDisp >= 0 ? 'var(--gold)' : '#ef4444'}">${fmt$(_efDisp)}</div>
+        </div>
+      </div>
+      ${_efLog2.length ? _efLog2.map((e, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bg3)">
+          <div style="font-size:12px;color:var(--text3);flex-shrink:0">📅 ${e.fecha}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);flex:1">${fmt$(e.monto)}</div>
+          ${e.nota ? `<div style="font-size:11px;color:var(--text3);font-style:italic;flex:1">${e.nota}</div>` : ''}
+          <button onclick="eliminarEfectivoEntry(${i})" style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 3px;line-height:1;flex-shrink:0">×</button>
+        </div>`).join('') :
+        `<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px 0">Sin entregas registradas todavía</div>`}
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">+ Registrar entrega</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Monto ($)</div>
+            <input type="number" id="efec-monto" placeholder="0.00" step="0.01" min="0"
+              style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--gold);border-radius:8px;padding:8px 10px;color:var(--text);font-size:16px;font-weight:800;text-align:right">
+          </div>
+          <div style="flex:1">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Fecha</div>
+            <input type="date" id="efec-fecha" value="${new Date().toISOString().split('T')[0]}"
+              style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px">
+          </div>
+        </div>
+        <input type="text" id="efec-nota" placeholder="Nota (ej: inicio de semana)"
+          style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;margin-bottom:8px">
+        <button onclick="agregarEfectivoEntry()"
+          style="width:100%;background:var(--gold);color:#000;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:800;cursor:pointer">
+          💵 Guardar entrega
+        </button>
+      </div>
+    </div>
+
     <!-- Emergencia -->
     <div class="fin-sec-title">🛡 Fondo de emergencia</div>
     <div class="fin-fondo-card emergencia">
