@@ -5308,6 +5308,8 @@ function show(id, btn){
 // UTILS
 // ══════════════════════════════════════════════════════════
 const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
+// Helper global: obtiene el value de un campo por ID
+const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
 const $f   = v => '$'+Math.abs(parseFloat(v)||0).toFixed(2); // alias global
 
 function badgeHTML(tipo){
