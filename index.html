@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Ceniza">
@@ -389,7 +389,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 
 /* ── VENDEDORA LANDSCAPE ── */
 @media (orientation:landscape) and (max-height:520px){
-  #app-v .vend-header{padding:calc(env(safe-area-inset-top,0px) + 20px) 20px 20px;border-bottom:none}
+  #app-v .vend-header{padding:calc(var(--sat) + 24px) 20px 20px;border-bottom:none}
   #vend-com-content{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
   #vend-com-content .hero{grid-column:1/-1;margin-top:0;padding:14px 16px}
   #vend-com-content .hero .hero-amount{font-size:28px}
@@ -421,7 +421,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 /* ═══════════════════════════════════════════════════════════
    DUEÑA — PANEL FINANCIERO
 ═══════════════════════════════════════════════════════════*/
-.fin-topbar{padding:calc(env(safe-area-inset-top,0px)+24px) 20px 24px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-bottom:none;flex-shrink:0}
+.fin-topbar{padding:calc(var(--sat) + 28px) 20px 24px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-bottom:none;flex-shrink:0;position:sticky;top:0;z-index:10}
 #app-d{height:100vh;height:100dvh;overflow:hidden;min-height:unset;padding-bottom:var(--sab)}
 .fin-topbar-brand{display:flex;align-items:center;gap:14px}
 .fin-topbar-name{font-size:18px;font-weight:700;letter-spacing:-0.3px}
