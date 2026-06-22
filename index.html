@@ -632,8 +632,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <button class="switch-btn" onclick="logoutRol()">Cambiar usuario</button>
   </div>
+  <div class="cost-tabs" style="position:sticky;top:calc(var(--sat) + 62px);z-index:9">
+    <button class="cost-tab active" id="dtab-entregas" onclick="showDelTab('entregas')">📦 Entregas</button>
+    <button class="cost-tab" id="dtab-caja" onclick="showDelTab('caja')">💰 Caja</button>
+  </div>
   <div class="del-body">
-    <div id="del-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    <div id="del-screen-entregas">
+      <div id="del-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div id="del-screen-caja" style="display:none;padding-top:4px">
+      <div id="del-caja-content"></div>
+    </div>
   </div>
 </div>
 
@@ -4635,6 +4644,118 @@ async function cambiarEstadoPedido(fila, estado, sel) {
 // ══════════════════════════════════════════════════════════
 let fechaDeliveryActual = new Date();
 
+function showDelTab(tab) {
+  ['entregas','caja'].forEach(t => {
+    document.getElementById('del-screen-' + t).style.display = tab === t ? '' : 'none';
+    document.getElementById('dtab-' + t).classList.toggle('active', tab === t);
+  });
+  if (tab === 'caja') renderCajaSemanal();
+}
+
+function _getLunesSemana() {
+  const hoy = new Date();
+  const dow = hoy.getDay();
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() - (dow === 0 ? 6 : dow - 1));
+  lunes.setHours(0,0,0,0);
+  return lunes;
+}
+
+function _claveSemanaCaja() {
+  const l = _getLunesSemana();
+  return 'del_caja_' + l.toISOString().slice(0,10);
+}
+
+function _getCajaSemanal() {
+  const key = _claveSemanaCaja();
+  try { return JSON.parse(localStorage.getItem(key) || '{"entradas":[]}'); } catch(e) { return {entradas:[]}; }
+}
+
+function _saveCajaSemanal(data) {
+  localStorage.setItem(_claveSemanaCaja(), JSON.stringify(data));
+}
+
+function renderCajaSemanal() {
+  const lunes = _getLunesSemana();
+  const sabado = new Date(lunes);
+  sabado.setDate(lunes.getDate() + 5);
+  const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  const semLabel = `Lun ${fmt(lunes)} – Sáb ${fmt(sabado)}`;
+
+  const data = _getCajaSemanal();
+  const entradas = data.entradas || [];
+
+  const totalEsperado = entradas.reduce((s,e) => s + (parseFloat(e.esperado)||0), 0);
+  const totalRecibido = entradas.reduce((s,e) => s + (parseFloat(e.recibido)||0), 0);
+  const diferencia = totalRecibido - totalEsperado;
+
+  const rowsHtml = entradas.map((e,i) => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 36px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg4)">
+      <div>
+        <div style="font-size:11px;color:var(--text3)">${e.fecha||''}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${e.nota||'Entrega'}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--text3)">Esperado / Recibido</div>
+        <div style="font-size:13px;font-weight:700">${fmt$(parseFloat(e.esperado)||0)} / <span style="color:var(--green)">${fmt$(parseFloat(e.recibido)||0)}</span></div>
+      </div>
+      <button onclick="delCajaEliminar(${i})" style="border:none;background:none;color:var(--text3);font-size:16px;cursor:pointer;padding:4px">✕</button>
+    </div>`).join('');
+
+  document.getElementById('del-caja-content').innerHTML = `
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">📅 Semana actual — ${semLabel}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Total esperado</div>
+          <div style="font-size:22px;font-weight:700;color:var(--gold)">${fmt$(totalEsperado)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Total recibido</div>
+          <div style="font-size:22px;font-weight:700;color:var(--green)">${fmt$(totalRecibido)}</div>
+        </div>
+      </div>
+      ${diferencia !== 0 ? `<div style="text-align:center;font-size:13px;font-weight:600;color:${diferencia>=0?'var(--green)':'var(--red)'};margin-bottom:12px">${diferencia>=0?'Diferencia a favor':'Diferencia faltante'}: ${fmt$(Math.abs(diferencia))}</div>` : ''}
+      <div style="margin-bottom:12px">${rowsHtml || '<div style="text-align:center;color:var(--text3);font-size:13px;padding:12px 0">Sin registros esta semana</div>'}</div>
+      <div style="border-top:1px solid var(--bg4);padding-top:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Agregar registro</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="font-size:11px;color:var(--text3)">Saldo esperado ($)</label>
+            <input id="del-caja-esp" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:8px 10px;border:1.5px solid var(--bg4);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-top:3px">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text3)">Saldo recibido ($)</label>
+            <input id="del-caja-rec" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:8px 10px;border:1.5px solid var(--bg4);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-top:3px">
+          </div>
+        </div>
+        <input id="del-caja-nota" type="text" placeholder="Nota (opcional)" style="width:100%;padding:8px 10px;border:1.5px solid var(--bg4);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);box-sizing:border-box;margin-bottom:8px">
+        <button class="btn" onclick="delCajaAgregar()" style="width:100%">+ Agregar</button>
+      </div>
+    </div>`;
+}
+
+function delCajaAgregar() {
+  const esp = parseFloat(document.getElementById('del-caja-esp').value) || 0;
+  const rec = parseFloat(document.getElementById('del-caja-rec').value) || 0;
+  const nota = document.getElementById('del-caja-nota').value.trim() || 'Entrega';
+  if (esp === 0 && rec === 0) { mostrarToast('⚠ Ingresa al menos un monto'); return; }
+  const data = _getCajaSemanal();
+  const hoy = new Date();
+  const fecha = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  data.entradas.push({ fecha, nota, esperado: esp, recibido: rec });
+  _saveCajaSemanal(data);
+  renderCajaSemanal();
+  mostrarToast('✓ Registro agregado');
+}
+
+function delCajaEliminar(i) {
+  const data = _getCajaSemanal();
+  data.entradas.splice(i, 1);
+  _saveCajaSemanal(data);
+  renderCajaSemanal();
+}
+
 async function loadDelivery(offset) {
   if (offset !== undefined) {
     fechaDeliveryActual = new Date(fechaDeliveryActual);
@@ -4669,7 +4790,8 @@ function renderDelivery(d, fecha) {
 
   // Contar grupos-cliente (no filas individuales)
   const todosGrupos = agruparPorCliente(d.pedidos);
-  const pendientes = todosGrupos.filter(g => !g.items.every(p => p.estado === 'Entregado a cliente')).length;
+  const rezCount = (d.rezagadas || []).length;
+  const pendientes = todosGrupos.filter(g => !g.items.every(p => p.estado === 'Entregado a cliente')).length + rezCount;
   const entregados = todosGrupos.filter(g => g.items.every(p => p.estado === 'Entregado a cliente')).length;
 
   let html = `
@@ -5655,102 +5777,41 @@ function abrirEdicion(fila) {
   set('f-cedula',        p.cedula       || '');
   set('f-tipo-entrega',  p.tipoEntrega  || '');
   set('f-direccion',     p.direccion    || '');
-  set('f-monto-delivery', p.montoDelivery !== '0' ? p.montoDelivery : '');
+  set('f-monto-delivery', p.montoDelivery || '0');
   set('f-metodo-pago',   p.metodoPago   || '');
   set('f-origen',        p.origen       || '');
   set('f-notas',         p.notas        || '');
-  set('f-monto-efectivo', p.montoEfectivo !== '0' ? p.montoEfectivo : '');
-  set('f-vuelto',        p.vuelto !== '0' ? p.vuelto : '');
-
-  // Fecha de entrega: viene como DD/MM/YYYY del sheet → convertir a YYYY-MM-DD
+  set('f-monto-efectivo', p.montoEfectivo || '0');
+  set('f-vuelto',        p.vuelto       || '0');
   if (p.fechaEntrega) {
     const parts = p.fechaEntrega.split('/');
-    if (parts.length === 3) {
-      set('f-fecha-entrega', `${parts[2]}-${parts[1]}-${parts[0]}`);
-    }
+    if (parts.length === 3) set('f-fecha-entrega', parts[2]+'-'+parts[1]+'-'+parts[0]);
   }
-
-  // Reconstruir carrito con el ítem de este pedido
   carrito = [{
-    color:          p.color    || '',
-    talla:          p.talla    || '',
-    ruedo:          p.ruedo    || '',
-    producto:       p.producto || '',
-    montoProducto:  p.montoProducto || '0'
+    color: p.color || '',
+    talla: p.talla || '',
+    ruedo: p.ruedo || '',
+    montoProducto: parseFloat(p.montoProducto) || 0
   }];
   renderCarrito();
-  toggleEntrega();
-  toggleMetodoPago();
-
-  // Actualizar título y botón con el modo correcto
-  document.querySelector('.form-title').textContent = 'Editar pedido';
-  renderCarrito(); // refresca el botón para que diga "Guardar cambios"
+  const te = document.getElementById('f-tipo-entrega');
+  if (te) te.dispatchEvent(new Event('change'));
+  const mp = document.getElementById('f-metodo-pago');
+  if (mp) mp.dispatchEvent(new Event('change'));
+  document.getElementById('btn-submit').textContent = 'Guardar cambios';
 }
 
-// ── ELIMINAR PEDIDO ────────────────────────────────────────
-let _delConfirmFila = null;
-let _delConfirmTimer = null;
-
-function confirmarEliminar(fila, cliente) {
-  const btn = document.getElementById('del-btn-' + fila);
-  if (!btn) return;
-  if (_delConfirmFila === fila) {
-    // Segunda pulsación → ejecutar borrado
-    clearTimeout(_delConfirmTimer);
-    _delConfirmFila = null;
-    btn.textContent = '⏳';
-    btn.disabled = true;
-    eliminarPedido(fila, cliente);
-  } else {
-    // Primera pulsación → pedir confirmación
-    if (_delConfirmTimer) {
-      clearTimeout(_delConfirmTimer);
-      // Resetear botón anterior si había otro pendiente
-      const prev = document.getElementById('del-btn-' + _delConfirmFila);
-      if (prev) { prev.textContent = '🗑'; prev.classList.remove('confirmando'); }
-    }
-    _delConfirmFila = fila;
-    btn.textContent = '¿Borrar?';
-    btn.classList.add('confirmando');
-    _delConfirmTimer = setTimeout(() => {
-      btn.textContent = '🗑';
-      btn.classList.remove('confirmando');
-      _delConfirmFila = null;
-    }, 3000);
-  }
-}
-
-async function eliminarPedido(fila, cliente) {
-  try {
-    const r = await fetch(`${API}?accion=eliminarPedido&fila=${fila}`);
-    const data = await r.json();
-    if (data.success) {
-      mostrarToast(`✓ Pedido de ${cliente} eliminado`);
-      _prodCache = null;   // invalida vista costurera
-      _entCache  = {};     // invalida todos los días del delivery
-      loadVendedoraPedidos();
-    } else {
-      throw new Error(data.error || 'Error');
-    }
-  } catch(e) {
-    mostrarToast('✕ Error: ' + e.message);
-    loadVendedoraPedidos();
-  }
-}
-
-async function submitPedidos(){
-  if (!carrito.length) { mostrarToast('⚠ Agrega al menos un pantalón'); return; }
-  const g = id => document.getElementById(id).value.trim();
+async function submitPedidos() {
   const nombre      = g('f-nombre');
   const tipoEntrega = g('f-tipo-entrega');
   const fechaEntrega= g('f-fecha-entrega');
   const metodoPago  = g('f-metodo-pago');
   const origen      = g('f-origen');
-  if (!nombre)       { mostrarToast('⚠ Ingresa el nombre del cliente'); return; }
-  if (!tipoEntrega)  { mostrarToast('⚠ Selecciona el tipo de entrega'); return; }
-  if (!fechaEntrega) { mostrarToast('⚠ Selecciona la fecha de entrega'); return; }
-  if (!metodoPago)   { mostrarToast('⚠ Selecciona el método de pago'); return; }
-  if (!origen)       { mostrarToast('⚠ Selecciona el origen'); return; }
+  if (!nombre)       { mostrarToast('Ingresa el nombre del cliente'); return; }
+  if (!tipoEntrega)  { mostrarToast('Selecciona el tipo de entrega'); return; }
+  if (!fechaEntrega) { mostrarToast('Selecciona la fecha de entrega'); return; }
+  if (!metodoPago)   { mostrarToast('Selecciona el metodo de pago'); return; }
+  if (!origen)       { mostrarToast('Selecciona el origen'); return; }
   const btn = document.getElementById('btn-submit');
   const esEdicion = formModo === 'editar';
   btn.textContent = esEdicion ? 'Guardando...' : 'Registrando...';
@@ -5758,9 +5819,8 @@ async function submitPedidos(){
   try {
     if (esEdicion) {
       const item = carrito[0] || {};
-      // Convertir YYYY-MM-DD → DD/MM/YYYY para Apps Script
       const [fy, fm, fd] = fechaEntrega.split('-');
-      const fechaEntregaFmt = `${fd}/${fm}/${fy}`;
+      const fechaEntregaFmt = fd+'/'+fm+'/'+fy;
       const params = new URLSearchParams({
         fila:          filaEdicion,
         telefono:      g('f-telefono'),
@@ -5779,14 +5839,14 @@ async function submitPedidos(){
         montoEfectivo: g('f-monto-efectivo') || '0',
         vuelto:        g('f-vuelto') || '0'
       });
-      const r = await fetch(`${API}?accion=editarPedido&${params}`);
+      const r = await fetch(API+'?accion=editarPedido&'+params);
       const data = await r.json();
       if (data.success) {
         cerrarFormulario();
         carrito = [];
         renderCarrito();
         resetForm();
-        mostrarToast(`✓ Pedido de ${nombre} actualizado`);
+        mostrarToast('Pedido de '+nombre+' actualizado');
         _prodCache = null;
         loadVendedoraPedidos();
       } else {
@@ -5809,14 +5869,14 @@ async function submitPedidos(){
         responsable:   localStorage.getItem('vendedora_nombre') || '',
         items:         JSON.stringify(carrito)
       });
-      const r = await fetch(`${API}?accion=registrarPedidos&${params}`);
+      const r = await fetch(API+'?accion=registrarPedidos&'+params);
       const data = await r.json();
       if (data.success) {
         cerrarFormulario();
         carrito = [];
         renderCarrito();
         resetForm();
-        mostrarToast(`✓ Pedido registrado`);
+        mostrarToast('Pedido registrado');
         _prodCache = null;
         loadVendedoraPedidos();
       } else {
@@ -5824,7 +5884,7 @@ async function submitPedidos(){
       }
     }
   } catch (err) {
-    mostrarToast('⚠ Error: ' + err.message);
+    mostrarToast('Error: ' + err.message);
   } finally {
     btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
     btn.disabled = false;
