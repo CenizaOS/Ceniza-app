@@ -358,7 +358,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .estado-select:disabled{opacity:0.5}
 
 /* ── VENDEDORA ── */
-#app-v .vend-tabs{display:flex;padding:10px 16px;gap:8px;background:var(--bg);border-bottom:1px solid var(--bg4);flex-shrink:0}
+#app-v .vend-tabs{display:grid;grid-template-columns:1fr 1fr;padding:10px 16px;gap:8px;background:var(--bg);border-bottom:1px solid var(--bg4);flex-shrink:0}
 #app-v .vend-tab{flex:1;padding:12px 4px;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);border:none;border-radius:12px;cursor:pointer;transition:all .2s;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px}
 #app-v .vend-tab svg{width:16px;height:16px}
 #app-v .vend-tab.active{color:var(--gold);background:var(--gold-bg);font-weight:700}
