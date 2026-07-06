@@ -5840,6 +5840,7 @@ function abrirEdicion(fila) {
 }
 
 async function submitPedidos() {
+  const g = id => document.getElementById(id)?.value || '';
   const nombre      = g('f-nombre');
   const tipoEntrega = g('f-tipo-entrega');
   const fechaEntrega= g('f-fecha-entrega');
