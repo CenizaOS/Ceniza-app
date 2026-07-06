@@ -4831,16 +4831,6 @@ function _saveCajaDia(fechaISO, data) {
   localStorage.setItem('del_caja_'+fechaISO, JSON.stringify(data));
 }
 
-function debugRezagadas() {
-  var keys = Object.keys(_delCache);
-  if (!keys.length) { mostrarToast('Sin datos en cache, presiona Actualizar primero'); return; }
-  var d2 = _delCache[keys[0]];
-  var rez2 = d2.rezagadas || [];
-  if (!rez2.length) { mostrarToast('No hay rezagadas en los datos'); return; }
-  var muestra = rez2.slice(0,3).map(function(p){ return p.cliente+'|tipo='+(p.tipoEntrega||'?')+'|ced='+(p.cedula||'?'); }).join(' / ');
-  alert('Rezagadas (primeras 3): ' + muestra + ' | Total: ' + rez2.length);
-}
-
 function borrarCierreDia(fechaISO) {
   localStorage.removeItem('del_caja_' + fechaISO);
   mostrarToast('Registro borrado');
@@ -4971,30 +4961,29 @@ function renderDelivery(d, fecha) {
   // ── Rezagadas ──────────────────────────────────────────────
   const rezagadas = d.rezagadas || [];
   if (rezagadas.length) {
-    html += `<div class="rezagada-header">⚠️ ${rezagadas.length} entrega${rezagadas.length!==1?'s':''} rezagada${rezagadas.length!==1?'s':''} — pendiente${rezagadas.length!==1?'s':''} de día anterior</div>`;
+    html += '<div class="rezagada-header">&#9888;&#65039; ' + rezagadas.length + ' entrega' + (rezagadas.length!==1?'s':'') + ' rezagada' + (rezagadas.length!==1?'s':'') + ' — pendiente' + (rezagadas.length!==1?'s':'') + ' de día anterior</div>';
 
-    // Agrupar rezagadas por tipo de entrega
     const tiposRez = ['Delivery','Envío MRW','Envío ZOOM','Retiro personal'];
     const tipoIconoRez = {'Delivery':'🛵','Retiro personal':'🙂','Envío MRW':'📦','Envío ZOOM':'📦'};
     const rezPorTipo = {};
-    rezagadas.forEach(p => {
+    rezagadas.forEach(function(p) {
       const t = p.tipoEntrega || 'Sin tipo';
       if (!rezPorTipo[t]) rezPorTipo[t] = [];
       rezPorTipo[t].push(p);
     });
-    // Ordenar: primero tipos conocidos, luego el resto
-    const ordenRez = [...tiposRez, ...Object.keys(rezPorTipo).filter(t => !tiposRez.includes(t))];
+    const ordenRez = tiposRez.concat(Object.keys(rezPorTipo).filter(function(t){ return tiposRez.indexOf(t)<0; }));
 
-    ordenRez.forEach(tipo => {
+    ordenRez.forEach(function(tipo) {
       const grupo = rezPorTipo[tipo];
       if (!grupo || !grupo.length) return;
-      html += `<div class="del-section-title" style="margin-top:8px;color:#d97706">${tipoIconoRez[tipo]||'📦'} ${tipo} <span style="font-weight:400;color:#d97706;opacity:.7">(${grupo.length})</span></div>`;
-      grupo.forEach((p, idx) => {
-        const cardId = `del-rez-${tipo.replace(/\s/g,'-')}-${idx}`;
+      const icono = tipoIconoRez[tipo] || '📦';
+      html += '<div class="del-section-title" style="margin-top:8px;color:#d97706">' + icono + ' ' + tipo + ' <span style="font-weight:400;color:#d97706;opacity:.7">(' + grupo.length + ')</span></div>';
+      grupo.forEach(function(p, idx) {
+        const cardId = 'del-rez-' + tipo.replace(/\s/g,'-') + '-' + idx;
         const filas = [p.fila];
         const tel = (p.telefono || '').replace(/[^0-9]/g,'');
         const telDisplay = p.telefono || '';
-        const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+        const waLink = tel ? 'https://wa.me/58' + (tel.startsWith('0') ? tel.slice(1) : tel) : '';
         const monto = parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0);
         const metodoPago = (p.metodoPago || '').toLowerCase();
         const esCobrar = metodoPago.includes('efectivo') && monto > 0;
@@ -5002,600 +4991,60 @@ function renderDelivery(d, fecha) {
         const vueltoGuardado = parseFloat(p.vuelto || 0);
         const partes = [p.color, p.talla||''].filter(Boolean).join(' · ');
         const cedula = p.cedula || '';
-        const esEnvioRez = tipo.includes('MRW') || tipo.includes('ZOOM');
-        const vueltoHtml = esCobrar ? `
-          <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
-          ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
-          ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
-        const infoEnvioRez = esEnvioRez ? `
-          <div class="del-envio-block" data-nombre="${p.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(p.direccion||'').replace(/"/g,'&quot;')}">
-            ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
-            ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
-            ${p.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${p.direccion}</span></div>` : ''}
-            <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
-          </div>` : `
-          ${cedula ? `<div class="del-envio-row" style="margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
-          ${telDisplay ? `<div class="del-phone-row"><a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>${waLink?`<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
-          ${p.direccion ? `<div class="del-card-dir">📍 ${p.direccion}</div>` : ''}`;
-        html += `<div class="del-card rezagada" id="${cardId}" style="border-left:3px solid #d97706">
-          <div class="del-card-info">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-              <div class="del-card-name">${p.cliente}</div>
-              <span class="rezagada-badge">Rezagada · ${p.fechaOriginal}</span>
-            </div>
-            <div class="del-card-det">1 pantalón:</div>
-            <div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>
-            ${infoEnvioRez}
-            ${p.notas ? `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:2px solid var(--amber);border-radius:4px;font-size:11px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 </span>${p.notas}</div>` : ''}
-            ${vueltoHtml}
-          </div>
-          <button class="del-check" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="Marcar como entregado">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </div>`;
+        const esEnvioRez = tipo.indexOf('MRW') >= 0 || tipo.indexOf('ZOOM') >= 0;
+
+        let vueltoHtml = '';
+        if (esCobrar) {
+          vueltoHtml += '<div class="del-card-monto">Cobrar ' + fmt$(monto) + '</div>';
+          if (montoEfectivo > 0) vueltoHtml += '<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ' + fmt$(montoEfectivo) + '</div>';
+          if (vueltoGuardado > 0) vueltoHtml += '<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ' + fmt$(vueltoGuardado) + '</div>';
+        }
+
+        let infoHtml = '';
+        if (esEnvioRez) {
+          const safeNombre = p.cliente.replace(/"/g,'&quot;');
+          const safeCed = cedula.replace(/"/g,'&quot;');
+          const safeDir = (p.direccion||'').replace(/"/g,'&quot;');
+          infoHtml += '<div class="del-envio-block" data-nombre="' + safeNombre + '" data-cedula="' + safeCed + '" data-tel="' + telDisplay + '" data-dir="' + safeDir + '">';
+          if (cedula) infoHtml += '<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">' + cedula + '</span></div>';
+          if (telDisplay) {
+            infoHtml += '<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:' + telDisplay + '">' + telDisplay + '</a>';
+            if (waLink) infoHtml += ' <a class="del-wa-mini" href="' + waLink + '" target="_blank">WA</a>';
+            infoHtml += '</div>';
+          }
+          if (p.direccion) infoHtml += '<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>' + p.direccion + '</span></div>';
+          infoHtml += '<button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>';
+          infoHtml += '</div>';
+        } else {
+          if (cedula) infoHtml += '<div class="del-envio-row" style="margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">' + cedula + '</span></div>';
+          if (telDisplay) {
+            infoHtml += '<div class="del-phone-row"><a class="del-phone-link" href="tel:' + telDisplay + '">📞 ' + telDisplay + '</a>';
+            if (waLink) infoHtml += '<a class="del-wa-mini" href="' + waLink + '" target="_blank">WA</a>';
+            infoHtml += '</div>';
+          }
+          if (p.direccion) infoHtml += '<div class="del-card-dir">📍 ' + p.direccion + '</div>';
+        }
+
+        let cardHtml = '<div class="del-card rezagada" id="' + cardId + '" style="border-left:3px solid #d97706">';
+        cardHtml += '<div class="del-card-info">';
+        cardHtml += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">';
+        cardHtml += '<div class="del-card-name">' + p.cliente + '</div>';
+        cardHtml += '<span class="rezagada-badge">Rezagada · ' + (p.fechaOriginal||'?') + '</span>';
+        cardHtml += '</div>';
+        cardHtml += '<div class="del-card-det">1 pantalón:</div>';
+        cardHtml += '<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">' + partes + '</div>';
+        cardHtml += infoHtml;
+        if (p.notas) cardHtml += '<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:2px solid var(--amber);border-radius:4px;font-size:11px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 </span>' + p.notas + '</div>';
+        cardHtml += vueltoHtml;
+        cardHtml += '</div>';
+        cardHtml += '<button class="del-check" onclick="marcarGrupoEntregado(\'' + cardId + '\',[' + filas.join(',') + '],this)" title="Marcar como entregado"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>';
+        cardHtml += '</div>';
+        html += cardHtml;
       });
     });
   }
 
-  // ── Pre-calcular arreglos del día ──────────────────────
-  const _allArreglos   = getArreglos();
-  const aRecoger       = _allArreglos.filter(a => a.estado === 'pendiente_recogida');
-  // fecha está en DD/MM/YYYY; fechaEntregaProgramada viene del <input type="date"> en YYYY-MM-DD
-  // Convertir fecha del delivery a ISO para comparar
-  const _fp = fecha.split('/');
-  const fechaISO = _fp.length === 3 ? `${_fp[2]}-${_fp[1]}-${_fp[0]}` : '';
-  const aEntregar      = _allArreglos.filter(a =>
-    a.estado === 'pendiente_entrega' && a.fechaEntregaProgramada === fechaISO
-  );
-  // Mapa tipoEntrega → [arreglos del día]
-  const arreglosPorTipo = {};
-  aEntregar.forEach(a => {
-    const t = a.tipoEntrega || 'Retiro personal';
-    if (!arreglosPorTipo[t]) arreglosPorTipo[t] = [];
-    arreglosPorTipo[t].push(a);
-  });
-  const tipoIconoMap = {'Delivery':'🛵','Retiro personal':'🙂','Envío MRW':'📦','Envío ZOOM':'📦'};
-
-  // Helper: tarjeta de arreglo listo para entregar (mismo estilo que pedido normal)
-  function _renderArregloCard(a) {
-    const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
-    const tel = (a.telefono||'').replace(/[^0-9]/g,'');
-    const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-    return `<div class="del-card" style="border-left:3px solid #eab308">
-      <div class="del-card-info">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-          <div class="del-card-name">${a.cliente}</div>
-          <span style="background:#eab308;color:#000;font-size:9px;font-weight:800;padding:2px 5px;border-radius:4px;letter-spacing:.05em;flex-shrink:0">🔧 ARREGLO</span>
-        </div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
-        ${a.telefono ? `<div class="del-phone-row"><a class="del-phone-link" href="tel:${a.telefono}">📞 ${a.telefono}</a>${waLink?`<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
-        ${a.direccion ? `<div class="del-card-dir">📍 ${a.direccion}</div>` : ''}
-        ${a.notas ? `<div style="margin-top:4px;font-size:11px;color:var(--text3);font-style:italic">${a.notas}</div>` : ''}
-      </div>
-      <button class="del-check" onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})" title="Marcar como entregado">
-        ${checkSVG}
-      </button>
-    </div>`;
-  }
-
-  // ── Lista de tipos de entrega conocidos ────────────────
-  const tiposEntrega = [
-    { tipo: 'Delivery',        icono: '🛵', label: 'Delivery' },
-    { tipo: 'Retiro personal', icono: '🙂', label: 'Retiro personal' },
-    { tipo: 'Envío MRW',       icono: '📦', label: 'Envío MRW' },
-    { tipo: 'Envío ZOOM',      icono: '📦', label: 'Envío ZOOM' },
-  ];
-  const mostrados = new Set();
-
-  if (!d.pedidos.length && !rezagadas.length && !aEntregar.length) {
-    html += '<div class="empty-state">Sin entregas para este día</div>';
-  }
-
-  // ── Secciones por tipo de entrega ──────────────────────
-  tiposEntrega.forEach(t => {
-    const rawItems       = d.pedidos.filter(p => p.tipoEntrega === t.tipo);
-    const arreglosDelTipo = arreglosPorTipo[t.tipo] || [];
-    if (!rawItems.length && !arreglosDelTipo.length) return;
-
-    rawItems.forEach(p => mostrados.add(p.fila));
-    const clienteGrupos = agruparPorCliente(rawItems);
-    const totalCount = clienteGrupos.length + arreglosDelTipo.length;
-    html += `<div class="del-section">
-      <div class="del-section-title">${t.icono} ${t.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${totalCount})</span></div>`;
-
-    // Pedidos normales
-    clienteGrupos.forEach((cg, idx) => {
-      const cardId = `del-card-${t.tipo.replace(/\s/g,'-')}-${idx}`;
-      const tipo = t.tipo;
-      const filas = cg.items.map(p => p.fila);
-      const done = cg.items.every(p => p.estado === 'Entregado a cliente');
-      const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
-      const nPants = cg.items.length;
-      const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
-      const esCobrar = metodoPago.includes('efectivo') && monto > 0;
-      const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
-      const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
-      const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
-      const telDisplay = cg.items[0].telefono || '';
-      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-      const cedula = cg.items[0].cedula || '';
-      const itemsHtml = cg.items.map(p => {
-        const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
-        return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
-      }).join('');
-      const vueltoHtml = esCobrar ? `
-        <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
-        ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
-        ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
-      const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
-      const phoneHtml = telDisplay ? `
-        <div class="del-phone-row">
-          <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
-          ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
-        </div>` : '';
-      const infoHtml = esEnvio ? `
-        <div class="del-envio-block" data-nombre="${cg.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(cg.direccion||'').replace(/"/g,'&quot;')}">
-          ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
-          ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
-          ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
-          <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
-        </div>` : `${cedula ? `<div class="del-envio-row" style="margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-      const notasUnicas = [...new Set(cg.items.map(p => p.notas).filter(Boolean))];
-      const notasHtml = notasUnicas.map(nota =>
-        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${nota}</div>`
-      ).join('');
-      html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
-        <div class="del-card-info">
-          <div class="del-card-name">${cg.cliente}</div>
-          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
-          ${itemsHtml}
-          ${infoHtml}
-          ${notasHtml}
-          ${vueltoHtml}
-        </div>
-        <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
-          ${checkSVG}
-        </button>
-      </div>`;
-    });
-
-    // Arreglos del día en este mismo grupo de tipo de entrega
-    arreglosDelTipo.forEach(a => { html += _renderArregloCard(a); });
-
-    html += `</div>`;
-  });
-
-  // Catch-all: pedidos sin tipo de entrega conocido
-  const extras = d.pedidos.filter(p => !mostrados.has(p.fila));
-  if (extras.length) {
-    const clienteGrupos = agruparPorCliente(extras);
-    html += `<div class="del-section">
-      <div class="del-section-title">📋 Sin tipo de entrega <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
-    clienteGrupos.forEach((cg, idx) => {
-      const cardId = `del-card-extra-${idx}`;
-      const tipo = '';
-      const filas = cg.items.map(p => p.fila);
-      const done = cg.items.every(p => p.estado === 'Entregado a cliente');
-      const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
-      const nPants = cg.items.length;
-      const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
-      const esCobrar = metodoPago.includes('efectivo') && monto > 0;
-      const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
-      const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
-      const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
-      const telDisplay = cg.items[0].telefono || '';
-      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-      const cedula = cg.items[0].cedula || '';
-      const itemsHtml = cg.items.map(p => {
-        const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
-        return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
-      }).join('');
-      const vueltoHtml = esCobrar ? `
-        <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
-        ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
-        ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
-      const esEnvio = false;
-      const phoneHtml = telDisplay ? `
-        <div class="del-phone-row">
-          <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
-          ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
-        </div>` : '';
-      const infoHtml = `${phoneHtml}${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-      const notasUnicas = [...new Set(cg.items.map(p => p.notas).filter(Boolean))];
-      const notasHtml = notasUnicas.map(nota =>
-        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${nota}</div>`
-      ).join('');
-      html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
-        <div class="del-card-info">
-          <div class="del-card-name">${cg.cliente}</div>
-          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
-          ${itemsHtml}
-          ${infoHtml}
-          ${notasHtml}
-          ${vueltoHtml}
-        </div>
-        <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
-          ${checkSVG}
-        </button>
-      </div>`;
-    });
-    html += `</div>`;
-  }
-
-  html += `<button class="btn" onclick="_delCache={};loadDelivery(0,true)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
-    html += `<button class="btn" onclick="debugRezagadas()" style="margin-top:4px;background:none;border:1px dashed var(--text3);color:var(--text3);font-size:11px">🔍 Debug</button>`;
-  // Cierre del dia
-  const _fp2 = fecha.split('/');
-  const _fechaISO2 = _fp2.length===3 ? _fp2[2]+'-'+_fp2[1]+'-'+_fp2[0] : '';
-  if (_fechaISO2) {
-    const _cajaDia = _getCajaDia(_fechaISO2);
-    const _yaGuardado = _cajaDia.guardado;
-    html += '<div class="card" style="margin-top:16px;border-left:3px solid var(--gold)">'
-      + '<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Cierre del dia</div>'
-      + '<div id="del-cierre-status" style="font-size:13px;color:'+(_yaGuardado?'var(--green)':'var(--text3)')+';margin-bottom:10px">'+(_yaGuardado?('Guardado: $'+_cajaDia.recibido.toFixed(2)):'Sin registrar aun')+'</div>'
-      + '<input id="del-cierre-monto" type="number" min="0" step="0.01" placeholder="Monto recibido ($)" value="'+(_yaGuardado?_cajaDia.recibido:'')+'" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--bg4);border-radius:10px;font-size:16px;background:var(--bg);color:var(--text);margin-bottom:8px">'
-      + '<button id="del-cierre-btn" onclick="registrarCierreDelDia(\'' + fecha + '\')" style="width:100%;padding:13px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;background:#22c55e;color:#fff">'+(_yaGuardado?'Actualizar cierre':'Guardar cierre')+'</button>'
-      + (_yaGuardado ? '<button onclick="borrarCierreDia(\'' + _fechaISO2 + '\')" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--bg4);border-radius:10px;font-size:13px;color:var(--text3);background:none;cursor:pointer">🗑 Borrar registro</button>' : '')
-      + '</div>';
-  }
-
-  // ── Arreglos pendientes de recogida (sin filtro de fecha, siempre visibles) ──
-  if (aRecoger.length) {
-    html += `<div style="margin-top:16px;border-top:2px dashed var(--bg4);padding-top:14px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Arreglos · pendientes de recogida</div>`;
-    aRecoger.forEach(a => {
-      const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitar ${a.cm||'?'} cm` : 'Descosido / error de fábrica';
-      const tel = (a.telefono||'').replace(/[^0-9]/g,'');
-      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-      html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #f97316">
-        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
-        ${a.tipoEntrega ? `<div style="font-size:11px;color:#f97316;font-weight:600;margin-bottom:4px">${tipoIconoMap[a.tipoEntrega]||'📦'} ${a.tipoEntrega}</div>` : ''}
-        ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
-        ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
-        ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
-        <button onclick="arregloSetEstado(${a.id},'recibido',()=>{loadDelivery(0)})"
-          style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text)">
-          ✅ Recibido · lo tengo
-        </button>
-      </div>`;
-    });
-    html += '</div>';
-  }
-
-  document.getElementById('del-content').innerHTML = html;
-}
-
-function copiarDatosEnvio(btn) {
-  const bloque = btn.closest('.del-envio-block');
-  if (!bloque) return;
-  const nombre  = bloque.dataset.nombre  || '';
-  const cedula  = bloque.dataset.cedula  || '';
-  const tel     = bloque.dataset.tel     || '';
-  const dir     = bloque.dataset.dir     || '';
-  const texto   = [
-    `Nombre: ${nombre}`,
-    cedula  ? `Cédula: ${cedula}`       : '',
-    tel     ? `Teléfono: ${tel}`        : '',
-    dir     ? `Dirección: ${dir}`       : '',
-  ].filter(Boolean).join('\n');
-  navigator.clipboard.writeText(texto)
-    .then(() => mostrarToast('✓ Datos copiados'))
-    .catch(() => mostrarToast('✕ No se pudo copiar'));
-}
-
-function mostrarVuelto(cardId, bill, monto, btn) {
-  document.querySelectorAll(`#vuelto-${cardId} .del-bill-btn`).forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const cambio = bill - monto;
-  const res = document.getElementById('res-' + cardId);
-  if (res) res.textContent = cambio >= 0 ? `Vuelto: ${fmt$(cambio)}` : '⚠ Insuficiente';
-}
-
-async function marcarGrupoEntregado(cardId, filas, btn) {
-  const yaEntregado = btn.classList.contains('checked');
-  const nuevoEstado = yaEntregado ? 'Entregado a delivery' : 'Entregado a cliente';
-  const card = document.getElementById(cardId);
-  const stats = document.querySelectorAll('.del-stat-n');
-  // Optimistic UI
-  if (yaEntregado) {
-    btn.classList.remove('checked');
-    if (card) card.classList.remove('done');
-    if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent || 0) + 1;
-    if (stats[1]) stats[1].textContent = Math.max(0, parseInt(stats[1].textContent) - 1);
-  } else {
-    btn.classList.add('checked');
-    if (card) card.classList.add('done');
-    if (stats[0]) stats[0].textContent = Math.max(0, parseInt(stats[0].textContent) - 1);
-    if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent || 0) + 1;
-  }
-  // API para cada fila del grupo (en paralelo)
-  try {
-    const resultados = await Promise.all(
-      filas.map(fila =>
-        fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(nuevoEstado)}`).then(r => r.json())
-      )
-    );
-    if (resultados.some(r => !r.success)) {
-      mostrarToast('✕ Error al guardar');
-      // Revertir UI
-      if (yaEntregado) { btn.classList.add('checked'); if (card) card.classList.add('done'); if (stats[0]) stats[0].textContent = Math.max(0,parseInt(stats[0].textContent)-1); if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent||0)+1; }
-      else { btn.classList.remove('checked'); if (card) card.classList.remove('done'); if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent||0)+1; if (stats[1]) stats[1].textContent = Math.max(0,parseInt(stats[1].textContent)-1); }
-    }
-  } catch {
-    mostrarToast('✕ Sin conexión');
-    if (yaEntregado) { btn.classList.add('checked'); if (card) card.classList.add('done'); }
-    else { btn.classList.remove('checked'); if (card) card.classList.remove('done'); }
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-// TABLET
-// ══════════════════════════════════════════════════════════
-function isTablet(){ return window.innerWidth >= 640; }
-function setupTablet(){
-  const tb = document.getElementById('tablet-topbar');
-  if(isTablet()){ tb.style.display='flex'; } else { tb.style.display='none'; }
-}
-window.addEventListener('resize', setupTablet);
-
-// ══════════════════════════════════════════════════════════
-// NAVEGACIÓN (dueña)
-// ══════════════════════════════════════════════════════════
-function show(id, btn){
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('screen-'+id).classList.add('active');
-  btn.classList.add('active');
-}
-
-// ══════════════════════════════════════════════════════════
-// UTILS
-// ══════════════════════════════════════════════════════════
-const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
-// Helper global: obtiene el value de un campo por ID
-const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
-const $f   = v => '$'+Math.abs(parseFloat(v)||0).toFixed(2); // alias global
-
-function badgeHTML(tipo){
-  const map={'En producción':'badge-prod','Empaquetado':'badge-pack','Pagado':'badge-paid',
-    'Delivery':'badge-del','Envío MRW':'badge-env','Envío ZOOM':'badge-env','Retiro personal':'badge-ret'};
-  return `<span class="badge ${map[tipo]||'badge-ret'}">${tipo}</span>`;
-}
-
-const refreshIcon=`<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`;
-const arrowLeft=`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>`;
-const arrowRight=`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>`;
-
-async function fetchData(accion, extra=''){
-  const r = await fetch(`${API}?accion=${accion}${extra}`);
-  if(!r.ok) throw new Error('Error '+r.status);
-  return r.json();
-}
-
-function fechaStr(d){
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-}
-function fechaLabel(d){
-  const dias=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  const meses=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-  const hoy=new Date(), man=new Date(hoy), ay=new Date(hoy);
-  man.setDate(hoy.getDate()+1); ay.setDate(hoy.getDate()-1);
-  if(fechaStr(d)===fechaStr(hoy)) return "Hoy";
-  if(fechaStr(d)===fechaStr(man)) return "Mañana";
-  if(fechaStr(d)===fechaStr(ay))  return "Ayer";
-  return `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]}`;
-}
-
-function mostrarToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),3000);
-}
-
-function setTopbar(mes, spread){
-  document.getElementById('topbar-mes').textContent=mes;
-  document.getElementById('topbar-mes-tablet').textContent=mes;
-  const s=parseFloat(spread);
-  ['spread-chip','spread-chip-tablet'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.textContent='Spread '+spread;
-    el.className='spread-chip'+(s>25?'':' ok');
-    el.style.display='inline-flex';
-  });
-}
-
-// ══════════════════════════════════════════════════════════
-// DASHBOARD
-// ══════════════════════════════════════════════════════════
-async function loadDashboard(){
-  document.getElementById('dash-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
-  try{
-    const d=await fetchData('dashboard');
-    setTopbar(d.mes, d.spread);
-    const ganancia=parseFloat(d.finanzas.gananciaNeta), ganPos=ganancia>=0;
-    document.getElementById('dash-content').innerHTML=`
-      <div class="hero">
-        <div class="hero-label">Ingreso total USDT real</div>
-        <div class="hero-amount">${fmt$(d.ventas.totalVendidoUSDT)}</div>
-        <div class="hero-sub">${fmt$(d.ventas.totalVendidoBCV)} en BCV · ${d.ventas.totalPedidos} pedidos</div>
-        <div class="hero-badge">${ganPos?'▲':'▼'} Ganancia neta ${fmt$(ganancia)}</div>
-      </div>
-      <div class="sec-title">producción</div>
-      <div class="metric-grid">
-        <div class="metric-card"><div class="metric-label">En producción</div><div class="metric-value blue">${d.produccion.enProduccion}</div></div>
-        <div class="metric-card"><div class="metric-label">Empaquetados</div><div class="metric-value gold">${d.produccion.empaquetados}</div></div>
-        <div class="metric-card"><div class="metric-label">Entregados</div><div class="metric-value green">${d.produccion.entregados}</div></div>
-        <div class="metric-card"><div class="metric-label">Entregas hoy</div><div class="metric-value amber">${d.produccion.entregasHoy}</div></div>
-      </div>
-      <div class="sec-title">finanzas del mes</div>
-      <div class="card">
-        <div class="row"><span class="row-label">Total vendido BCV</span><span class="row-val">${fmt$(d.ventas.totalVendidoBCV)}</span></div>
-        <div class="row"><span class="row-label">USDT real recibido</span><span class="row-val pos">${fmt$(d.ventas.totalVendidoUSDT)}</span></div>
-        <div class="row"><span class="row-label">Delivery cobrado</span><span class="row-val">${fmt$(d.ventas.ingresoDelivery)}</span></div>
-        <div class="row"><span class="row-label">Costo producción</span><span class="row-val neg">− ${fmt$(d.finanzas.costoProduccion)}</span></div>
-        <div class="row"><span class="row-label">Comisión vendedora (${d.finanzas.pctComision})</span><span class="row-val neg">− ${fmt$(d.finanzas.comisionVendedora)}</span></div>
-        <div class="row"><span class="row-label">Gastos fijos</span><span class="row-val neg">− ${fmt$(d.finanzas.gastosFijos)}</span></div>
-        <div class="total-row">
-          <span class="total-label">Ganancia neta</span>
-          <span class="total-val" style="color:${ganPos?'var(--green)':'var(--red)'}">${fmt$(ganancia)}</span>
-        </div>
-      </div>
-      <div class="sec-title">tasas de hoy</div>
-      <div class="tasa-grid">
-        <div class="tasa-card"><div class="tasa-name">Tasa BCV</div><div class="tasa-val">Bs ${parseFloat(d.tasaBCV).toFixed(2)}</div><div class="tasa-sub">$1 USD oficial</div></div>
-        <div class="tasa-card"><div class="tasa-name">Tasa USDT</div><div class="tasa-val">Bs ${parseFloat(d.tasaUSDT).toFixed(2)}</div><div class="tasa-sub">$1 paralelo</div></div>
-        <div class="tasa-card"><div class="tasa-name">Spread</div><div class="tasa-val" style="color:var(--red)">${d.spread}</div><div class="tasa-sub">diferencia</div></div>
-        <div class="tasa-card"><div class="tasa-name">$30 BCV → USDT</div><div class="tasa-val" style="color:var(--gold)">${fmt$(30*d.tasaBCV/d.tasaUSDT)}</div><div class="tasa-sub">valor real</div></div>
-      </div>
-      <button class="btn" onclick="loadDashboard()">${refreshIcon}Actualizar</button>`;
-  }catch(e){
-    document.getElementById('dash-content').innerHTML=`<div class="err-card">No se pudo conectar.<br><small>${e.message}</small></div><button class="btn" onclick="loadDashboard()">${refreshIcon}Reintentar</button>`;
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-// PRODUCCIÓN
-// ══════════════════════════════════════════════════════════
-let _prodCache=null, fechaProduccionActual=new Date();
-
-async function loadProduccion(offset){
-  if(offset!==undefined && _prodCache){
-    fechaProduccionActual=new Date(fechaProduccionActual);
-    fechaProduccionActual.setDate(fechaProduccionActual.getDate()+offset);
-    renderProduccion(); return;
-  }
-  _prodCache=null; fechaProduccionActual=new Date();
-  document.getElementById('prod-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  try{ _prodCache=await fetchData('produccion'); renderProduccion(); }
-  catch(e){ document.getElementById('prod-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadProduccion()">${refreshIcon}Reintentar</button>`; }
-}
-
-function renderProduccion(){
-  const d=_prodCache, fechaBuscar=fechaStr(fechaProduccionActual);
-  const grupo=d.grupos.find(g=>g.fecha===fechaBuscar);
-  const items=grupo?grupo.items:[];
-  let html=`
-    <div class="date-nav">
-      <button class="date-nav-btn" onclick="loadProduccion(-1)">${arrowLeft}</button>
-      <div class="date-nav-center">
-        <div class="date-nav-label">${fechaLabel(fechaProduccionActual)}</div>
-        <div class="date-nav-sub">${fechaBuscar}</div>
-      </div>
-      <button class="date-nav-btn" onclick="loadProduccion(+1)">${arrowRight}</button>
-    </div>
-    <div class="metric-grid">
-      <div class="metric-card"><div class="metric-label">Este día</div><div class="metric-value blue">${items.length}</div></div>
-      <div class="metric-card"><div class="metric-label">Total pendiente</div><div class="metric-value">${d.total}</div></div>
-    </div>`;
-  if(!items.length){
-    html+='<div class="empty-state">Sin producción para este día</div>';
-  } else {
-    html+='<div class="card">';
-    items.forEach(p=>{
-      html+=`<div class="order-row">
-        <div style="flex:1;min-width:0">
-          <div class="order-name">${p.cliente}</div>
-          <div class="order-detail">${p.producto?p.producto+' · ':''}${p.color} · ${p.talla} · ${p.ruedo}cm</div>
-        </div>${badgeHTML(p.estado)}</div>`;
-    });
-    html+='</div>';
-  }
-  html+=`<button class="btn" onclick="loadProduccion()">${refreshIcon}Actualizar</button>`;
-  document.getElementById('prod-content').innerHTML=html;
-}
-
-// ══════════════════════════════════════════════════════════
-// ENTREGAS
-// ══════════════════════════════════════════════════════════
-let fechaEntregasActual=new Date(), _entPedidos=[], _entFecha='', _entCache={};
-
-async function loadEntregas(offset, forzar=false){
-  if(offset!==undefined){ fechaEntregasActual=new Date(fechaEntregasActual); fechaEntregasActual.setDate(fechaEntregasActual.getDate()+offset); }
-  const fecha=fechaStr(fechaEntregasActual);
-  if(!forzar && _entCache[fecha]){ renderEntregas(_entCache[fecha],fecha); _prefetchEntregas(); return; }
-  document.getElementById('ent-content').innerHTML='<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  try{
-    const d=await fetchData('entregas',`&fecha=${fecha}`);
-    _entCache[fecha]=d;
-    renderEntregas(d, fecha);
-    _prefetchEntregas();
-  }catch(e){
-    document.getElementById('ent-content').innerHTML=`<div class="err-card">${e.message}</div><button class="btn" onclick="loadEntregas(undefined,true)">${refreshIcon}Reintentar</button>`;
-  }
-}
-
-function _prefetchEntregas(){
-  [-1,+1,+2].forEach(delta=>{
-    const d=new Date(fechaEntregasActual);
-    d.setDate(d.getDate()+delta);
-    const f=fechaStr(d);
-    if(!_entCache[f]) fetchData('entregas',`&fecha=${f}`).then(data=>{_entCache[f]=data;}).catch(()=>{});
-  });
-}
-
-function renderEntregas(d, fecha){
-  _entPedidos=d.pedidos; _entFecha=fecha;
-  const hayDel=d.pedidos.some(p=>['Delivery','Envío MRW','Envío ZOOM'].includes(p.tipoEntrega));
-
-  // Resumen de caja
-  let totalEfectivo=0, totalVuelto=0, totalTransf=0;
-  d.pedidos.forEach(p=>{
-    const metodo=(p.metodoPago||'').toLowerCase();
-    const monto=parseFloat(p.montoProducto||0)+parseFloat(p.montoDelivery||0);
-    if(metodo==='efectivo'||metodo==='mixto'){
-      totalEfectivo+=parseFloat(p.montoEfectivo||0)||monto;
-      totalVuelto+=parseFloat(p.vuelto||0);
-    } else {
-      totalTransf+=monto;
-    }
-  });
-  const resumenCaja = (totalEfectivo>0||totalVuelto>0||totalTransf>0) ? `
-    <div class="card" style="margin-bottom:8px;border-left:3px solid var(--gold)">
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">💰 Resumen de caja</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr${totalTransf>0?'  1fr':''};gap:8px;text-align:center">
-        <div><div style="font-size:10px;color:var(--text3)">Cobrar efectivo</div><div style="font-size:18px;font-weight:700;color:var(--text)">${fmt$(totalEfectivo)}</div></div>
-        <div><div style="font-size:10px;color:var(--text3)">Llevar de vuelto</div><div style="font-size:18px;font-weight:700;color:var(--red)">${fmt$(totalVuelto)}</div></div>
-        ${totalTransf>0?`<div><div style="font-size:10px;color:var(--text3)">Transferencia</div><div style="font-size:18px;font-weight:700;color:var(--blue)">${fmt$(totalTransf)}</div></div>`:''}
-      </div>
-    </div>` : '';
-
-  let html=`
-    <div class="date-nav">
-      <button class="date-nav-btn" onclick="loadEntregas(-1)">${arrowLeft}</button>
-      <div class="date-nav-center">
-        <div class="date-nav-label">${fechaLabel(fechaEntregasActual)}</div>
-        <div class="date-nav-sub">${fecha}</div>
-      </div>
-      <button class="date-nav-btn" onclick="loadEntregas(+1)">${arrowRight}</button>
-    </div>
-    <div class="metric-grid">
-      <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value gold">${d.total}</div></div>
-      <div class="metric-card"><div class="metric-label">Delivery</div><div class="metric-value amber">${d.delivery}</div></div>
-      <div class="metric-card"><div class="metric-label">Envíos</div><div class="metric-value blue">${d.envios}</div></div>
-      <div class="metric-card"><div class="metric-label">Retiros</div><div class="metric-value">${d.retiros}</div></div>
-    </div>`;
-  html += resumenCaja;
-  // ── Rezagadas (entregas vencidas pendientes) ──
-  const rezagadas = d.rezagadas || [];
-  if (rezagadas.length) {
-    html += `<div class="rezagada-header">⚠️ ${rezagadas.length} entrega${rezagadas.length!==1?'s':''} rezagada${rezagadas.length!==1?'s':''} — hacer hoy</div>`;
-    rezagadas.forEach(p => {
-      html += `<div class="card rezagada">
-        <div class="card-header">
-          <div class="card-title">${p.cliente}</div>
-          <span class="rezagada-badge">Rezagada · ${p.fechaOriginal}</span>
-        </div>
-        <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
-        ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
-        <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
-        <div class="row"><span class="row-label">Estado</span><span class="row-val" style="color:var(--amber)">${p.estado}</span></div>
-        ${p.notas?`<div style="margin-top:8px;padding:8px 10px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:6px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`:''}
-      </div>`;
-    });
-  }
-
-  // ── Pedidos del día ──
+    // ── Pedidos del día ──
   if(!d.pedidos.length && !rezagadas.length){
     html+='<div class="empty-state">No hay entregas para este día</div>';
   } else if(d.pedidos.length) {
