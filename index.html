@@ -959,6 +959,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
 
+async function fetchData(accion, extra = '') {
+  const res = await fetch(`${API}?accion=${accion}${extra}`);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
 // ══════════════════════════════════════════════════════════
 // CONFIG SYNC — persiste en Google Sheets, usa localStorage como caché
 // ══════════════════════════════════════════════════════════
