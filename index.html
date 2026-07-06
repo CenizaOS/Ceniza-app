@@ -964,6 +964,7 @@ async function fetchData(accion, extra = '') {
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return res.json();
 }
+const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
 
 // ══════════════════════════════════════════════════════════
 // CONFIG SYNC — persiste en Google Sheets, usa localStorage como caché
@@ -5050,32 +5051,210 @@ function renderDelivery(d, fecha) {
     });
   }
 
-    // ── Pedidos del día ──
-  if(!d.pedidos.length && !rezagadas.length){
-    html+='<div class="empty-state">No hay entregas para este día</div>';
-  } else if(d.pedidos.length) {
-    d.pedidos.forEach(p=>{
-      html+=`<div class="card">
-        <div class="card-header"><div class="card-title">${p.cliente}</div>${badgeHTML(p.tipoEntrega)}</div>
-        <div class="row"><span class="row-label">Producto</span><span class="row-val">${p.producto||''} ${p.color} · ${p.talla}</span></div>
-        ${p.direccion?`<div class="row"><span class="row-label">Dirección</span><span class="row-val" style="font-size:12px;text-align:right;max-width:200px">${p.direccion}</span></div>`:''}
-        <div class="row"><span class="row-label">Monto</span><span class="row-val gold">${fmt$(p.montoProducto)}${parseFloat(p.montoDelivery||0)>0?' + '+fmt$(p.montoDelivery)+' del':''}</span></div>
-        ${p.notas?`<div style="margin-top:8px;padding:8px 10px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:6px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`:''}
+  // ── Pre-calcular arreglos del día ──────────────────────
+  const _allArreglos   = getArreglos();
+  const aRecoger       = _allArreglos.filter(a => a.estado === 'pendiente_recogida');
+  // Solo arreglos cuya fechaEntregaProgramada coincide EXACTAMENTE con la fecha vista
+  const aEntregar      = _allArreglos.filter(a =>
+    a.estado === 'pendiente_entrega' && a.fechaEntregaProgramada === fecha
+  );
+  // Mapa tipoEntrega → [arreglos del día]
+  const arreglosPorTipo = {};
+  aEntregar.forEach(a => {
+    const t = a.tipoEntrega || 'Retiro personal';
+    if (!arreglosPorTipo[t]) arreglosPorTipo[t] = [];
+    arreglosPorTipo[t].push(a);
+  });
+  const tipoIconoMap = {'Delivery':'🛵','Retiro personal':'🙂','Envío MRW':'📦','Envío ZOOM':'📦'};
+
+  // Helper: tarjeta de arreglo listo para entregar
+  function _renderArregloCard(a) {
+    const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
+    const tel = (a.telefono||'').replace(/[^0-9]/g,'');
+    const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+    return `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308;position:relative">
+      <div style="position:absolute;top:10px;right:10px;background:#eab308;color:#000;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:.05em">🔧 ARREGLO</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;padding-right:64px">${a.cliente}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
+      ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
+      ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+      ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+      <button onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})"
+        style="margin-top:8px;width:100%;background:rgba(34,197,94,.12);border:1px solid #22c55e;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:#22c55e">
+        ✅ Entregado al cliente
+      </button>
+    </div>`;
+  }
+
+  // ── Lista de tipos de entrega conocidos ────────────────
+  const tiposEntrega = [
+    { tipo: 'Delivery',        icono: '🛵', label: 'Delivery' },
+    { tipo: 'Retiro personal', icono: '🙂', label: 'Retiro personal' },
+    { tipo: 'Envío MRW',       icono: '📦', label: 'Envío MRW' },
+    { tipo: 'Envío ZOOM',      icono: '📦', label: 'Envío ZOOM' },
+  ];
+  const mostrados = new Set();
+
+  if (!d.pedidos.length && !rezagadas.length && !aEntregar.length) {
+    html += '<div class="empty-state">Sin entregas para este día</div>';
+  }
+
+  // ── Secciones por tipo de entrega ──────────────────────
+  tiposEntrega.forEach(t => {
+    const rawItems       = d.pedidos.filter(p => p.tipoEntrega === t.tipo);
+    const arreglosDelTipo = arreglosPorTipo[t.tipo] || [];
+    if (!rawItems.length && !arreglosDelTipo.length) return;
+
+    rawItems.forEach(p => mostrados.add(p.fila));
+    const clienteGrupos = agruparPorCliente(rawItems);
+    const totalCount = clienteGrupos.length + arreglosDelTipo.length;
+    html += `<div class="del-section">
+      <div class="del-section-title">${t.icono} ${t.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${totalCount})</span></div>`;
+
+    // Pedidos normales
+    clienteGrupos.forEach((cg, idx) => {
+      const cardId = `del-card-${t.tipo.replace(/\s/g,'-')}-${idx}`;
+      const tipo = t.tipo;
+      const filas = cg.items.map(p => p.fila);
+      const done = cg.items.every(p => p.estado === 'Entregado a cliente');
+      const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
+      const nPants = cg.items.length;
+      const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
+      const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+      const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
+      const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
+      const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
+      const telDisplay = cg.items[0].telefono || '';
+      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+      const cedula = cg.items[0].cedula || '';
+      const itemsHtml = cg.items.map(p => {
+        const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
+        return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
+      }).join('');
+      const vueltoHtml = esCobrar ? `
+        <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+        ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
+        ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
+      const esEnvio = tipo && (tipo.includes('MRW') || tipo.includes('ZOOM'));
+      const phoneHtml = telDisplay ? `
+        <div class="del-phone-row">
+          <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
+          ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
+        </div>` : '';
+      const infoHtml = esEnvio ? `
+        <div class="del-envio-block" data-nombre="${cg.cliente.replace(/"/g,'&quot;')}" data-cedula="${cedula.replace(/"/g,'&quot;')}" data-tel="${telDisplay}" data-dir="${(cg.direccion||'').replace(/"/g,'&quot;')}">
+          ${cedula ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}
+          ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
+          ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
+          <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
+        </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
+      const notasHtml = cg.items.filter(p => p.notas).map(p =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      ).join('');
+      html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
+        <div class="del-card-info">
+          <div class="del-card-name">${cg.cliente}</div>
+          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
+          ${itemsHtml}
+          ${infoHtml}
+          ${notasHtml}
+          ${vueltoHtml}
+        </div>
+        <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
+          ${checkSVG}
+        </button>
       </div>`;
     });
+
+    // Arreglos del día en este mismo grupo de tipo de entrega
+    arreglosDelTipo.forEach(a => { html += _renderArregloCard(a); });
+
+    html += `</div>`;
+  });
+
+  // Catch-all: pedidos sin tipo de entrega conocido
+  const extras = d.pedidos.filter(p => !mostrados.has(p.fila));
+  if (extras.length) {
+    const clienteGrupos = agruparPorCliente(extras);
+    html += `<div class="del-section">
+      <div class="del-section-title">📋 Sin tipo de entrega <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${clienteGrupos.length})</span></div>`;
+    clienteGrupos.forEach((cg, idx) => {
+      const cardId = `del-card-extra-${idx}`;
+      const tipo = '';
+      const filas = cg.items.map(p => p.fila);
+      const done = cg.items.every(p => p.estado === 'Entregado a cliente');
+      const monto = cg.items.reduce((s, p) => s + parseFloat(p.montoProducto||0), 0) + parseFloat(cg.items[0].montoDelivery||0);
+      const nPants = cg.items.length;
+      const metodoPago = (cg.items[0].metodoPago || '').toLowerCase();
+      const esCobrar = metodoPago.includes('efectivo') && monto > 0;
+      const montoEfectivo = parseFloat(cg.items[0].montoEfectivo || 0);
+      const vueltoGuardado = parseFloat(cg.items[0].vuelto || 0);
+      const tel = (cg.items[0].telefono || '').replace(/[^0-9]/g,'');
+      const telDisplay = cg.items[0].telefono || '';
+      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+      const cedula = cg.items[0].cedula || '';
+      const itemsHtml = cg.items.map(p => {
+        const partes = [p.color, p.talla||'', p.ruedo?p.ruedo+'cm':''].filter(Boolean).join(' · ');
+        return `<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">${partes}</div>`;
+      }).join('');
+      const vueltoHtml = esCobrar ? `
+        <div class="del-card-monto">Cobrar ${fmt$(monto)}</div>
+        ${montoEfectivo > 0 ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ${fmt$(montoEfectivo)}</div>` : ''}
+        ${vueltoGuardado > 0 ? `<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ${fmt$(vueltoGuardado)}</div>` : ''}` : '';
+      const esEnvio = false;
+      const phoneHtml = telDisplay ? `
+        <div class="del-phone-row">
+          <a class="del-phone-link" href="tel:${telDisplay}">📞 ${telDisplay}</a>
+          ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
+        </div>` : '';
+      const infoHtml = `${phoneHtml}${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
+      const notasHtml = cg.items.filter(p => p.notas).map(p =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      ).join('');
+      html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
+        <div class="del-card-info">
+          <div class="del-card-name">${cg.cliente}</div>
+          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
+          ${itemsHtml}
+          ${infoHtml}
+          ${notasHtml}
+          ${vueltoHtml}
+        </div>
+        <button class="del-check ${done ? 'checked' : ''}" onclick="marcarGrupoEntregado('${cardId}',[${filas.join(',')}],this)" title="${done ? 'Tap para revertir' : 'Marcar como entregado'}">
+          ${checkSVG}
+        </button>
+      </div>`;
+    });
+    html += `</div>`;
   }
-  if(hayDel){
-    html+=`<button class="btn-wa" onclick="enviarADelivery()">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.126 1.534 5.862L0 24l6.29-1.51A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.032-1.386l-.36-.214-3.733.897.938-3.63-.235-.374A9.818 9.818 0 1112 21.818z"/>
-      </svg>
-      Enviar al delivery
-    </button>
-    <div class="wa-hint">Número guardado · <a onclick="cambiarNumeroDelivery()">cambiar</a></div>`;
+
+  html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
+
+  // ── Arreglos pendientes de recogida (sin filtro de fecha, siempre visibles) ──
+  if (aRecoger.length) {
+    html += `<div style="margin-top:16px;border-top:2px dashed var(--bg4);padding-top:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Arreglos · pendientes de recogida</div>`;
+    aRecoger.forEach(a => {
+      const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitar ${a.cm||'?'} cm` : 'Descosido / error de fábrica';
+      const tel = (a.telefono||'').replace(/[^0-9]/g,'');
+      const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
+      html += `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #f97316">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px">${a.cliente}</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
+        ${a.tipoEntrega ? `<div style="font-size:11px;color:#f97316;font-weight:600;margin-bottom:4px">${tipoIconoMap[a.tipoEntrega]||'📦'} ${a.tipoEntrega}</div>` : ''}
+        ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
+        ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+        ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+        <button onclick="arregloSetEstado(${a.id},'recibido',()=>{loadDelivery(0)})"
+          style="margin-top:8px;width:100%;background:var(--bg3);border:1px solid var(--bg4);border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text)">
+          ✅ Recibido · lo tengo
+        </button>
+      </div>`;
+    });
+    html += '</div>';
   }
-  html+=`<button class="btn" onclick="loadEntregas(undefined,true)" style="margin-top:8px">${refreshIcon}Actualizar</button>`;
-  document.getElementById('ent-content').innerHTML=html;
+
+  document.getElementById('del-content').innerHTML = html;
 }
 
 // ══════════════════════════════════════════════════════════
