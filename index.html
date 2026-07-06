@@ -967,6 +967,90 @@ async function fetchData(accion, extra = '') {
 const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
 const refreshIcon = `<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`;
 
+function fechaStr(d) {
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+function fechaLabel(d) {
+  const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const hoy = new Date();
+  const manana = new Date(hoy); manana.setDate(hoy.getDate()+1);
+  const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
+  if (fechaStr(d) === fechaStr(hoy)) return "Hoy";
+  if (fechaStr(d) === fechaStr(manana)) return "Mañana";
+  if (fechaStr(d) === fechaStr(ayer)) return "Ayer";
+  return `${dias[d.getDay()]} ${d.getDate()} ${meses[d.getMonth()]}`;
+}
+function badgeHTML(tipo) {
+  const map = {
+    'En producción':'badge-prod','Empaquetado':'badge-pack','Pagado':'badge-paid',
+    'Delivery':'badge-del','Envío MRW':'badge-env','Envío ZOOM':'badge-env','Retiro personal':'badge-ret'
+  };
+  return `<span class="badge ${map[tipo]||'badge-ret'}">${tipo}</span>`;
+}
+function mostrarToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+function mostrarVuelto(cardId, bill, monto, btn) {
+  document.querySelectorAll(`#vuelto-${cardId} .del-bill-btn`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const cambio = bill - monto;
+  const res = document.getElementById('res-' + cardId);
+  if (res) res.textContent = cambio >= 0 ? `Vuelto: ${fmt$(cambio)}` : '⚠ Insuficiente';
+}
+async function marcarGrupoEntregado(cardId, filas, btn) {
+  const yaEntregado = btn.classList.contains('checked');
+  const nuevoEstado = yaEntregado ? 'Entregado a delivery' : 'Entregado a cliente';
+  const card = document.getElementById(cardId);
+  const stats = document.querySelectorAll('.del-stat-n');
+  if (yaEntregado) {
+    btn.classList.remove('checked');
+    if (card) card.classList.remove('done');
+    if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent || 0) + 1;
+    if (stats[1]) stats[1].textContent = Math.max(0, parseInt(stats[1].textContent) - 1);
+  } else {
+    btn.classList.add('checked');
+    if (card) card.classList.add('done');
+    if (stats[0]) stats[0].textContent = Math.max(0, parseInt(stats[0].textContent) - 1);
+    if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent || 0) + 1;
+  }
+  try {
+    const resultados = await Promise.all(
+      filas.map(fila =>
+        fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(nuevoEstado)}`).then(r => r.json())
+      )
+    );
+    if (resultados.some(r => !r.success)) {
+      mostrarToast('✕ Error al guardar');
+      if (yaEntregado) { btn.classList.add('checked'); if (card) card.classList.add('done'); if (stats[0]) stats[0].textContent = Math.max(0,parseInt(stats[0].textContent)-1); if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent||0)+1; }
+      else { btn.classList.remove('checked'); if (card) card.classList.remove('done'); if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent||0)+1; if (stats[1]) stats[1].textContent = Math.max(0,parseInt(stats[1].textContent)-1); }
+    }
+  } catch {
+    mostrarToast('✕ Sin conexión');
+    if (yaEntregado) { btn.classList.add('checked'); if (card) card.classList.add('done'); }
+    else { btn.classList.remove('checked'); if (card) card.classList.remove('done'); }
+  }
+}
+function copiarDatosEnvio(btn) {
+  const bloque = btn.closest('.del-envio-block');
+  if (!bloque) return;
+  const nombre = bloque.dataset.nombre || '';
+  const cedula = bloque.dataset.cedula || '';
+  const tel    = bloque.dataset.tel    || '';
+  const dir    = bloque.dataset.dir    || '';
+  const texto  = [
+    `Nombre: ${nombre}`,
+    cedula ? `Cédula: ${cedula}`    : '',
+    tel    ? `Teléfono: ${tel}`     : '',
+    dir    ? `Dirección: ${dir}`    : '',
+  ].filter(Boolean).join('\n');
+  navigator.clipboard.writeText(texto)
+    .then(() => mostrarToast('✓ Datos copiados'))
+    .catch(() => mostrarToast('✕ No se pudo copiar'));
+}
+
 // ══════════════════════════════════════════════════════════
 // CONFIG SYNC — persiste en Google Sheets, usa localStorage como caché
 // ══════════════════════════════════════════════════════════
