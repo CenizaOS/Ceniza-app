@@ -5102,7 +5102,7 @@ function renderDelivery(d, fecha) {
           ${telDisplay ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:${telDisplay}">${telDisplay}</a>${waLink?` <a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>`:''}</div>` : ''}
           ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
           <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
-        </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
+        </div>` : `${cedula ? `<div class="del-envio-row" style="margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">🪪</span><span class="del-envio-cedula">${cedula}</span></div>` : ''}${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
       const notasUnicas = [...new Set(cg.items.map(p => p.notas).filter(Boolean))];
       const notasHtml = notasUnicas.map(nota =>
         `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${nota}</div>`
@@ -5185,7 +5185,7 @@ function renderDelivery(d, fecha) {
     html += `</div>`;
   }
 
-  html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
+  html += `<button class="btn" onclick="_delCache={};loadDelivery(0,true)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
   // Cierre del dia
   const _fp2 = fecha.split('/');
   const _fechaISO2 = _fp2.length===3 ? _fp2[2]+'-'+_fp2[1]+'-'+_fp2[0] : '';
