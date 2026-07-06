@@ -4832,18 +4832,13 @@ function _saveCajaDia(fechaISO, data) {
 }
 
 function debugRezagadas() {
-  const keys = Object.keys(_delCache);
-  if (!keys.length) { mostrarToast('Sin datos en caché, presiona Actualizar primero'); return; }
-  const d = _delCache[keys[0]];
-  const rez = d.rezagadas || [];
-  if (!rez.length) { mostrarToast('No hay rezagadas en los datos'); return; }
-  const muestra = rez.slice(0,3).map(p => `${p.cliente}|tipo=${p.tipoEntrega||'?'}|ced=${p.cedula||'?'}`).join('
-');
-  alert('Rezagadas (primeras 3):
-
-' + muestra + '
-
-Total: ' + rez.length);
+  var keys = Object.keys(_delCache);
+  if (!keys.length) { mostrarToast('Sin datos en cache, presiona Actualizar primero'); return; }
+  var d2 = _delCache[keys[0]];
+  var rez2 = d2.rezagadas || [];
+  if (!rez2.length) { mostrarToast('No hay rezagadas en los datos'); return; }
+  var muestra = rez2.slice(0,3).map(function(p){ return p.cliente+'|tipo='+(p.tipoEntrega||'?')+'|ced='+(p.cedula||'?'); }).join(' / ');
+  alert('Rezagadas (primeras 3): ' + muestra + ' | Total: ' + rez2.length);
 }
 
 function borrarCierreDia(fechaISO) {
