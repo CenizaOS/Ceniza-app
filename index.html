@@ -4831,6 +4831,21 @@ function _saveCajaDia(fechaISO, data) {
   localStorage.setItem('del_caja_'+fechaISO, JSON.stringify(data));
 }
 
+function debugRezagadas() {
+  const keys = Object.keys(_delCache);
+  if (!keys.length) { mostrarToast('Sin datos en caché, presiona Actualizar primero'); return; }
+  const d = _delCache[keys[0]];
+  const rez = d.rezagadas || [];
+  if (!rez.length) { mostrarToast('No hay rezagadas en los datos'); return; }
+  const muestra = rez.slice(0,3).map(p => `${p.cliente}|tipo=${p.tipoEntrega||'?'}|ced=${p.cedula||'?'}`).join('
+');
+  alert('Rezagadas (primeras 3):
+
+' + muestra + '
+
+Total: ' + rez.length);
+}
+
 function borrarCierreDia(fechaISO) {
   localStorage.removeItem('del_caja_' + fechaISO);
   mostrarToast('Registro borrado');
@@ -5213,6 +5228,7 @@ function renderDelivery(d, fecha) {
   }
 
   html += `<button class="btn" onclick="_delCache={};loadDelivery(0,true)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
+    html += `<button class="btn" onclick="debugRezagadas()" style="margin-top:4px;background:none;border:1px dashed var(--text3);color:var(--text3);font-size:11px">🔍 Debug</button>`;
   // Cierre del dia
   const _fp2 = fecha.split('/');
   const _fechaISO2 = _fp2.length===3 ? _fp2[2]+'-'+_fp2[1]+'-'+_fp2[0] : '';
