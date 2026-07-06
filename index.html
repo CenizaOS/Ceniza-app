@@ -5841,18 +5841,20 @@ function abrirEdicion(fila) {
 
 async function submitPedidos() {
   const g = id => document.getElementById(id)?.value || '';
+  const esEdicion = formModo === 'editar';
   const nombre      = g('f-nombre');
   const tipoEntrega = g('f-tipo-entrega');
   const fechaEntrega= g('f-fecha-entrega');
-  const metodoPago  = g('f-metodo-pago');
-  const origen      = g('f-origen');
+  // En edición: si el select no coincide con el valor guardado, usar el original
+  const pedidoOrig  = esEdicion && filaEdicion ? (pedidosMap[filaEdicion] || {}) : {};
+  const metodoPago  = g('f-metodo-pago') || pedidoOrig.metodoPago || '';
+  const origen      = g('f-origen')      || pedidoOrig.origen      || '';
   if (!nombre)       { mostrarToast('Ingresa el nombre del cliente'); return; }
   if (!tipoEntrega)  { mostrarToast('Selecciona el tipo de entrega'); return; }
   if (!fechaEntrega) { mostrarToast('Selecciona la fecha de entrega'); return; }
-  if (!metodoPago)   { mostrarToast('Selecciona el metodo de pago'); return; }
-  if (!origen)       { mostrarToast('Selecciona el origen'); return; }
+  if (!metodoPago)   { mostrarToast('Selecciona el método de pago'); return; }
+  if (!origen && !esEdicion) { mostrarToast('Selecciona el origen'); return; }
   const btn = document.getElementById('btn-submit');
-  const esEdicion = formModo === 'editar';
   btn.textContent = esEdicion ? 'Guardando...' : 'Registrando...';
   btn.disabled = true;
   try {
