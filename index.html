@@ -1481,26 +1481,7 @@ function guardarCostoEncargo(i, valor) {
 }
 
 // ── CRUD colores de tela (admin) ─────────────────────────
-function agregarColorTela() {
-  const nombre = document.getElementById('nc-nombre')?.value.trim();
-  const codigo = document.getElementById('nc-codigo')?.value.trim();
-  const nota   = document.getElementById('nc-nota')?.value.trim();
-  const tipo   = document.getElementById('nc-tipo')?.value || 'solido';
-  const hex    = tipo === 'solido' ? (document.getElementById('nc-hex')?.value || '') : '';
-  if (!nombre || !codigo) { mostrarToast('⚠️ Nombre y código son obligatorios'); return; }
-  const list = getColoresTela();
-  list.push({ nombre, codigo, nota: nota||'', hex, tipo });
-  saveColoresTela(list);
-  renderFinCompras();
-  mostrarToast('✓ Color agregado');
-}
-function eliminarColorTela(i) {
-  const list = getColoresTela();
-  list.splice(i, 1);
-  saveColoresTela(list);
-  renderFinCompras();
-  mostrarToast('Color eliminado');
-}
+
 function editarColorTela(i) {
   const el = document.getElementById(`color-edit-${i}`);
   if (el) el.style.display = 'block';
@@ -2203,9 +2184,18 @@ let _planPants = 100;
 // ── Entrada a la app de dueña ───────────────────────────────
 async function abrirAppDuena() {
   showScreen('app-d');
-  // Cargar datos en paralelo
   loadFinQuincena();
   loadFinFondos();
+}
+
+// Navegación principal de la dueña (nav-btn inferior)
+function show(tab, btn) {
+  const map = { dashboard:'quincena', produccion:'produccion', entregas:'historial', comisiones:'cierre' };
+  const finTab = map[tab] || tab;
+  // Actualizar active en nav
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  showFinTab(finTab);
 }
 
 // ── Tabs ─────────────────────────────────────────────────────
@@ -4575,123 +4565,6 @@ async function loadCostHistorial() {
   const el = document.getElementById('cost-historial-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando historial...</div>';
   try {
-    const d = await fetchData('produccion');
-
-    // Recopilar todos los pantalones marcados como "Entregado a delivery"
-    // agrupados por fecha del grupo (= fecha en que se programó la entrega)
-    const porFecha = {};
-    (d.grupos || []).forEach(g => {
-      const entregados = (g.items || []).filter(p => p.estado === 'Entregado a delivery');
-      if (!entregados.length) return;
-      const key = g.fecha || 'Sin fecha';
-      if (!porFecha[key]) porFecha[key] = [];
-      porFecha[key].push(...entregados);
-    });
-
-    const fechas = Object.keys(porFecha).sort((a, b) => {
-      // Ordenar DD/MM/YYYY de más reciente a más antigua
-      const parse = s => { const [dd,mm,yyyy] = s.split('/'); return `${yyyy}${mm}${dd}`; };
-      return parse(b).localeCompare(parse(a));
-    });
-
-    const total = Object.values(porFecha).reduce((s, arr) => s + arr.length, 0);
-
-    if (!total) {
-      el.innerHTML = `<div class="empty-state" style="margin-top:32px">
-        <div style="font-size:2rem;margin-bottom:10px">🧵</div>
-        <div style="font-weight:700;margin-bottom:4px">Sin entregas registradas</div>
-        <div style="font-size:13px;color:var(--text3)">Aquí aparecerán los pantalones marcados como "Entregado a delivery".</div>
-      </div>`;
-      return;
-    }
-
-    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Historial de entregas</div>
-      <div style="background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700">${total} pantalón${total!==1?'es':''}</div>
-    </div>`;
-
-    fechas.forEach(fecha => {
-      const items = porFecha[fecha];
-      html += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px;display:flex;align-items:center;gap:8px">
-        <span>📅 ${fecha}</span>
-        <span style="font-weight:400;color:var(--text3);font-size:11px;text-transform:none">(${items.length} pant${items.length!==1?'s':''})</span>
-      </div>`;
-      items.forEach(p => {
-        const talla = p.talla ? p.talla.replace(/^T/i,'') : '';
-        const detalle = [p.color, talla ? `T${talla}` : '', p.ruedo ? `ruedo ${p.ruedo}cm` : ''].filter(Boolean).join(' · ');
-        const entregaIcono = {'Delivery':'🛵','Retiro personal':'🙂','Envío MRW':'📦','Envío ZOOM':'📦'}[p.tipoEntrega] || '📦';
-        html += `<div style="background:var(--bg2);border-radius:10px;padding:11px 14px;margin-bottom:6px;border-left:3px solid var(--green)">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div>
-              <div style="font-size:14px;font-weight:700;color:var(--text)">${p.cliente}</div>
-              <div style="font-size:12px;color:var(--text3);margin-top:2px">${detalle}</div>
-              ${p.tipoEntrega ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${entregaIcono} ${p.tipoEntrega}</div>` : ''}
-              ${p.responsable ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">👤 ${p.responsable}</div>` : ''}
-            </div>
-            <div style="background:rgba(34,197,94,.12);color:#22c55e;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;white-space:nowrap;flex-shrink:0;margin-left:8px">✅ Entregado</div>
-          </div>
-        </div>`;
-      });
-    });
-
-    html += `<button class="btn" onclick="loadCostHistorial()" style="margin-top:8px">${refreshIcon}Actualizar</button>`;
-    el.innerHTML = html;
-  } catch(e) {
-    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadCostHistorial()">${refreshIcon}Reintentar</button>`;
-  }
-}
-
-async function renderCostArreglos() {
-  const el = document.getElementById('cost-arreglos-content');
-  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
-  await syncArreglos();
-  const todos   = getArreglos();
-  const enTaller = todos.filter(a => a.estado === 'recibido');
-
-  if (!enTaller.length) {
-    el.innerHTML = `<div class="empty-state" style="margin-top:40px">
-      <div style="font-size:2.2rem;margin-bottom:12px">🧵</div>
-      <div style="font-weight:700;margin-bottom:6px">Sin arreglos en taller</div>
-      <div style="font-size:13px;color:var(--text3)">Cuando el delivery recoja un pantalón para arreglo, aparecerá aquí.</div>
-    </div>`;
-    return;
-  }
-
-  let html = `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">🔧 Pendientes de arreglo (${enTaller.length})</div>`;
-
-  enTaller.forEach((a, i) => {
-    const tipoLabel = a.tipo === 'ruedo' ? '📏 Arreglo de ruedo' : '🧵 Descosido / error de fábrica';
-    const tipoDetalle = a.tipo === 'ruedo' ? `Quitar <strong>${a.cm||'?'} cm</strong> del ruedo` : 'Reparar costura descosida';
-    const fechaRec = a.fechaRecibido || a.fecha || '';
-
-    html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:12px;border-left:4px solid #3b82f6">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <div>
-          <div style="font-size:15px;font-weight:700;color:var(--text)">${a.cliente}</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:2px">Registrado por ${a.vendedora||'vendedora'}${fechaRec ? ' · '+fechaRec : ''}</div>
-        </div>
-        <div style="background:rgba(59,130,246,.15);color:#3b82f6;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700">En taller</div>
-      </div>
-      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:10px">
-        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">${tipoLabel}</div>
-        <div style="font-size:13px;color:var(--text2)">${tipoDetalle}</div>
-        ${a.notas ? `<div style="font-size:12px;color:var(--text3);margin-top:6px;border-top:1px solid var(--bg4);padding-top:6px">📝 ${a.notas}</div>` : ''}
-      </div>
-      ${a.telefono ? `<div style="font-size:12px;color:var(--text3);margin-bottom:8px">📞 ${a.telefono}${a.direccion ? ' · 📍 '+a.direccion : ''}</div>` : ''}
-      <button onclick="arregloSetEstado(${a.id},'arreglado',renderCostArreglos)"
-        style="width:100%;background:rgba(168,85,247,.12);border:1.5px solid #a855f7;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;color:#a855f7">
-        ✅ Arreglo listo — avisarle a vendedora
-      </button>
-    </div>`;
-  });
-
-  el.innerHTML = html;
-}
-
-async function loadCostHistorial() {
-  const el = document.getElementById('cost-historial-content');
-  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando historial...</div>';
-  try {
     const d = await fetchData('historial');
     const pedidos = d.pedidos || [];
     if (!pedidos.length) {
@@ -5219,7 +5092,7 @@ async function loadDelivery(offset, forzar=false) {
   // Hit de cache: renderizar instantaneamente
   if (forzar) { delete _delCache[fecha]; _historialCache = null; } // forzar limpia todo
   if (!forzar && _delCache[fecha]) {
-    renderDelivery(_delCache[fecha], fecha);
+    renderDelivery(_applyHistorialMerge(_delCache[fecha], fecha), fecha);
     _prefetchDelivery();
     return;
   }
@@ -5229,53 +5102,60 @@ async function loadDelivery(offset, forzar=false) {
     // Cargar entregas del día E historial en paralelo
     const [d] = await Promise.all([
       fetchData('entregas', `&fecha=${fecha}`),
-      _ensureHistorial()  // carga historial una sola vez y lo cachea
+      _ensureHistorial()
     ]);
 
-    // Merge: agregar al array d.pedidos los entregados históricos de esta fecha
-    // que la API de entregas no devuelve (porque ya están marcados como entregados)
-    if (_historialCache && Array.isArray(_historialCache)) {
-      const filasPedidos = new Set((d.pedidos || []).map(p => p.fila));
-      const entregadosDelDia = _historialCache.filter(p =>
-        (p.fechaEntrega === fecha || p.fechaRegistro === fecha) &&
-        !filasPedidos.has(p.fila) &&
-        (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery')
-      );
-      if (entregadosDelDia.length) {
-        d.pedidos = (d.pedidos || []).concat(entregadosDelDia);
-      }
-    }
-
-    // Aplicar overlay local (marcados en esta sesión)
-    try {
-      const lsKey = 'ceniza_del_done_' + fecha;
-      const doneFilas = JSON.parse(localStorage.getItem(lsKey) || '[]');
-      if (doneFilas.length && d.pedidos) {
-        d.pedidos = d.pedidos.map(p =>
-          doneFilas.includes(p.fila) ? Object.assign({}, p, { estado: 'Entregado a cliente' }) : p
-        );
-      }
-    } catch(e) {}
-
-    _delCache[fecha] = d;
-    document.getElementById('del-mes').textContent = d.fecha || '';
-    renderDelivery(d, fecha);
+    const dMerged = _applyHistorialMerge(d, fecha);
+    _delCache[fecha] = dMerged;
+    document.getElementById('del-mes').textContent = dMerged.fecha || '';
+    renderDelivery(dMerged, fecha);
     _prefetchDelivery();
   } catch(e) {
     document.getElementById('del-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadDelivery(0,true)">${refreshIcon}Reintentar</button>`;
   }
 }
 
+// Combina los pedidos entregados del historial con los del día actual
+// Solo usa fechaEntrega para el match (no fechaRegistro, que es la fecha de creación del pedido)
+function _applyHistorialMerge(d, fecha) {
+  // Overlay local (marcados en esta sesión / desde localStorage)
+  let pedidos = (d.pedidos || []).slice();
+  try {
+    const lsKey = 'ceniza_del_done_' + fecha;
+    const doneFilas = JSON.parse(localStorage.getItem(lsKey) || '[]');
+    if (doneFilas.length) {
+      pedidos = pedidos.map(p =>
+        doneFilas.includes(p.fila) ? Object.assign({}, p, { estado: 'Entregado a cliente' }) : p
+      );
+    }
+  } catch(e) {}
+
+  // Merge historial: sólo agregar si fechaEntrega coincide exactamente con la fecha del día
+  if (_historialCache && Array.isArray(_historialCache)) {
+    const filasActuales = new Set(pedidos.map(p => p.fila));
+    const entregadosDelDia = _historialCache.filter(p =>
+      p.fechaEntrega === fecha &&          // Solo por fecha de entrega programada
+      !filasActuales.has(p.fila) &&        // No duplicar lo que ya está
+      (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery')
+    );
+    if (entregadosDelDia.length) {
+      pedidos = pedidos.concat(entregadosDelDia);
+    }
+  }
+
+  return Object.assign({}, d, { pedidos });
+}
+
 // Carga el historial completo una sola vez y lo cachea en memoria
 async function _ensureHistorial() {
-  if (_historialCache !== null) return; // ya cargado
+  if (_historialCache !== null) return;
   try {
     const data = await fetchData('historial', '&responsable=');
     _historialCache = (data.pedidos || []).filter(p =>
       p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery'
     );
   } catch(e) {
-    _historialCache = []; // si falla, dejamos vacío para no bloquear
+    _historialCache = [];
   }
 }
 
@@ -5284,7 +5164,11 @@ function _prefetchDelivery() {
     const d = new Date(fechaDeliveryActual);
     d.setDate(d.getDate() + delta);
     const f = fechaStr(d);
-    if (!_delCache[f]) fetchData('entregas', `&fecha=${f}`).then(data => { _delCache[f] = data; }).catch(() => {});
+    if (!_delCache[f]) {
+      fetchData('entregas', `&fecha=${f}`)
+        .then(data => { _delCache[f] = _applyHistorialMerge(data, f); })
+        .catch(() => {});
+    }
   });
 }
 
