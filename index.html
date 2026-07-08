@@ -1093,6 +1093,19 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
       }
     } else {
       mostrarToast(yaEntregado ? '↩ Marcado como pendiente' : '✓ Entregado');
+      // Actualizar historialCache para que la nueva entrega aparezca al navegar
+      if (_historialCache !== null && !yaEntregado) {
+        const fechaCache = fechaStr(fechaDeliveryActual);
+        if (_delCache[fechaCache] && _delCache[fechaCache].pedidos) {
+          const nuevos = _delCache[fechaCache].pedidos.filter(p =>
+            filas.includes(p.fila) && !_historialCache.find(h => h.fila === p.fila)
+          );
+          _historialCache = _historialCache.concat(nuevos);
+        }
+      } else if (_historialCache !== null && yaEntregado) {
+        // Si se desmarca, quitar del historialCache
+        _historialCache = _historialCache.filter(p => !filas.includes(p.fila));
+      }
     }
   } catch {
     mostrarToast('✕ Sin conexión — cambio guardado localmente');
@@ -5195,6 +5208,7 @@ function renderCajaSemanal() {
 }
 
 let _delCache = {};
+let _historialCache = null; // caché de todas las entregas históricas
 
 async function loadDelivery(offset, forzar=false) {
   if (offset !== undefined) {
@@ -5211,9 +5225,27 @@ async function loadDelivery(offset, forzar=false) {
   document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   syncArreglos().catch(() => {}); // en segundo plano, no bloquear
   try {
-    const d = await fetchData('entregas', `&fecha=${fecha}`);
-    // Aplicar overlay local: si localStorage tiene filas marcadas como entregadas
-    // y la API no las devolvió con ese estado, preservamos el estado local
+    // Cargar entregas del día E historial en paralelo
+    const [d] = await Promise.all([
+      fetchData('entregas', `&fecha=${fecha}`),
+      _ensureHistorial()  // carga historial una sola vez y lo cachea
+    ]);
+
+    // Merge: agregar al array d.pedidos los entregados históricos de esta fecha
+    // que la API de entregas no devuelve (porque ya están marcados como entregados)
+    if (_historialCache && Array.isArray(_historialCache)) {
+      const filasPedidos = new Set((d.pedidos || []).map(p => p.fila));
+      const entregadosDelDia = _historialCache.filter(p =>
+        (p.fechaEntrega === fecha || p.fechaRegistro === fecha) &&
+        !filasPedidos.has(p.fila) &&
+        (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery')
+      );
+      if (entregadosDelDia.length) {
+        d.pedidos = (d.pedidos || []).concat(entregadosDelDia);
+      }
+    }
+
+    // Aplicar overlay local (marcados en esta sesión)
     try {
       const lsKey = 'ceniza_del_done_' + fecha;
       const doneFilas = JSON.parse(localStorage.getItem(lsKey) || '[]');
@@ -5223,12 +5255,26 @@ async function loadDelivery(offset, forzar=false) {
         );
       }
     } catch(e) {}
+
     _delCache[fecha] = d;
     document.getElementById('del-mes').textContent = d.fecha || '';
     renderDelivery(d, fecha);
     _prefetchDelivery();
   } catch(e) {
     document.getElementById('del-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadDelivery(0,true)">${refreshIcon}Reintentar</button>`;
+  }
+}
+
+// Carga el historial completo una sola vez y lo cachea en memoria
+async function _ensureHistorial() {
+  if (_historialCache !== null) return; // ya cargado
+  try {
+    const data = await fetchData('historial', '&responsable=');
+    _historialCache = (data.pedidos || []).filter(p =>
+      p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery'
+    );
+  } catch(e) {
+    _historialCache = []; // si falla, dejamos vacío para no bloquear
   }
 }
 
