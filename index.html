@@ -966,7 +966,7 @@ const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQ
 
 async function fetchData(accion, extra = '') {
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 30000); // 30s timeout
+  const tid = setTimeout(() => ctrl.abort(), 60000); // 60s timeout
   try {
     const res = await fetch(`${API}?accion=${accion}${extra}`, { signal: ctrl.signal });
     clearTimeout(tid);
@@ -5022,11 +5022,19 @@ async function loadDelivery(offset, forzar=false) {
   document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   syncArreglos().catch(() => {}); // en segundo plano, no bloquear
   try {
-    // Cargar entregas del día E historial en paralelo
-    const [d] = await Promise.all([
-      fetchData('entregas', `&fecha=${fecha}`),
-      _ensureHistorial()
-    ]);
+    // Historial carga en segundo plano; cuando termina re-renderiza si el usuario sigue en la misma fecha
+    const _fechaAtLoad = fecha;
+    _ensureHistorial().then(() => {
+      if (fechaStr(fechaDeliveryActual) === _fechaAtLoad && _historialCache && _historialCache.length > 0) {
+        const _cached = _delCache[_fechaAtLoad];
+        if (_cached) {
+          const _dMerged2 = _applyHistorialMerge(_cached, _fechaAtLoad);
+          _delCache[_fechaAtLoad] = _dMerged2;
+          renderDelivery(_dMerged2, _fechaAtLoad);
+        }
+      }
+    }).catch(() => {});
+    const d = await fetchData('entregas', `&fecha=${fecha}`);
 
     const dMerged = _applyHistorialMerge(d, fecha);
     _delCache[fecha] = dMerged;
