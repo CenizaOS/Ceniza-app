@@ -5038,6 +5038,24 @@ async function loadDelivery(offset, forzar=false) {
   }
 }
 
+// Normaliza fecha a DD/MM/YYYY (maneja YYYY-MM-DD, DD/MM/YY, etc.)
+function _normFecha(s) {
+  if (!s) return '';
+  s = s.trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;           // ya es DD/MM/YYYY
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {                        // YYYY-MM-DD
+    const p = s.slice(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0];
+  }
+  if (/^\d{2}\/\d{2}\/\d{2}$/.test(s)) {                     // DD/MM/YY
+    const p = s.split('/'); return p[0]+'/'+p[1]+'/20'+p[2];
+  }
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {                 // D/M/YYYY → DD/MM/YYYY
+    const p = s.split('/');
+    return p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];
+  }
+  return s;
+}
+
 // Combina los pedidos entregados del historial con los del día actual
 // Solo usa fechaEntrega para el match (no fechaRegistro, que es la fecha de creación del pedido)
 function _applyHistorialMerge(d, fecha) {
@@ -5061,8 +5079,8 @@ function _applyHistorialMerge(d, fecha) {
   if (_historialCache && Array.isArray(_historialCache)) {
     const filasActuales = new Set(pedidos.map(p => p.fila));
     const entregadosDelDia = _historialCache.filter(p =>
-      p.fechaEntrega === fecha &&          // Solo por fecha de entrega programada
-      !filasActuales.has(p.fila) &&        // No duplicar lo que ya está
+      _normFecha(p.fechaEntrega) === fecha &&   // Normalizar antes de comparar
+      !filasActuales.has(p.fila) &&
       (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery')
     );
     if (entregadosDelDia.length) {
@@ -5433,16 +5451,14 @@ function renderDelivery(d, fecha) {
   })();
   html += `<div style="margin-top:20px;border-top:2px solid var(--bg4);padding-top:16px">
     <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">💵 Efectivo cobrado hoy</div>
-    <div style="display:flex;gap:10px;align-items:center">
-      <input id="del-cierre-monto" type="number" inputmode="decimal" min="0" step="0.01"
-        placeholder="Monto recibido"
-        value="${cajaHoy.guardado ? cajaHoy.recibido : ''}"
-        style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text);font-size:15px;font-weight:600">
-      <button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia('${fecha}')"
-        style="flex-shrink:0;padding:10px 16px;white-space:nowrap">
-        ${cajaHoy.guardado ? 'Actualizar' : 'Guardar'}
-      </button>
-    </div>
+    <input id="del-cierre-monto" type="number" inputmode="decimal" min="0" step="0.01"
+      placeholder="Monto recibido"
+      value="${cajaHoy.guardado ? cajaHoy.recibido : ''}"
+      style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text);font-size:15px;font-weight:600;margin-bottom:10px">
+    <button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia('${fecha}')"
+      style="display:block;width:100%;box-sizing:border-box">
+      ${cajaHoy.guardado ? 'Actualizar monto' : 'Guardar'}
+    </button>
     ${cajaHoy.guardado
       ? `<div id="del-cierre-status" style="font-size:12px;color:var(--green);margin-top:8px;font-weight:600">✓ Guardado: ${fmt$(cajaHoy.recibido)}</div>`
       : `<div id="del-cierre-status" style="font-size:12px;color:var(--text3);margin-top:8px">Sin registrar aún</div>`
