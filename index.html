@@ -641,6 +641,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   <div class="cost-tabs" style="position:sticky;top:calc(var(--sat) + 62px);z-index:9">
     <button class="cost-tab active" id="dtab-entregas" onclick="showDelTab('entregas')" style="padding:14px 4px;font-size:14px">📦 Entregas</button>
     <button class="cost-tab" id="dtab-caja" onclick="showDelTab('caja')" style="padding:14px 4px;font-size:14px">💰 Caja</button>
+    <button class="cost-tab" id="dtab-historial" onclick="showDelTab('historial')" style="padding:14px 4px;font-size:14px">📋 Historial</button>
   </div>
   <div class="del-body">
     <div id="del-screen-entregas">
@@ -648,6 +649,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="del-screen-caja" style="display:none;padding-top:4px">
       <div id="del-caja-content"></div>
+    </div>
+    <div id="del-screen-historial" style="display:none;padding-top:4px">
+      <div id="del-historial-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
     </div>
   </div>
 </div>
@@ -4978,11 +4982,86 @@ async function cambiarEstadoPedido(fila, estado, sel) {
 let fechaDeliveryActual = new Date();
 
 function showDelTab(tab) {
-  ['entregas','caja'].forEach(t => {
+  ['entregas','caja','historial'].forEach(t => {
     document.getElementById('del-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('dtab-' + t).classList.toggle('active', tab === t);
   });
   if (tab === 'caja') renderCajaSemanal();
+  if (tab === 'historial') {
+    const el = document.getElementById('del-historial-content');
+    if (el.querySelector('.loading-msg') || el.querySelector('.err-card')) loadDelHistorial();
+  }
+}
+
+async function loadDelHistorial() {
+  const el = document.getElementById('del-historial-content');
+  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando historial...</div>';
+  try {
+    // Traer historial de todos los pedidos entregados (sin filtro de responsable)
+    const d = await fetchData('historial', '&responsable=');
+    const pedidos = (d.pedidos || []).filter(p =>
+      p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery'
+    );
+
+    if (!pedidos.length) {
+      el.innerHTML = `<div class="empty-state" style="margin-top:32px">
+        <div style="font-size:2rem;margin-bottom:10px">📦</div>
+        <div style="font-weight:700;margin-bottom:4px">Sin entregas registradas</div>
+        <div style="font-size:13px;color:var(--text3)">Aquí aparecerán los pedidos marcados como entregados.</div>
+      </div><button class="btn" onclick="loadDelHistorial()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
+      return;
+    }
+
+    // Agrupar por fecha de entrega (más reciente primero)
+    const porFecha = {};
+    pedidos.forEach(p => {
+      const k = p.fechaRegistro || p.fechaEntrega || 'Sin fecha';
+      if (!porFecha[k]) porFecha[k] = [];
+      porFecha[k].push(p);
+    });
+    const fechas = Object.keys(porFecha).sort((a, b) => {
+      const parse = s => { const [dd,mm,yyyy] = (s||'').split('/'); return (yyyy||'0')+(mm||'0')+(dd||'0'); };
+      return parse(b).localeCompare(parse(a));
+    });
+    const total = pedidos.length;
+
+    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Historial de entregas</div>
+      <div style="background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700">${total} entrega${total!==1?'s':''}</div>
+    </div>`;
+
+    fechas.forEach(fecha => {
+      const items = porFecha[fecha];
+      html += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px;display:flex;align-items:center;gap:8px">
+        <span>📅 ${fecha}</span>
+        <span style="font-weight:400;font-size:11px;text-transform:none">(${items.length})</span>
+      </div>`;
+      items.forEach(p => {
+        const talla = (p.talla||'').replace(/^T/i,'');
+        const detalle = [p.color, talla?`T${talla}`:'', p.ruedo?`ruedo ${p.ruedo}cm`:''].filter(Boolean).join(' · ');
+        const entregaIcono = {'Delivery':'🛵','Retiro personal':'🙂','Envío MRW':'📦','Envío ZOOM':'📦'}[p.tipoEntrega]||'📦';
+        const esFinal = p.estado === 'Entregado a cliente';
+        html += `<div style="background:var(--bg2);border-radius:10px;padding:11px 14px;margin-bottom:6px;border-left:3px solid ${esFinal?'var(--green)':'var(--gold)'}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${p.cliente}</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px">${detalle}</div>
+              ${p.tipoEntrega?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${entregaIcono} ${p.tipoEntrega}</div>`:''}
+              ${p.montoProducto&&parseFloat(p.montoProducto)>0?`<div style="font-size:12px;font-weight:700;color:var(--gold);margin-top:3px">${fmt$(p.montoProducto)}</div>`:''}
+            </div>
+            <div style="background:${esFinal?'rgba(34,197,94,.12)':'rgba(234,179,8,.12)'};color:${esFinal?'#22c55e':'#ca8a04'};border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;white-space:nowrap;flex-shrink:0;margin-left:8px">
+              ${esFinal?'✅ Entregado':'🚚 En camino'}
+            </div>
+          </div>
+        </div>`;
+      });
+    });
+
+    html += `<button class="btn" onclick="loadDelHistorial()" style="margin-top:8px">${refreshIcon}Actualizar</button>`;
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadDelHistorial()">${refreshIcon}Reintentar</button>`;
+  }
 }
 
 function _getLunesSemana() {
