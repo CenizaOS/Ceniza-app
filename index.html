@@ -5217,6 +5217,7 @@ async function loadDelivery(offset, forzar=false) {
   }
   const fecha = fechaStr(fechaDeliveryActual);
   // Hit de cache: renderizar instantaneamente
+  if (forzar) { delete _delCache[fecha]; _historialCache = null; } // forzar limpia todo
   if (!forzar && _delCache[fecha]) {
     renderDelivery(_delCache[fecha], fecha);
     _prefetchDelivery();
@@ -5585,7 +5586,7 @@ function renderDelivery(d, fecha) {
     html += `</div>`;
   }
 
-  html += `<button class="btn" onclick="loadDelivery(0)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
+  html += `<button class="btn" onclick="loadDelivery(0,true)" style="margin-top:4px">${refreshIcon}Actualizar</button>`;
 
   // ── Arreglos pendientes de recogida (sin filtro de fecha, siempre visibles) ──
   if (aRecoger.length) {
@@ -5610,6 +5611,31 @@ function renderDelivery(d, fecha) {
     });
     html += '</div>';
   }
+
+  // ── Cierre del día: casilla para ingresar efectivo cobrado ──
+  const partesFecha = fecha.split('/');
+  const fechaISO = partesFecha[2]+'-'+partesFecha[1]+'-'+partesFecha[0];
+  const cajaHoy = (() => {
+    try { return JSON.parse(localStorage.getItem('del_caja_'+fechaISO) || '{"recibido":0,"guardado":false}'); }
+    catch(e) { return {recibido:0,guardado:false}; }
+  })();
+  html += `<div style="margin-top:20px;border-top:2px solid var(--bg4);padding-top:16px">
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">💵 Efectivo cobrado hoy</div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <input id="del-cierre-monto" type="number" inputmode="decimal" min="0" step="0.01"
+        placeholder="Monto recibido"
+        value="${cajaHoy.guardado ? cajaHoy.recibido : ''}"
+        style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text);font-size:15px;font-weight:600">
+      <button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia('${fecha}')"
+        style="flex-shrink:0;padding:10px 16px;white-space:nowrap">
+        ${cajaHoy.guardado ? 'Actualizar' : 'Guardar'}
+      </button>
+    </div>
+    ${cajaHoy.guardado
+      ? `<div id="del-cierre-status" style="font-size:12px;color:var(--green);margin-top:8px;font-weight:600">✓ Guardado: ${fmt$(cajaHoy.recibido)}</div>`
+      : `<div id="del-cierre-status" style="font-size:12px;color:var(--text3);margin-top:8px">Sin registrar aún</div>`
+    }
+  </div>`;
 
   document.getElementById('del-content').innerHTML = html;
 }
