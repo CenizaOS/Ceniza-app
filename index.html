@@ -5091,14 +5091,21 @@ function _applyHistorialMerge(d, fecha) {
   return Object.assign({}, d, { pedidos, rezagadas });
 }
 
-// Carga el historial completo una sola vez y lo cachea en memoria
+// Carga el historial completo desde 'produccion' (endpoint probado que funciona)
+// y lo cachea en memoria para no re-fetchear al navegar entre días
 async function _ensureHistorial() {
   if (_historialCache !== null) return;
   try {
-    const data = await fetchData('historial', '&responsable=');
-    _historialCache = (data.pedidos || []).filter(p =>
-      p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery'
-    );
+    const data = await fetchData('produccion');
+    const entregados = [];
+    (data.grupos || []).forEach(g => {
+      (g.items || []).forEach(p => {
+        if (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery') {
+          entregados.push(p);
+        }
+      });
+    });
+    _historialCache = entregados;
   } catch(e) {
     _historialCache = [];
   }
