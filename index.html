@@ -5092,16 +5092,20 @@ function _applyHistorialMerge(d, fecha) {
 }
 
 // Carga el historial completo desde 'produccion' (endpoint probado que funciona)
-// y lo cachea en memoria para no re-fetchear al navegar entre días
+// La fecha vive en el GRUPO (g.fecha), no en el item individual
 async function _ensureHistorial() {
   if (_historialCache !== null) return;
   try {
     const data = await fetchData('produccion');
     const entregados = [];
     (data.grupos || []).forEach(g => {
+      const grupoFecha = g.fecha || '';
       (g.items || []).forEach(p => {
         if (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery') {
-          entregados.push(p);
+          // Usar la fecha del grupo si el item no tiene fechaEntrega propia
+          entregados.push(Object.assign({}, p, {
+            fechaEntrega: _normFecha(p.fechaEntrega || grupoFecha)
+          }));
         }
       });
     });
@@ -5463,7 +5467,7 @@ function renderDelivery(d, fecha) {
       value="${cajaHoy.guardado ? cajaHoy.recibido : ''}"
       style="display:block;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text);font-size:15px;font-weight:600;margin-bottom:10px">
     <button id="del-cierre-btn" class="btn" onclick="registrarCierreDelDia('${fecha}')"
-      style="display:block;width:100%;box-sizing:border-box">
+      style="display:block;width:100%;box-sizing:border-box;background:var(--green);color:#fff;border-color:var(--green)">
       ${cajaHoy.guardado ? 'Actualizar monto' : 'Guardar'}
     </button>
     ${cajaHoy.guardado
