@@ -968,9 +968,18 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
 
 async function fetchData(accion, extra = '') {
-  const res = await fetch(`${API}?accion=${accion}${extra}`);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 30000); // 30s timeout
+  try {
+    const res = await fetch(`${API}?accion=${accion}${extra}`, { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  } catch(e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.');
+    throw e;
+  }
 }
 const fmt$ = n => '$'+parseFloat(n||0).toFixed(2);
 const refreshIcon = `<svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`;
@@ -1015,17 +1024,51 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
   const nuevoEstado = yaEntregado ? 'Entregado a delivery' : 'Entregado a cliente';
   const card = document.getElementById(cardId);
   const stats = document.querySelectorAll('.del-stat-n');
+
+  // ── Optimistic UI ──
   if (yaEntregado) {
     btn.classList.remove('checked');
+    btn.title = 'Marcar como entregado';
     if (card) card.classList.remove('done');
     if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent || 0) + 1;
     if (stats[1]) stats[1].textContent = Math.max(0, parseInt(stats[1].textContent) - 1);
   } else {
     btn.classList.add('checked');
+    btn.title = 'Tap para revertir';
     if (card) card.classList.add('done');
     if (stats[0]) stats[0].textContent = Math.max(0, parseInt(stats[0].textContent) - 1);
     if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent || 0) + 1;
   }
+
+  // ── Actualizar _delCache para que al navegar y volver el estado se preserve ──
+  const fechaCacheKey = fechaStr(fechaDeliveryActual);
+  if (_delCache[fechaCacheKey] && _delCache[fechaCacheKey].pedidos) {
+    _delCache[fechaCacheKey].pedidos = _delCache[fechaCacheKey].pedidos.map(p =>
+      filas.includes(p.fila) ? Object.assign({}, p, { estado: nuevoEstado }) : p
+    );
+  }
+  // También actualizar rezagadas en caché si aplica
+  if (_delCache[fechaCacheKey] && _delCache[fechaCacheKey].rezagadas) {
+    _delCache[fechaCacheKey].rezagadas = _delCache[fechaCacheKey].rezagadas.map(p =>
+      filas.includes(p.fila) ? Object.assign({}, p, { estado: nuevoEstado }) : p
+    );
+  }
+
+  // ── Persistir en localStorage: guardar los pedidos entregados por fecha ──
+  // para que sobrevivan si la API no los devuelve al recargar
+  try {
+    const lsKey = 'ceniza_del_done_' + fechaCacheKey;
+    let donePedidos = JSON.parse(localStorage.getItem(lsKey) || '[]');
+    if (!yaEntregado) {
+      // Agregar filas al set persistido
+      filas.forEach(f => { if (!donePedidos.includes(f)) donePedidos.push(f); });
+    } else {
+      // Quitar filas del set persistido
+      donePedidos = donePedidos.filter(f => !filas.includes(f));
+    }
+    localStorage.setItem(lsKey, JSON.stringify(donePedidos));
+  } catch(e) { /* localStorage no disponible, ignorar */ }
+
   try {
     const resultados = await Promise.all(
       filas.map(fila =>
@@ -1034,13 +1077,26 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
     );
     if (resultados.some(r => !r.success)) {
       mostrarToast('✕ Error al guardar');
-      if (yaEntregado) { btn.classList.add('checked'); if (card) card.classList.add('done'); if (stats[0]) stats[0].textContent = Math.max(0,parseInt(stats[0].textContent)-1); if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent||0)+1; }
-      else { btn.classList.remove('checked'); if (card) card.classList.remove('done'); if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent||0)+1; if (stats[1]) stats[1].textContent = Math.max(0,parseInt(stats[1].textContent)-1); }
+      // Revertir UI y caché
+      if (yaEntregado) {
+        btn.classList.add('checked'); btn.title='Tap para revertir';
+        if (card) card.classList.add('done');
+        if (stats[0]) stats[0].textContent = Math.max(0,parseInt(stats[0].textContent)-1);
+        if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent||0)+1;
+        if (_delCache[fechaCacheKey]?.pedidos) _delCache[fechaCacheKey].pedidos = _delCache[fechaCacheKey].pedidos.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a cliente'}):p);
+      } else {
+        btn.classList.remove('checked'); btn.title='Marcar como entregado';
+        if (card) card.classList.remove('done');
+        if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent||0)+1;
+        if (stats[1]) stats[1].textContent = Math.max(0,parseInt(stats[1].textContent)-1);
+        if (_delCache[fechaCacheKey]?.pedidos) _delCache[fechaCacheKey].pedidos = _delCache[fechaCacheKey].pedidos.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a delivery'}):p);
+      }
+    } else {
+      mostrarToast(yaEntregado ? '↩ Marcado como pendiente' : '✓ Entregado');
     }
   } catch {
-    mostrarToast('✕ Sin conexión');
-    if (yaEntregado) { btn.classList.add('checked'); if (card) card.classList.add('done'); }
-    else { btn.classList.remove('checked'); if (card) card.classList.remove('done'); }
+    mostrarToast('✕ Sin conexión — cambio guardado localmente');
+    // No revertir UI: el cambio quedó en caché local y localStorage
   }
 }
 function copiarDatosEnvio(btn) {
@@ -5153,9 +5209,20 @@ async function loadDelivery(offset, forzar=false) {
     return;
   }
   document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
-  await syncArreglos();
+  syncArreglos().catch(() => {}); // en segundo plano, no bloquear
   try {
     const d = await fetchData('entregas', `&fecha=${fecha}`);
+    // Aplicar overlay local: si localStorage tiene filas marcadas como entregadas
+    // y la API no las devolvió con ese estado, preservamos el estado local
+    try {
+      const lsKey = 'ceniza_del_done_' + fecha;
+      const doneFilas = JSON.parse(localStorage.getItem(lsKey) || '[]');
+      if (doneFilas.length && d.pedidos) {
+        d.pedidos = d.pedidos.map(p =>
+          doneFilas.includes(p.fila) ? Object.assign({}, p, { estado: 'Entregado a cliente' }) : p
+        );
+      }
+    } catch(e) {}
     _delCache[fecha] = d;
     document.getElementById('del-mes').textContent = d.fecha || '';
     renderDelivery(d, fecha);
