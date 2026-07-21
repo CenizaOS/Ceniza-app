@@ -805,6 +805,37 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 </button>
 
+<!-- PRUEBA OVERLAY -->
+<div class="form-overlay" id="prueba-overlay" onclick="pruebaOverlayClick(event)">
+  <div class="form-sheet" style="max-height:85vh;overflow-y:auto">
+    <div class="form-top">
+      <div class="form-title">🔬 Pedido de prueba</div>
+      <button class="form-close" onclick="cerrarFormPrueba()">&#x2715;</button>
+    </div>
+    <div class="form-body">
+      <div class="form-group full">
+        <label>Descripci&#xF3;n *</label>
+        <input type="text" id="prueba-descripcion" placeholder="Ej: Top unicolor talla M" autocomplete="off">
+      </div>
+      <div class="form-group full">
+        <label>Especificaciones</label>
+        <input type="text" id="prueba-specs" placeholder="Ej: Color azul marino, sin botones" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Fecha l&#xED;mite *</label>
+        <input type="date" id="prueba-fecha">
+      </div>
+      <div class="form-group">
+        <label>Cantidad</label>
+        <input type="number" id="prueba-cantidad" value="1" min="1">
+      </div>
+    </div>
+    <div style="padding:16px 20px 24px;display:flex;gap:10px">
+      <button onclick="guardarPrueba()" style="flex:1;background:var(--gold);color:#000;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer">Guardar pedido</button>
+    </div>
+  </div>
+</div>
+
 <!-- FORMULARIO OVERLAY -->
 <div class="form-overlay" id="form-overlay" onclick="overlayClick(event)">
   <div class="form-sheet" id="form-sheet">
@@ -1153,7 +1184,8 @@ const CONFIG_KEYS = [
   'ceniza_colores_tela','ceniza_fin','ceniza_inventario','ceniza_insumos',
   'ceniza_arrastres','ceniza_encargos','ceniza_arreglos','ceniza_lote_pants',
   'ceniza_lote_producto','ceniza_compras_efectivo_log','ceniza_produccion_lotes',
-  'ceniza_historial_cierres','ceniza_cierre_ultimo','delivery_wa_number'
+  'ceniza_historial_cierres','ceniza_cierre_ultimo','delivery_wa_number',
+  'ceniza_pruebas'
 ];
 
 // Carga config desde Sheets → localStorage al iniciar
@@ -1239,6 +1271,14 @@ function saveEncargos(list) {
 // ── Colores de tela ────────────────────────────────────────
 function getColoresTela() { return JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]'); }
 function saveColoresTela(list) { cfgSet('ceniza_colores_tela', list); }
+
+// ══ PRUEBAS DE PRODUCTO ══
+function getPruebas() {
+  try { return JSON.parse(localStorage.getItem('ceniza_pruebas') || '[]'); } catch(e) { return []; }
+}
+function savePruebas(list) {
+  cfgSet('ceniza_pruebas', JSON.stringify(list));
+}
 
 // Devuelve el CSS de fondo del swatch según tipo de tela
 function _swatchStyle(c) {
@@ -3474,6 +3514,165 @@ function actualizarStock(key, valor) {
   renderFinProduccion();
 }
 
+// ══════════════════════════════════════════════════════════
+// PRUEBAS DE PRODUCTO — Admin + Costurera
+// ══════════════════════════════════════════════════════════
+let _lastCostureraData = null; // para re-render costurera sin re-fetch
+
+function abrirFormPrueba(id) {
+  document.getElementById('prueba-descripcion').value = '';
+  document.getElementById('prueba-specs').value = '';
+  document.getElementById('prueba-fecha').value = '';
+  document.getElementById('prueba-cantidad').value = '1';
+  const ov = document.getElementById('prueba-overlay');
+  ov.dataset.editId = '';
+  if (id !== undefined && id !== null) {
+    const p = getPruebas().find(function(x){ return x.id === id; });
+    if (p) {
+      document.getElementById('prueba-descripcion').value = p.descripcion || '';
+      document.getElementById('prueba-specs').value = p.specs || '';
+      if (p.fechaLimite) {
+        const pts = p.fechaLimite.split('/');
+        if (pts.length === 3) document.getElementById('prueba-fecha').value = pts[2]+'-'+pts[1]+'-'+pts[0];
+      }
+      document.getElementById('prueba-cantidad').value = p.cantidad || 1;
+      ov.dataset.editId = String(id);
+    }
+  }
+  ov.classList.add('open');
+}
+function cerrarFormPrueba() {
+  document.getElementById('prueba-overlay').classList.remove('open');
+}
+function pruebaOverlayClick(e) {
+  if (e.target === document.getElementById('prueba-overlay')) cerrarFormPrueba();
+}
+function guardarPrueba() {
+  const desc = document.getElementById('prueba-descripcion').value.trim();
+  const fechaRaw = document.getElementById('prueba-fecha').value;
+  if (!desc || !fechaRaw) { alert('Descripci\u00f3n y fecha l\u00edmite son obligatorias.'); return; }
+  const pts = fechaRaw.split('-');
+  const fechaFmt = pts[2]+'/'+pts[1]+'/'+pts[0];
+  const list = getPruebas();
+  const ov = document.getElementById('prueba-overlay');
+  const editId = ov.dataset.editId ? Number(ov.dataset.editId) : null;
+  if (editId) {
+    const idx = list.findIndex(function(x){ return x.id === editId; });
+    if (idx !== -1) Object.assign(list[idx], {
+      descripcion: desc,
+      specs: document.getElementById('prueba-specs').value.trim(),
+      fechaLimite: fechaFmt,
+      cantidad: parseInt(document.getElementById('prueba-cantidad').value) || 1
+    });
+  } else {
+    list.push({
+      id: Date.now(),
+      descripcion: desc,
+      specs: document.getElementById('prueba-specs').value.trim(),
+      fechaLimite: fechaFmt,
+      cantidad: parseInt(document.getElementById('prueba-cantidad').value) || 1,
+      fechaCreacion: fechaStr(new Date()),
+      estado: 'pendiente'
+    });
+  }
+  savePruebas(list);
+  cerrarFormPrueba();
+  const adminDiv = document.getElementById('fin-pruebas-section');
+  if (adminDiv) renderPruebasAdmin();
+  if (_lastCostureraData) renderCosturera(_lastCostureraData);
+}
+function eliminarPrueba(id) {
+  if (!confirm('\u00bfEliminar este pedido de prueba?')) return;
+  savePruebas(getPruebas().filter(function(x){ return x.id !== id; }));
+  const adminDiv = document.getElementById('fin-pruebas-section');
+  if (adminDiv) renderPruebasAdmin();
+  if (_lastCostureraData) renderCosturera(_lastCostureraData);
+}
+function togglePruebaEstado(id) {
+  const list = getPruebas();
+  const idx = list.findIndex(function(x){ return x.id === id; });
+  if (idx !== -1) {
+    list[idx].estado = list[idx].estado === 'listo' ? 'pendiente' : 'listo';
+    savePruebas(list);
+  }
+  const adminDiv = document.getElementById('fin-pruebas-section');
+  if (adminDiv) renderPruebasAdmin();
+  if (_lastCostureraData) renderCosturera(_lastCostureraData);
+}
+function _diasRestantes(fechaDD_MM_YYYY) {
+  const pts = fechaDD_MM_YYYY.split('/');
+  if (pts.length !== 3) return null;
+  const limite = new Date(parseInt(pts[2]), parseInt(pts[1])-1, parseInt(pts[0]));
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  return Math.round((limite - hoy) / 86400000);
+}
+function _pruebaUrgenciaColor(dias) {
+  if (dias === null) return 'var(--text3)';
+  if (dias < 0)  return '#ef4444';
+  if (dias <= 2) return '#f97316';
+  if (dias <= 5) return 'var(--gold)';
+  return '#22c55e';
+}
+function _pruebaUrgenciaLabel(dias) {
+  if (dias === null) return '';
+  if (dias < 0) return '\u00a1' + Math.abs(dias) + ' d\u00eda' + (Math.abs(dias)===1?'':'s') + ' vencido!';
+  if (dias === 0) return 'Vence hoy';
+  if (dias === 1) return 'Vence ma\u00f1ana';
+  return 'Faltan ' + dias + ' d\u00edas';
+}
+function renderPruebasAdmin() {
+  const sec = document.getElementById('fin-pruebas-section');
+  if (!sec) return;
+  const list = getPruebas();
+  const pendientes = list.filter(function(x){ return x.estado !== 'listo'; });
+  const listas = list.filter(function(x){ return x.estado === 'listo'; });
+  let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    + '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">\uD83D\uDD2C Pedidos de prueba (' + pendientes.length + ' pendiente' + (pendientes.length===1?'':'s') + ')</div>'
+    + '<button onclick="abrirFormPrueba()" style="background:var(--gold);color:#000;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">+ Nueva</button>'
+    + '</div>';
+  if (!list.length) {
+    html += '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px">No hay pedidos de prueba a\u00fan.<br>Usa <strong>+ Nueva</strong> para agregar uno.</div>';
+  } else {
+    pendientes.forEach(function(p) {
+      const dias = _diasRestantes(p.fechaLimite);
+      const col = _pruebaUrgenciaColor(dias);
+      const lbl = _pruebaUrgenciaLabel(dias);
+      html += '<div style="background:var(--bg2);border-radius:12px;padding:12px 14px;margin-bottom:10px;border-left:4px solid var(--gold)">'
+        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">'
+        + '<div style="flex:1">'
+        + '<div style="font-weight:700;font-size:14px;color:var(--text1)">' + p.descripcion + '</div>'
+        + (p.specs ? '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + p.specs + '</div>' : '')
+        + '<div style="font-size:11px;margin-top:6px;display:flex;align-items:center;gap:8px">'
+        + '<span style="color:' + col + ';font-weight:700">' + (p.fechaLimite || '') + (lbl ? ' · '+lbl : '') + '</span>'
+        + (p.cantidad && p.cantidad > 1 ? '<span style="color:var(--text3)">&#x00D7;' + p.cantidad + '</span>' : '')
+        + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;flex-shrink:0">'
+        + '<button onclick="togglePruebaEstado(' + p.id + ')" title="Marcar lista" style="background:#22c55e22;color:#22c55e;border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer">\u2713 Lista</button>'
+        + '<button onclick="abrirFormPrueba(' + p.id + ')" title="Editar" style="background:var(--bg3);color:var(--text2);border:none;border-radius:7px;padding:6px 8px;font-size:12px;cursor:pointer">\u270F</button>'
+        + '<button onclick="eliminarPrueba(' + p.id + ')" title="Eliminar" style="background:#ef444422;color:#ef4444;border:none;border-radius:7px;padding:6px 8px;font-size:12px;cursor:pointer">\u2715</button>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    });
+    if (listas.length) {
+      html += '<div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin:10px 0 6px">Completadas (' + listas.length + ')</div>';
+      listas.forEach(function(p) {
+        html += '<div style="background:var(--bg2);border-radius:12px;padding:10px 14px;margin-bottom:8px;opacity:0.5;border-left:4px solid #22c55e">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between">'
+          + '<div style="font-size:13px;color:var(--text2);text-decoration:line-through">' + p.descripcion + '</div>'
+          + '<div style="display:flex;gap:6px">'
+          + '<button onclick="togglePruebaEstado(' + p.id + ')" style="background:var(--bg3);color:var(--text3);border:none;border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer">\u21BA Reabrir</button>'
+          + '<button onclick="eliminarPrueba(' + p.id + ')" style="background:#ef444422;color:#ef4444;border:none;border-radius:7px;padding:4px 8px;font-size:11px;cursor:pointer">\u2715</button>'
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      });
+    }
+  }
+  sec.innerHTML = html;
+}
+
 function renderFinProduccion() {
   const div = document.getElementById('fin-produccion-content');
   if (!div) return;
@@ -3674,6 +3873,19 @@ function renderFinProduccion() {
   `;
 
   _prodTipoSeleccionado = _prodTipoSeleccionado || 'unicolor';
+
+  // Inyectar sección de pruebas al final de la vista
+  const prodContent = document.getElementById('fin-produccion-content');
+  if (prodContent) {
+    let pruebasSec = document.getElementById('fin-pruebas-section');
+    if (!pruebasSec) {
+      pruebasSec = document.createElement('div');
+      pruebasSec.id = 'fin-pruebas-section';
+      pruebasSec.style.cssText = 'padding:16px 0 8px';
+      prodContent.appendChild(pruebasSec);
+    }
+    renderPruebasAdmin();
+  }
 }
 
 let _prodTipoSeleccionado = 'unicolor';
@@ -4483,6 +4695,7 @@ async function loadCosturera(offset) {
 }
 
 function renderCosturera(d) {
+  _lastCostureraData = d; // store for prueba re-renders
   const fechaSelec = fechaStr(fechaCostureraActual);
 
   // Filtrar solo el grupo del día seleccionado
@@ -4562,6 +4775,36 @@ function renderCosturera(d) {
     }
   }
   html += `<button class="btn" onclick="_costData=null;loadCosturera()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
+  // Agregar pruebas pendientes al final de la cola
+  const pruebasPend = getPruebas().filter(function(x){ return x.estado !== 'listo'; });
+  if (pruebasPend.length) {
+    html += '<div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.07em;margin:14px 0 8px;display:flex;align-items:center;gap:6px">'
+      + '<div style="height:1px;flex:1;background:rgba(212,175,55,0.3)"></div>'
+      + '\uD83D\uDD2C Pedidos de prueba (' + pruebasPend.length + ')'
+      + '<div style="height:1px;flex:1;background:rgba(212,175,55,0.3)"></div>'
+      + '</div>';
+    pruebasPend.forEach(function(p) {
+      const dias = _diasRestantes(p.fechaLimite);
+      const col = _pruebaUrgenciaColor(dias);
+      const lbl = _pruebaUrgenciaLabel(dias);
+      html += '<div class="cost-card" style="border-left:4px solid var(--gold)">'
+        + '<div class="cost-info" style="flex:1">'
+        + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">'
+        + '<span style="background:var(--gold);color:#000;border-radius:4px;padding:1px 6px;font-size:9px;font-weight:800;text-transform:uppercase">Prueba</span>'
+        + '<div class="cost-name">' + p.descripcion + '</div>'
+        + '</div>'
+        + (p.specs ? '<div class="cost-det">' + p.specs + '</div>' : '')
+        + (p.cantidad && p.cantidad > 1 ? '<div class="cost-det">Cantidad: ' + p.cantidad + '</div>' : '')
+        + '<div style="font-size:12px;font-weight:700;color:' + col + ';margin-top:4px">\uD83D\uDCC5 ' + (p.fechaLimite||'') + (lbl ? ' · '+lbl : '') + '</div>'
+        + '</div>'
+        + '<button onclick="togglePruebaEstado(' + p.id + ')" '
+        + 'style="background:#22c55e22;color:#22c55e;border:none;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:center">'
+        + '\u2713 Lista'
+        + '</button>'
+        + '</div>';
+    });
+  }
+
   document.getElementById('cost-content').innerHTML = html;
 }
 
@@ -5256,26 +5499,34 @@ function renderDelivery(d, fecha) {
   // ── Rezagadas ──────────────────────────────────────────────
   const rezagadas = d.rezagadas || [];
   // Agrupar rezagadas por tipo para mezclarlas con pedidos del día
-  const rezPorTipo = {};
+  // Agrupar rezagadas por tipo de entrega Y por cliente (para mostrar un pedido por cliente)
+  const _rezTemp = {};
   rezagadas.forEach(function(p) {
     const t = p.tipoEntrega || 'Sin tipo';
-    if (!rezPorTipo[t]) rezPorTipo[t] = [];
-    rezPorTipo[t].push(p);
+    if (!_rezTemp[t]) _rezTemp[t] = {};
+    const key = (p.cliente || '') + '|' + (p.fechaOriginal || '');
+    if (!_rezTemp[t][key]) _rezTemp[t][key] = [];
+    _rezTemp[t][key].push(p);
+  });
+  const rezPorTipo = {};
+  Object.keys(_rezTemp).forEach(function(t) {
+    rezPorTipo[t] = Object.values(_rezTemp[t]); // array de grupos (cada grupo = array de pants)
   });
 
   // Helper: renderiza una tarjeta rezagada (se inserta dentro de la sección de su tipo)
-  function _renderRezCard(p, tipo, idx) {
+  function _renderRezCard(pants, tipo, idx) {
+    // pants = array de pedidos del mismo cliente agrupados
+    const p = pants[0];
     const cardId = 'del-rez-' + tipo.replace(/\s/g,'-') + '-' + idx;
-    const filas = [p.fila];
+    const filas = pants.map(function(x){ return x.fila; });
     const tel = (p.telefono || '').replace(/[^0-9]/g,'');
     const telDisplay = p.telefono || '';
     const waLink = tel ? 'https://wa.me/58' + (tel.startsWith('0') ? tel.slice(1) : tel) : '';
-    const monto = parseFloat(p.montoProducto||0) + parseFloat(p.montoDelivery||0);
+    const monto = pants.reduce(function(s,x){ return s + parseFloat(x.montoProducto||0) + parseFloat(x.montoDelivery||0); }, 0);
     const metodoPago = (p.metodoPago || '').toLowerCase();
     const esCobrar = metodoPago.includes('efectivo') && monto > 0;
     const montoEfectivo = parseFloat(p.montoEfectivo || 0);
     const vueltoGuardado = parseFloat(p.vuelto || 0);
-    const partes = [p.color, p.talla||''].filter(Boolean).join(' · ');
     const cedula = p.cedula || '';
     const esEnvio = tipo.indexOf('MRW') >= 0 || tipo.indexOf('ZOOM') >= 0;
 
@@ -5311,17 +5562,21 @@ function renderDelivery(d, fecha) {
       if (p.direccion) infoHtml += '<div class="del-card-dir">📍 ' + p.direccion + '</div>';
     }
 
-    const doneRez = p.estado === 'Entregado a cliente';
+    const doneRez = pants.every(function(x){ return x.estado === 'Entregado a cliente'; });
     let cardHtml = '<div class="del-card rezagada' + (doneRez ? ' done' : '') + '" id="' + cardId + '" style="border-left:3px solid #d97706">';
     cardHtml += '<div class="del-card-info">';
     cardHtml += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">';
     cardHtml += '<div class="del-card-name">' + p.cliente + '</div>';
     cardHtml += '<span class="rezagada-badge">⚠️ Rezagada · ' + (p.fechaOriginal||'?') + '</span>';
     cardHtml += '</div>';
-    cardHtml += '<div class="del-card-det">1 pantalón:</div>';
-    cardHtml += '<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">' + partes + '</div>';
+    const nPants = pants.length;
+    cardHtml += '<div class="del-card-det">' + nPants + ' pantalón' + (nPants > 1 ? 'es:' : ':') + '</div>';
+    pants.forEach(function(x) {
+      const partes = [x.color, x.talla||''].filter(Boolean).join(' · ');
+      cardHtml += '<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">· ' + partes + '</div>';
+    });
     cardHtml += infoHtml;
-    if (p.notas) cardHtml += '<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:2px solid var(--amber);border-radius:4px;font-size:11px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 </span>' + p.notas + '</div>';
+    const todasNotas = pants.map(function(x){ return x.notas; }).filter(Boolean).join(' / '); if (todasNotas) cardHtml += '<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:2px solid var(--amber);border-radius:4px;font-size:11px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 </span>' + todasNotas + '</div>';
     cardHtml += vueltoHtml;
     cardHtml += '</div>';
     cardHtml += '<button class="del-check' + (doneRez ? ' checked' : '') + '" onclick="marcarGrupoEntregado(\'' + cardId + '\',[' + filas.join(',') + '],this)" title="' + (doneRez ? 'Tap para revertir' : 'Marcar como entregado') + '"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>';
@@ -5450,7 +5705,7 @@ function renderDelivery(d, fecha) {
     arreglosDelTipo.forEach(a => { html += _renderArregloCard(a); });
 
     // Rezagadas de este mismo tipo (mezcladas en la misma sección)
-    rezDelTipo.forEach((p, idx) => { html += _renderRezCard(p, t.tipo, idx); });
+    rezDelTipo.forEach((grupo, idx) => { html += _renderRezCard(grupo, t.tipo, idx); });
 
     html += `</div>`;
   });
