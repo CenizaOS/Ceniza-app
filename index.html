@@ -5627,6 +5627,14 @@ function renderDelivery(d, fecha) {
     { tipo: 'Envío MRW',       icono: '📦', label: 'Envío MRW' },
     { tipo: 'Envío ZOOM',      icono: '📦', label: 'Envío ZOOM' },
   ];
+  // Agregar dinámicamente cualquier tipo de entrega que exista en los datos pero no en la lista
+  const _tiposVistos = new Set(tiposEntrega.map(function(t){ return t.tipo; }));
+  [...(d.pedidos || []), ...(rezagadas || [])].forEach(function(p) {
+    if (p.tipoEntrega && !_tiposVistos.has(p.tipoEntrega)) {
+      _tiposVistos.add(p.tipoEntrega);
+      tiposEntrega.push({ tipo: p.tipoEntrega, icono: '📦', label: p.tipoEntrega });
+    }
+  });
   const mostrados = new Set();
 
   if (!d.pedidos.length && !rezagadas.length && !aEntregar.length) {
