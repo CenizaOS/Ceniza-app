@@ -429,6 +429,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .fin-topbar-name{font-size:18px;font-weight:700;letter-spacing:-0.3px}
 .fin-topbar-sub{font-size:12px;color:var(--text2);font-weight:500}
 .fin-cats{display:flex;background:var(--bg);padding:16px 16px 12px;gap:8px;flex-shrink:0}
+.fin-secs{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 16px 0;background:var(--bg2)}
+.fin-sec{display:flex;flex-direction:column;align-items:center;gap:5px;padding:14px 8px 12px;border-radius:12px;border:none;background:var(--bg3);color:var(--text3);font-size:11px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:.06em;transition:.15s}
+.fin-sec.active{background:var(--gold);color:#000}
+.fin-sec-icon{font-size:20px}
 .fin-cat{flex:1;padding:16px 4px;font-size:13px;font-weight:600;color:var(--text2);background:var(--bg3);border:none;border-radius:14px;cursor:pointer;text-align:center;transition:all .2s}
 .fin-cat.active{color:var(--gold);background:var(--gold-bg);font-weight:700}
 .fin-subtabs{display:flex;background:var(--bg);border-bottom:1px solid var(--bg4);padding:8px 16px 14px;gap:6px;flex-shrink:0}
@@ -727,24 +731,28 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
 
-  <!-- Categorias -->
-  <div class="fin-cats">
-    <button class="fin-cat active" id="fcat-resumen" onclick="showFinCat('resumen')">📊 Resumen</button>
-    <button class="fin-cat" id="fcat-taller" onclick="showFinCat('taller')">🏭 Producción</button>
-    <button class="fin-cat" id="fcat-gestion" onclick="showFinCat('gestion')">📦 Gestión</button>
+  <!-- Dos secciones grandes -->
+  <div class="fin-secs">
+    <button class="fin-sec active" id="fsec-finanzas" onclick="showFinSec('finanzas')">
+      <span class="fin-sec-icon">💰</span>Finanzas
+    </button>
+    <button class="fin-sec" id="fsec-gestion" onclick="showFinSec('gestion')">
+      <span class="fin-sec-icon">📦</span>Gestión
+    </button>
   </div>
-  <!-- Sub-tabs por categoría -->
-  <div class="fin-subtabs" id="fsub-resumen">
-    <button class="fin-subtab active" id="fstab-quincena" onclick="showFinTab('quincena',this)">🏠 Inicio</button>
+  <!-- Sub-tabs de Finanzas -->
+  <div class="fin-subtabs" id="fsub-finanzas">
+    <button class="fin-subtab active" id="fstab-quincena" onclick="showFinTab('quincena',this)">🏠 Resumen</button>
     <button class="fin-subtab" id="fstab-historial" onclick="showFinTab('historial',this)">📋 Historial</button>
     <button class="fin-subtab" id="fstab-cierre" onclick="showFinTab('cierre',this)">📊 Cierre</button>
-  </div>
-  <div class="fin-subtabs" id="fsub-taller" style="display:none">
-    <button class="fin-subtab active" id="fstab-produccion" onclick="showFinTab('produccion',this)">🏭 Cola</button>
+    <button class="fin-subtab" id="fstab-productos" onclick="showFinTab('productos',this)">💲 Productos</button>
     <button class="fin-subtab" id="fstab-lote" onclick="showFinTab('lote',this)">📐 Lotes</button>
   </div>
+  <!-- Sub-tabs de Gestión -->
   <div class="fin-subtabs" id="fsub-gestion" style="display:none">
-    <button class="fin-subtab active" id="fstab-compras" onclick="showFinTab('compras',this)">🛍️ Compras</button>
+    <button class="fin-subtab active" id="fstab-entregas-ctrl" onclick="showFinTab('entregas-ctrl',this)">🛵 Entregas</button>
+    <button class="fin-subtab" id="fstab-produccion" onclick="showFinTab('produccion',this)">🏭 Producción</button>
+    <button class="fin-subtab" id="fstab-compras" onclick="showFinTab('compras',this)">🛍️ Compras</button>
     <button class="fin-subtab" id="fstab-fondos" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
     <button class="fin-subtab" id="fstab-inventario" onclick="showFinTab('inventario',this)">📦 Inventario</button>
   </div>
@@ -774,6 +782,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="fin-inventario" class="fin-screen" style="display:none">
       <div id="fin-inventario-content"></div>
+    </div>
+    <div id="fin-productos" class="fin-screen" style="display:none">
+      <div id="fin-productos-content"></div>
+    </div>
+    <div id="fin-entregas-ctrl" class="fin-screen" style="display:none">
+      <div id="fin-entregas-ctrl-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
     </div>
   </div>
 </div>
@@ -1188,7 +1202,8 @@ const CONFIG_KEYS = [
   'ceniza_arrastres','ceniza_encargos','ceniza_arreglos','ceniza_lote_pants',
   'ceniza_lote_producto','ceniza_compras_efectivo_log','ceniza_produccion_lotes',
   'ceniza_historial_cierres','ceniza_cierre_ultimo','delivery_wa_number',
-  'ceniza_pruebas'
+  'ceniza_pruebas',
+  'ceniza_costos_productos'
 ];
 
 // Carga config desde Sheets → localStorage al iniciar
@@ -1216,7 +1231,12 @@ async function syncConfigDesdeSheets() {
         }
       }
     }
-    if (restored > 0) console.log(`[Config] ${restored} claves restauradas desde Sheets`);
+    if (restored > 0) {
+      console.log(`[Config] ${restored} claves restauradas desde Sheets`);
+      // Si el historial está visible, re-renderizarlo con los datos recién cargados
+      const histEl = document.getElementById('fin-historial');
+      if (histEl && histEl.style.display !== 'none') renderFinHistorial();
+    }
   } catch(e) {
     console.warn('[Config] No se pudo cargar desde Sheets:', e.message);
   }
@@ -1274,6 +1294,72 @@ function saveEncargos(list) {
 // ── Colores de tela ────────────────────────────────────────
 function getColoresTela() { return JSON.parse(localStorage.getItem('ceniza_colores_tela') || '[]'); }
 function saveColoresTela(list) { cfgSet('ceniza_colores_tela', list); }
+
+// ══ COSTOS DE PRODUCTOS ══
+const PROD_COSTOS_DEFAULT = {
+  unicolor: {
+    nombre: 'Pantalón Ceniza Unicolor', precio: 30,
+    items: [
+      { label: 'Tela 2.7 metros', costo: 5.5 },
+      { label: 'Liga', costo: 0.5 },
+      { label: 'Bolsa', costo: 0.46 },
+      { label: 'Etiqueta de talla', costo: 0.07 },
+      { label: 'Sticker de nombre', costo: 0.04 },
+      { label: 'Confección', costo: 3 },
+      { label: 'Empaquetado', costo: 0.25 },
+      { label: 'Gastos fijos', costo: 3.8 },
+      { label: 'ADS', costo: 2 }
+    ]
+  },
+  sublimado: {
+    nombre: 'Pantalón Ceniza Sublimado', precio: 53,
+    items: [
+      { label: 'Sublimado ($5.4 cash/metro)', costo: 14.5 },
+      { label: 'Tela 2.7 metros', costo: 5.5 },
+      { label: 'Liga', costo: 0.5 },
+      { label: 'Bolsa', costo: 0.46 },
+      { label: 'Etiqueta de talla', costo: 0.07 },
+      { label: 'Sticker de nombre', costo: 0.04 },
+      { label: 'Confección', costo: 3 },
+      { label: 'Empaquetado', costo: 0.25 },
+      { label: 'Gastos fijos', costo: 3.8 },
+      { label: 'ADS', costo: 2 }
+    ]
+  },
+  pareo: {
+    nombre: 'Pantalón Pareo', precio: 35,
+    items: [
+      { label: 'Tela 2.7 metros', costo: 7 },
+      { label: 'Bolsa', costo: 0.46 },
+      { label: 'Etiqueta de talla', costo: 0.07 },
+      { label: 'Sticker de nombre', costo: 0.04 },
+      { label: 'Confección', costo: 3.25 },
+      { label: 'Empaquetado', costo: 0.25 },
+      { label: 'Gastos fijos', costo: 3.8 },
+      { label: 'ADS', costo: 2 }
+    ]
+  },
+  franela: {
+    nombre: 'Franela Básica (manga corta)', precio: 15,
+    items: [
+      { label: 'Tela 0.70 metros', costo: 2.5 },
+      { label: 'Bolsa', costo: 0.46 },
+      { label: 'Etiqueta de talla', costo: 0.07 },
+      { label: 'Sticker de nombre', costo: 0.04 },
+      { label: 'Confección', costo: 1.55 },
+      { label: 'Empaquetado', costo: 0.25 },
+      { label: 'Gastos fijos', costo: 3.8 },
+      { label: 'ADS', costo: 0 }
+    ]
+  }
+};
+function getProdCostos() {
+  try {
+    const raw = localStorage.getItem('ceniza_costos_productos');
+    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(PROD_COSTOS_DEFAULT));
+  } catch(e) { return JSON.parse(JSON.stringify(PROD_COSTOS_DEFAULT)); }
+}
+function saveProdCostos(data) { cfgSet('ceniza_costos_productos', JSON.stringify(data)); }
 
 // ══ PRUEBAS DE PRODUCTO ══
 function getPruebas() {
@@ -2246,35 +2332,44 @@ let _planPants = 100;
 // ── Entrada a la app de dueña ───────────────────────────────
 async function abrirAppDuena() {
   showScreen('app-d');
+  showFinSec('finanzas');
   loadFinQuincena();
   loadFinFondos();
 }
 
 // Navegación principal de la dueña (nav-btn inferior)
 function show(tab, btn) {
-  const map = { dashboard:'quincena', produccion:'produccion', entregas:'historial', comisiones:'cierre' };
-  const finTab = map[tab] || tab;
-  // Actualizar active en nav
+  const tabMap = { dashboard:'quincena', produccion:'produccion', entregas:'historial', comisiones:'cierre' };
+  const secMap  = { dashboard:'finanzas', produccion:'gestion', entregas:'finanzas', comisiones:'finanzas' };
+  const finTab = tabMap[tab] || tab;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  showFinSec(secMap[tab] || 'finanzas');
   showFinTab(finTab);
 }
 
 // ── Tabs ─────────────────────────────────────────────────────
-function showFinCat(cat) {
-  ['resumen','taller','gestion'].forEach(c => {
-    document.getElementById('fcat-'+c).classList.toggle('active', c===cat);
-    document.getElementById('fsub-'+c).style.display = c===cat ? 'flex' : 'none';
+function showFinSec(sec) {
+  ['finanzas','gestion'].forEach(s => {
+    const secBtn = document.getElementById('fsec-' + s);
+    const sub    = document.getElementById('fsub-' + s);
+    if (secBtn) secBtn.classList.toggle('active', s === sec);
+    if (sub)    sub.style.display = s === sec ? 'flex' : 'none';
   });
-  const firstTab = {resumen:'quincena', taller:'produccion', gestion:'compras'};
-  const subtabs = document.querySelectorAll('#fsub-'+cat+' .fin-subtab');
+  const firstTab = { finanzas: 'quincena', gestion: 'entregas-ctrl' };
+  const subtabs = document.querySelectorAll('#fsub-' + sec + ' .fin-subtab');
   subtabs.forEach(b => b.classList.remove('active'));
   if (subtabs[0]) subtabs[0].classList.add('active');
-  showFinTab(firstTab[cat]);
+  showFinTab(firstTab[sec]);
+}
+// Alias backward-compat
+function showFinCat(cat) {
+  const map = { resumen:'finanzas', taller:'gestion', gestion:'gestion' };
+  showFinSec(map[cat] || 'finanzas');
 }
 
 function showFinTab(tab, btn) {
-  ['quincena','produccion','lote','historial','cierre','fondos','compras','inventario'].forEach(t => {
+  ['quincena','produccion','lote','historial','cierre','fondos','compras','inventario','productos','entregas-ctrl'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
@@ -2283,14 +2378,278 @@ function showFinTab(tab, btn) {
     if (parent) parent.querySelectorAll('.fin-subtab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
   }
-  if (tab === 'quincena')    loadFinQuincena();
-  if (tab === 'produccion')  renderFinProduccion();
-  if (tab === 'lote')        renderFinLote();
-  if (tab === 'historial')   renderFinHistorial();
-  if (tab === 'cierre')      renderFinCierre();
-  if (tab === 'compras')     renderFinCompras();
-  if (tab === 'fondos')      renderFinFondos();
-  if (tab === 'inventario')  renderFinInventario();
+  if (tab === 'quincena')       loadFinQuincena();
+  if (tab === 'produccion')     renderFinProduccion();
+  if (tab === 'lote')           renderFinLote();
+  if (tab === 'historial')      renderFinHistorial();
+  if (tab === 'cierre')         renderFinCierre();
+  if (tab === 'compras')        renderFinCompras();
+  if (tab === 'fondos')         renderFinFondos();
+  if (tab === 'inventario')     renderFinInventario();
+  if (tab === 'productos')      renderFinProductos();
+  if (tab === 'entregas-ctrl')  renderFinEntregasCtrl();
+}
+
+function renderFinProductos() {
+  const div = document.getElementById('fin-productos-content');
+  if (!div) return;
+  const costos = getProdCostos();
+  const keys = ['unicolor','sublimado','pareo','franela'];
+  let html = '<div style="padding:14px 16px 80px">';
+  html += '<div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:14px;text-transform:uppercase;letter-spacing:.06em">Costos por producto \xb7 toca para editar</div>';
+  keys.forEach(function(k) {
+    const p = costos[k];
+    const totalCosto = p.items.reduce(function(s,i){ return s + (parseFloat(i.costo)||0); }, 0);
+    const margen = p.precio > 0 ? ((p.precio - totalCosto) / p.precio * 100) : 0;
+    html += '<div class="card" style="margin-bottom:14px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    html += '<div style="font-weight:800;font-size:13px">' + p.nombre + '</div>';
+    html += '<div style="text-align:right">';
+    html += '<div style="font-size:11px;color:var(--text3)">Precio venta</div>';
+    html += '<input type="number" step="0.01" value="' + p.precio + '" data-key="' + k + '" data-role="precio"';
+    html += ' style="width:70px;text-align:right;border:1px solid var(--gold);border-radius:6px;padding:3px 6px;background:var(--bg3);color:var(--text1);font-size:13px;font-weight:800"';
+    html += ' onchange="updateProdInput(this)">';
+    html += '</div></div>';
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+    p.items.forEach(function(item, idx) {
+      html += '<tr style="border-bottom:1px solid var(--bg3)">';
+      html += '<td style="padding:5px 2px;color:var(--text2)">' + item.label + '</td>';
+      html += '<td style="text-align:right;padding:5px 2px;min-width:70px">';
+      html += '<input type="number" step="0.01" value="' + item.costo + '" data-key="' + k + '" data-idx="' + idx + '" data-role="item"';
+      html += ' style="width:68px;text-align:right;border:1px solid var(--bg3);border-radius:4px;padding:2px 4px;background:var(--bg2);color:var(--text1);font-size:12px"';
+      html += ' onchange="updateProdInput(this)">';
+      html += '</td></tr>';
+    });
+    html += '<tr style="font-weight:800;border-top:2px solid var(--gold)">';
+    html += '<td style="padding:6px 2px">Costo total</td>';
+    html += '<td style="text-align:right;padding:6px 2px;color:var(--gold)" id="prod-total-' + k + '">$' + totalCosto.toFixed(2) + '</td>';
+    html += '</tr></table>';
+    html += '<div style="display:flex;gap:10px;margin-top:8px;padding-top:8px;border-top:1px solid var(--bg3)">';
+    html += '<div style="flex:1;text-align:center"><div style="font-size:10px;color:var(--text3)">Utilidad bruta</div>';
+    html += '<div style="font-weight:800;font-size:14px;color:var(--gold)" id="prod-util-' + k + '">$' + (p.precio - totalCosto).toFixed(2) + '</div></div>';
+    html += '<div style="flex:1;text-align:center"><div style="font-size:10px;color:var(--text3)">Margen</div>';
+    html += '<div style="font-weight:800;font-size:14px" id="prod-margen-' + k + '">' + margen.toFixed(1) + '%</div></div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  div.innerHTML = html;
+}
+function updateProdInput(el) {
+  const key  = el.dataset.key;
+  const role = el.dataset.role;
+  const val  = parseFloat(el.value) || 0;
+  const costos = getProdCostos();
+  if (role === 'precio') {
+    costos[key].precio = val;
+  } else {
+    const idx = parseInt(el.dataset.idx);
+    costos[key].items[idx].costo = val;
+  }
+  saveProdCostos(costos);
+  _recalcProdCard(key, costos[key]);
+}
+function _recalcProdCard(key, p) {
+  const total = p.items.reduce(function(s,i){ return s + (parseFloat(i.costo)||0); }, 0);
+  const util  = p.precio - total;
+  const margen = p.precio > 0 ? (util / p.precio * 100) : 0;
+  const tEl = document.getElementById('prod-total-' + key);
+  const uEl = document.getElementById('prod-util-' + key);
+  const mEl = document.getElementById('prod-margen-' + key);
+  if (tEl) tEl.textContent = '$' + total.toFixed(2);
+  if (uEl) uEl.textContent = '$' + util.toFixed(2);
+  if (mEl) mEl.textContent = margen.toFixed(1) + '%';
+}
+
+// ══ ENTREGAS DEL DÍA ══
+let _entCtrlDate = null;
+let _entCtrlData = null;
+function renderFinEntregasCtrl() {
+  const div = document.getElementById('fin-entregas-ctrl-content');
+  if (!div) return;
+  if (!_entCtrlDate) {
+    const hoy = new Date();
+    _entCtrlDate = hoy.toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit', year:'numeric' }).replace(/\//g, '/');
+    // Ensure DD/MM/YYYY
+    const parts = _entCtrlDate.split('/');
+    if (parts[0].length === 4) _entCtrlDate = parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+  div.innerHTML = '<div style="padding:14px 16px 80px">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">' +
+    '<button onclick="cambiarFechaEnt(-1)" style="background:var(--bg3);border:none;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:16px;cursor:pointer">‹</button>' +
+    '<input type="date" id="ent-ctrl-date" style="flex:1;background:var(--bg3);border:1px solid var(--bg3);border-radius:8px;padding:8px;color:var(--text1);font-size:14px;text-align:center"' +
+    ' onchange="setFechaEntDesdeInput(this.value)">' +
+    '<button onclick="cambiarFechaEnt(1)" style="background:var(--bg3);border:none;border-radius:8px;padding:8px 12px;color:var(--text1);font-size:16px;cursor:pointer">›</button>' +
+    '</div>' +
+    '<div id="ent-ctrl-body"><div class="loading-msg"><div class="spinner"></div>Cargando entregas…</div></div>' +
+    '</div>';
+  // Set date input value
+  const dp = _entCtrlDate.split('/');
+  const dateInputVal = (dp.length === 3) ? dp[2] + '-' + dp[1] + '-' + dp[0] : '';
+  const di = document.getElementById('ent-ctrl-date');
+  if (di) di.value = dateInputVal;
+  _cargarEntregasCtrl();
+}
+function cambiarFechaEnt(delta) {
+  const dp = (_entCtrlDate || '').split('/');
+  if (dp.length !== 3) return;
+  const d = new Date(parseInt(dp[2]), parseInt(dp[1])-1, parseInt(dp[0]));
+  d.setDate(d.getDate() + delta);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  _entCtrlDate = dd + '/' + mm + '/' + yyyy;
+  const di = document.getElementById('ent-ctrl-date');
+  if (di) di.value = yyyy + '-' + mm + '-' + dd;
+  _cargarEntregasCtrl();
+}
+function setFechaEntDesdeInput(val) {
+  if (!val) return;
+  const parts = val.split('-');
+  if (parts.length !== 3) return;
+  _entCtrlDate = parts[2] + '/' + parts[1] + '/' + parts[0];
+  _cargarEntregasCtrl();
+}
+async function _cargarEntregasCtrl() {
+  const body = document.getElementById('ent-ctrl-body');
+  if (!body) return;
+  body.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando…</div>';
+  try {
+    const data = await fetchData('entregas', '&fecha=' + encodeURIComponent(_entCtrlDate));
+    _entCtrlData = data;
+    _renderEntregasCtrlBody(data, body);
+  } catch(e) {
+    body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3)">Error cargando entregas</div>';
+  }
+}
+function _renderEntregasCtrlBody(data, body) {
+  if (!body) body = document.getElementById('ent-ctrl-body');
+  if (!body) return;
+  const items = Array.isArray(data) ? data : (data.entregas || []);
+  if (!items.length) {
+    body.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--text3)">Sin entregas para esta fecha</div>';
+    return;
+  }
+  // Classify
+  const DELIVERY_KEYWORDS = ['delivery','domicilio'];
+  const RETIRO_KEYWORDS   = ['retiro','personal','tienda'];
+  const gruposEnt = {}, gruposRet = {}, gruposEnv = {};
+  items.forEach(function(it) {
+    const tipo = (it.tipoEntrega || it.tipo_entrega || '').toLowerCase();
+    let g;
+    if (DELIVERY_KEYWORDS.some(function(k){return tipo.includes(k);})) g = gruposEnt;
+    else if (RETIRO_KEYWORDS.some(function(k){return tipo.includes(k);})) g = gruposRet;
+    else g = gruposEnv;
+    const label = it.tipoEntrega || it.tipo_entrega || 'Sin tipo';
+    if (!g[label]) g[label] = [];
+    g[label].push(it);
+  });
+  // Totals
+  const sumCash = function(arr) {
+    return arr.reduce(function(s,it){
+      const ef = parseFloat(it.montoEfectivo || it.monto_efectivo || 0);
+      const vu = parseFloat(it.vuelto || 0);
+      return s + Math.max(0, ef - vu);
+    }, 0);
+  };
+  const sumDel = function(arr) {
+    return arr.reduce(function(s,it){
+      return s + (parseFloat(it.montoDelivery || it.monto_delivery || 0));
+    }, 0);
+  };
+  const allDel  = Object.values(gruposEnt).flat();
+  const allRet  = Object.values(gruposRet).flat();
+  const allEnv  = Object.values(gruposEnv).flat();
+  const totalDel   = allDel.length + allRet.length + allEnv.length;
+  const cashDel    = sumCash(allDel);
+  const cashRet    = sumCash(allRet);
+  const cashEnv    = sumCash(allEnv);
+  const costoDeliv = sumDel(allDel);
+  const cashTotal  = cashDel + cashRet + cashEnv;
+  let h = '';
+  // Summary cards
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">';
+  h += '<div class="card" style="text-align:center"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Total pedidos</div>';
+  h += '<div style="font-size:24px;font-weight:900;color:var(--gold)">' + totalDel + '</div></div>';
+  h += '<div class="card" style="text-align:center"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;margin-bottom:4px">Efectivo neto</div>';
+  h += '<div style="font-size:22px;font-weight:900">$' + $f(cashTotal) + '</div></div>';
+  h += '</div>';
+  // Breakdown by section
+  const renderGrupo = function(titulo, icono, grupos, showDelivCost) {
+    const all = Object.values(grupos).flat();
+    if (!all.length) return '';
+    let s = '<div class="card" style="margin-bottom:12px">';
+    s += '<div style="font-weight:800;font-size:13px;margin-bottom:10px">' + icono + ' ' + titulo;
+    s += ' <span style="font-weight:400;font-size:11px;color:var(--text3)">(' + all.length + ' pedido' + (all.length>1?'s':'') + ')</span></div>';
+    Object.entries(grupos).forEach(function(entry) {
+      const label = entry[0], arr = entry[1];
+      if (!arr.length) return;
+      const cash  = sumCash(arr);
+      const dcost = sumDel(arr);
+      s += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg3)">';
+      s += '<div style="font-size:12px;color:var(--text2)">' + label + ' <span style="color:var(--text3)">×' + arr.length + '</span></div>';
+      s += '<div style="text-align:right"><div style="font-size:12px;font-weight:700">$' + $f(cash) + ' efectivo</div>';
+      if (showDelivCost && dcost > 0) {
+        s += '<div style="font-size:10px;color:var(--text3)">Delivery: $' + $f(dcost) + '</div>';
+      }
+      s += '</div></div>';
+    });
+    const totalCash2 = sumCash(all);
+    const totalDCost = sumDel(all);
+    s += '<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px">';
+    s += '<div style="font-size:11px;color:var(--text3)">SUBTOTAL</div>';
+    s += '<div style="text-align:right">';
+    s += '<div style="font-weight:800;color:var(--gold)">$' + $f(totalCash2) + '</div>';
+    if (showDelivCost && totalDCost > 0) {
+      s += '<div style="font-size:10px;color:var(--text3)">Pagar delivery: $' + $f(totalDCost) + '</div>';
+    }
+    s += '</div></div>';
+    s += '</div>';
+    return s;
+  };
+  h += renderGrupo('Delivery', '🛵', gruposEnt, true);
+  h += renderGrupo('Retiro personal', '🏪', gruposRet, false);
+  h += renderGrupo('Envíos al interior', '📦', gruposEnv, false);
+  // Final totals box
+  h += '<div class="card" style="background:var(--bg3);margin-bottom:12px">';
+  h += '<div style="font-weight:800;font-size:13px;margin-bottom:10px;color:var(--gold)">Resumen del día</div>';
+  const rows = [
+    ['Delivery', allDel.length + ' pedidos', '$' + $f(cashDel)],
+    ['Retiro personal', allRet.length + ' pedidos', '$' + $f(cashRet)],
+    ['Envíos interior', allEnv.length + ' pedidos', '$' + $f(cashEnv)],
+  ];
+  rows.forEach(function(r) {
+    h += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bg2);font-size:12px">';
+    h += '<div>' + r[0] + ' <span style="color:var(--text3)">' + r[1] + '</span></div>';
+    h += '<div style="font-weight:700">' + r[2] + '</div></div>';
+  });
+  h += '<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px">';
+  h += '<div style="font-size:13px;font-weight:800">Total efectivo</div>';
+  h += '<div style="font-size:16px;font-weight:900;color:var(--gold)">$' + $f(cashTotal) + '</div></div>';
+  if (costoDeliv > 0) {
+    h += '<div style="margin-top:6px;padding:8px;background:rgba(255,200,0,.1);border-radius:8px;display:flex;justify-content:space-between">';
+    h += '<div style="font-size:12px;color:var(--text2)">💸 Pagar al delivero</div>';
+    h += '<div style="font-size:13px;font-weight:800;color:#e88">$' + $f(costoDeliv) + '</div></div>';
+  }
+  h += '</div>';
+  // Orders detail table
+  h += '<div class="card" style="margin-bottom:12px">';
+  h += '<div style="font-weight:800;font-size:13px;margin-bottom:10px">Detalle de pedidos</div>';
+  h += '<div style="overflow-x:auto"><table style="width:100%;font-size:11px;border-collapse:collapse">';
+  h += '<tr style="color:var(--text3);border-bottom:1px solid var(--bg3)"><th style="text-align:left;padding:4px 3px">Cliente</th><th style="text-align:left;padding:4px 3px">Tipo</th><th style="text-align:right;padding:4px 3px">Efectivo</th><th style="text-align:right;padding:4px 3px">Delivery</th></tr>';
+  items.forEach(function(it) {
+    const ef  = parseFloat(it.montoEfectivo || it.monto_efectivo || 0);
+    const vu  = parseFloat(it.vuelto || 0);
+    const neto = Math.max(0, ef - vu);
+    const dc  = parseFloat(it.montoDelivery || it.monto_delivery || 0);
+    h += '<tr style="border-bottom:1px solid var(--bg3)">';
+    h += '<td style="padding:5px 3px">' + (it.cliente || it.nombre || '-') + '</td>';
+    h += '<td style="padding:5px 3px;color:var(--text3)">' + (it.tipoEntrega || it.tipo_entrega || '-') + '</td>';
+    h += '<td style="text-align:right;padding:5px 3px;font-weight:700">$' + $f(neto) + '</td>';
+    h += '<td style="text-align:right;padding:5px 3px;color:var(--text3)">' + (dc > 0 ? '$' + $f(dc) : '-') + '</td>';
+    h += '</tr>';
+  });
+  h += '</table></div></div>';
+  body.innerHTML = h;
 }
 
 function renderFinInventario() {
@@ -3279,10 +3638,13 @@ function calcCierre() {
 async function guardarCierre() {
   const g  = id => parseFloat(document.getElementById(id)?.value) || 0;
   const gi = id => parseInt(document.getElementById(id)?.value)   || 0;
-  const n         = gi('ci-pants');
+  const nUni_sv = gi('ci-pants-uni');
+  const nSub_sv = gi('ci-pants-sub');
+  const n         = nUni_sv + nSub_sv;
   const utilBruta = g('ci-ingresos') - g('ci-costos') - g('ci-salidas');
   const pctCom    = finComisionPct(n);
-  const comision  = n * FIN.utilNeta * pctCom;
+  const utilNetaSv = nUni_sv * FIN.utilNeta + nSub_sv * FIN_SUBLIMADO.utilNeta;
+  const comision  = utilNetaSv * pctCom;
   const utilidad  = utilBruta - comision;  // utilidad a distribuir
   if (utilBruta <= 0) { mostrarToast('⚠ Ingresa los datos de la quincena primero'); return; }
   if (Math.round(_porcentajes.personal + _porcentajes.reinversion + _porcentajes.emergencia + _porcentajes.crecimiento) !== 100) {
@@ -3312,6 +3674,8 @@ async function guardarCierre() {
   const cierreData = {
     fecha:       new Date().toLocaleDateString('es-VE'),
     pants:       n,
+    pantsUni:    nUni_sv,
+    pantsSub:    nSub_sv,
     ingresos:    g('ci-ingresos'),
     costos:      g('ci-costos'),
     salidas:     g('ci-salidas'),
@@ -3335,7 +3699,7 @@ async function guardarCierre() {
   cfgSet('ceniza_historial_cierres', JSON.stringify(historial));
 
   mostrarToast(`✅ Quincena cerrada · +${fmt$(aEme)} emergencia · +${fmt$(aCre)} crecimiento`);
-  showFinCat('taller'); showFinTab('produccion', document.getElementById('fstab-produccion'));
+  showFinSec('finanzas'); showFinTab('historial', document.getElementById('fstab-historial'));
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3940,11 +4304,21 @@ function renderFinHistorial() {
 
   if (!historial.length) {
     div.innerHTML = `
-      <div style="text-align:center;padding:50px 16px">
-        <div style="font-size:44px;margin-bottom:12px">📋</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text2)">Sin cierres registrados</div>
-        <div style="font-size:13px;color:var(--text3);margin-top:6px">Cuando cierres una quincena aquí quedará el registro.</div>
+      <div style="text-align:center;padding:40px 16px">
+        <div class="spinner" style="margin:0 auto 16px"></div>
+        <div style="font-size:13px;color:var(--text3)">Buscando historial en la nube…</div>
       </div>`;
+    // Intentar cargar desde Sheets y re-renderizar
+    syncConfigDesdeSheets && syncConfigDesdeSheets().then(() => {
+      const h2 = JSON.parse(localStorage.getItem('ceniza_historial_cierres') || '[]');
+      if (!h2.length) {
+        div.innerHTML = `<div style="text-align:center;padding:50px 16px">
+          <div style="font-size:44px;margin-bottom:12px">📋</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text2)">Sin cierres registrados</div>
+          <div style="font-size:13px;color:var(--text3);margin-top:6px">Cuando cierres una quincena aquí quedará el registro.</div>
+        </div>`;
+      } else { renderFinHistorial(); }
+    }).catch(() => {});
     return;
   }
 
