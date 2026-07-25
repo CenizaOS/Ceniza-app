@@ -954,11 +954,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
               </div>
               <div class="form-group">
                 <label>Ruedo (cm) *</label>
-                <select id="ai-ruedo">
+                <select id="ai-ruedo" onchange="toggleRuedoManual(this.value)">
                   <option value="">Ruedo...</option>
                   <option>93</option><option>97</option><option>100</option><option>103</option>
                   <option>105</option><option>108</option><option>110</option><option>113</option>
+                  <option value="manual">Manual...</option>
                 </select>
+                <input type="number" id="ai-ruedo-manual" placeholder="cm (ej: 95)" min="60" max="130"
+                  inputmode="numeric" style="display:none;margin-top:6px;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:15px">
               </div>
               <div class="form-group">
                 <label>Monto ($) *</label>
@@ -6013,14 +6016,24 @@ function ocultarAddItem() {
   document.getElementById('btn-add-item').style.display = 'block';
   ['ai-color','ai-talla','ai-ruedo'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('ai-monto').value = '';
+  const _rm = document.getElementById('ai-ruedo-manual'); if (_rm) { _rm.value=''; _rm.style.display='none'; }
   const lbl = document.querySelector('#add-item-form div');
   if (lbl) lbl.textContent = 'Nuevo pantalón';
+}
+
+function toggleRuedoManual(val) {
+  const mi = document.getElementById('ai-ruedo-manual');
+  if (!mi) return;
+  mi.style.display = val === 'manual' ? '' : 'none';
+  if (val !== 'manual') mi.value = '';
+  else mi.focus();
 }
 
 function agregarItem() {
   const color = document.getElementById('ai-color').value;
   const talla = document.getElementById('ai-talla').value;
-  const ruedo = document.getElementById('ai-ruedo').value;
+  let ruedo = document.getElementById('ai-ruedo').value;
+  if (ruedo === 'manual') ruedo = (document.getElementById('ai-ruedo-manual').value || '').trim();
   const monto = document.getElementById('ai-monto').value;
   if (!color || !talla || !ruedo || !monto) {
     mostrarToast('⚠ Completa todos los campos del pantalón');
@@ -6043,7 +6056,12 @@ function editarItem(idx) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
   set('ai-color', item.color);
   set('ai-talla', item.talla);
-  set('ai-ruedo', item.ruedo);
+  const _stdRuedos = ['93','97','100','103','105','108','110','113'];
+  const _rv = String(item.ruedo || '');
+  if (_rv && !_stdRuedos.includes(_rv)) {
+    const _sel = document.getElementById('ai-ruedo'); if (_sel) _sel.value = 'manual';
+    const _mi = document.getElementById('ai-ruedo-manual'); if (_mi) { _mi.value = _rv; _mi.style.display = ''; }
+  } else { set('ai-ruedo', item.ruedo); }
   document.getElementById('ai-monto').value = item.montoProducto || '';
   // Cambiar el título del cuadro a "Editar pantalón"
   const lbl = document.querySelector('#add-item-form [style*="Nuevo"]') ||
