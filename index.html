@@ -2312,6 +2312,12 @@ const FIN_SUBLIMADO = {
 
 // Formateador global de moneda
 const $f = v => '$' + (parseFloat(v) || 0).toFixed(2);
+function getMesActualDisplay() {
+  const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                 "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const now = new Date();
+  return MESES[now.getMonth()] + " " + now.getFullYear();
+}
 
 function finComisionPct(n) {
   if (!n) return 0;
@@ -4907,7 +4913,7 @@ async function loadVendedoraPedidos() {
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
     const d = await fetchData('produccion');
-    document.getElementById('vend-mes').textContent = d.mes || '';
+    document.getElementById('vend-mes').textContent = getMesActualDisplay();
     const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
 
     // Recolectar todos los pedidos de esta vendedora
@@ -4986,7 +4992,7 @@ async function loadVendedoraComisiones() {
       }
     } catch(e) { /* usar localStorage como fallback */ }
     const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
-    document.getElementById('vend-mes').textContent = d.mes || '';
+    document.getElementById('vend-mes').textContent = getMesActualDisplay();
     const vend = d.vendedoras.find(v => v.nombre === nombre);
     const qLabel = d.quincenaLabel || '';
 
@@ -5063,7 +5069,7 @@ async function loadCosturera(offset) {
   document.getElementById('cost-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando producción...</div>';
   try {
     const d = await fetchData('produccion');
-    document.getElementById('cost-mes').textContent = d.mes || '';
+    document.getElementById('cost-mes').textContent = getMesActualDisplay();
     _costData = d;
     renderCosturera(d);
   } catch(e) {
