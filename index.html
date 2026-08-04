@@ -1012,9 +1012,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
 
-async function fetchData(accion, extra = '') {
+async function fetchData(accion, extra = '', _intento = 0) {
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 60000); // 60s timeout
+  const tid = setTimeout(() => ctrl.abort(), 30000); // 30s timeout por intento
   try {
     const res = await fetch(`${API}?accion=${accion}${extra}`, { signal: ctrl.signal });
     clearTimeout(tid);
@@ -1022,6 +1022,11 @@ async function fetchData(accion, extra = '') {
     return res.json();
   } catch(e) {
     clearTimeout(tid);
+    // Reintentar hasta 2 veces automáticamente (cold start de Apps Script)
+    if (_intento < 2 && e.name !== 'AbortError') {
+      await new Promise(r => setTimeout(r, 1500 * (_intento + 1))); // esperar 1.5s, 3s
+      return fetchData(accion, extra, _intento + 1);
+    }
     if (e.name === 'AbortError') throw new Error('Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.');
     throw e;
   }
