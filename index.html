@@ -4984,16 +4984,19 @@ async function loadVendedoraComisiones() {
     const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
     // Intentar obtener arrastres del servidor (los configura la dueña desde su dispositivo)
     let arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
-    try {
-      const ra = await fetchData('getArrastres');
-      if (ra.arrastres && typeof ra.arrastres === 'object') {
-        arrastres = ra.arrastres;
-        cfgSet('ceniza_arrastres', JSON.stringify(arrastres));
-      }
-    } catch(e) { /* usar localStorage como fallback */ }
-    const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
+    // Llamadas en paralelo: arrastres + comisiones simultáneamente
+    const [ra, d] = await Promise.all([
+      fetchData('getArrastres').catch(() => ({})),
+      fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)))
+    ]);
+    if (ra.arrastres && typeof ra.arrastres === 'object') {
+      arrastres = ra.arrastres;
+      cfgSet('ceniza_arrastres', JSON.stringify(arrastres));
+    }
     document.getElementById('vend-mes').textContent = getMesActualDisplay();
-    const vend = d.vendedoras.find(v => v.nombre === nombre);
+    if (!d.vendedoras) throw new Error(d.error || 'Error al cargar comisiones');
+    const nombreLC = (nombre || '').toLowerCase();
+    const vend = d.vendedoras.find(v => (v.nombre || '').toLowerCase() === nombreLC);
     const qLabel = d.quincenaLabel || '';
 
     const pantsVal    = vend ? vend.pants         : 0;   // total acumulado (quincena + arrastre)
@@ -5066,14 +5069,27 @@ async function loadCosturera(offset) {
     fechaCostureraActual.setDate(fechaCostureraActual.getDate() + offset);
     if (_costData) { renderCosturera(_costData); return; } // navegar sin re-fetch
   }
-  document.getElementById('cost-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando producción...</div>';
+  // Mostrar caché de localStorage inmediatamente si existe
+  const _cacheKey = 'ceniza_cache_produccion';
+  const _cached = localStorage.getItem(_cacheKey);
+  if (_cached) {
+    try {
+      const _cachedData = JSON.parse(_cached);
+      document.getElementById('cost-mes').textContent = getMesActualDisplay();
+      _costData = _cachedData;
+      renderCosturera(_cachedData);
+    } catch(_) {}
+  } else {
+    document.getElementById('cost-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando producción...</div>';
+  }
   try {
     const d = await fetchData('produccion');
     document.getElementById('cost-mes').textContent = getMesActualDisplay();
     _costData = d;
+    localStorage.setItem(_cacheKey, JSON.stringify(d));
     renderCosturera(d);
   } catch(e) {
-    document.getElementById('cost-content').innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadCosturera()">${refreshIcon}Reintentar</button>`;
+    if (!_cached) document.getElementById('cost-content').innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadCosturera()">${refreshIcon}Reintentar</button>`;
   }
 }
 
