@@ -2294,7 +2294,7 @@ const FIN = {
   utilNeta:    13.25, // $30 − $16.75 costo total (a 150 pants/quincena)
   costoTotal:  16.75,
   emgTecho:    2364,  // reserva 2 meses = 4 quincenas × $591
-  dist: { sueldo:0.40, crecimiento:0.25, emergencia:0.15, empresa:0.20 },
+  dist: { sueldo:0.40, emergencia:0.15, crecimiento:0.45 },
   tiers: [
     { desde:400, pct:0.15 },
     { desde:300, pct:0.12 },
@@ -2872,9 +2872,8 @@ function renderFinQuincena() {
   const overflow  = Math.max(0, (utilReal > 0 ? utilReal * FIN.dist.emergencia : 0) - emgApte);
   const dist = {
     sueldo:      utilReal > 0 ? utilReal * FIN.dist.sueldo      : 0,
-    crecimiento: utilReal > 0 ? utilReal * FIN.dist.crecimiento : 0,
     emergencia:  emgApte,
-    empresa:     utilReal > 0 ? utilReal * FIN.dist.empresa + overflow : 0
+    crecimiento: utilReal > 0 ? utilReal * FIN.dist.crecimiento + overflow : 0
   };
 
   const neg = v => v < 0 ? `style="color:var(--red)"` : '';
@@ -2958,18 +2957,13 @@ function renderFinQuincena() {
         <div class="fin-dist-cell-val">${$f(dist.sueldo)}</div>
       </div>
       <div class="fin-dist-cell">
-        <div class="fin-dist-cell-label">Crecimiento · 25%</div>
-        <div class="fin-dist-cell-val">${$f(dist.crecimiento)}</div>
-      </div>
-      <div class="fin-dist-cell">
         <div class="fin-dist-cell-label">Emergencia · 15%${emgSaldo >= FIN.emgTecho ? ' 🎉' : ''}</div>
         <div class="fin-dist-cell-val">${emgSaldo >= FIN.emgTecho ? '$0.00' : $f(dist.emergencia)}</div>
         <div class="fin-dist-cell-sub">${emgSaldo >= FIN.emgTecho ? 'Techo alcanzado' : ''}</div>
       </div>
-      <div class="fin-dist-cell">
-        <div class="fin-dist-cell-label">Capital empresa · 20%${overflow > 0 ? '+' : ''}</div>
-        <div class="fin-dist-cell-val">${$f(dist.empresa)}</div>
-        <div class="fin-dist-cell-sub">${overflow > 0 ? '+overflow emergencia' : ''}</div>
+      <div class="fin-dist-cell" style="grid-column:span 2">
+        <div class="fin-dist-cell-label">Capital para crecimiento · 45%${overflow > 0 ? ' (+overflow emergencia)' : ''}</div>
+        <div class="fin-dist-cell-val">${$f(dist.crecimiento)}</div>
       </div>
     </div>
 
@@ -3085,8 +3079,7 @@ function renderFinFondos() {
   const utilBrutaQ = n * FIN.precio - n * (FIN.varMat + FIN.varAds) - FIN.fijosQuinc;
   const utilRealQ  = utilBrutaQ - n * FIN.utilNeta * pct;
   const aporteEmg  = utilRealQ > 0 ? Math.min(utilRealQ * FIN.dist.emergencia, Math.max(0, FIN.emgTecho - emg)) : 0;
-  const aporteCre  = utilRealQ > 0 ? utilRealQ * FIN.dist.crecimiento : 0;
-  const aporteEmp  = utilRealQ > 0 ? utilRealQ * FIN.dist.empresa + Math.max(0, utilRealQ * FIN.dist.emergencia - aporteEmg) : 0;
+  const aporteCre  = utilRealQ > 0 ? utilRealQ * FIN.dist.crecimiento + Math.max(0, utilRealQ * FIN.dist.emergencia - aporteEmg) : 0;
 
   // Datos efectivo al delivery
   const _efLog2    = JSON.parse(localStorage.getItem('ceniza_compras_efectivo_log') || '[]');
@@ -3170,29 +3163,16 @@ function renderFinFondos() {
       </div>
     </div>
 
-    <!-- Crecimiento -->
-    <div class="fin-sec-title">📈 Fondo de crecimiento</div>
+    <!-- Capital para crecimiento -->
+    <div class="fin-sec-title">📈 Capital para crecimiento de la empresa</div>
     <div class="fin-fondo-card crecimiento">
-      <div style="font-size:26px;font-weight:800;margin-bottom:4px">${usd(cre)}</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Para próxima tanda y nuevos productos</div>
-      ${aporteCre > 0 ? `<div class="fin-hint">Esta quincena: +${usd(aporteCre)} → ${usd(cre + aporteCre)}</div>` : ''}
+      <div style="font-size:26px;font-weight:800;margin-bottom:4px">${usd(cre + emp)}</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Para próxima tanda, nuevos productos y reserva operativa</div>
+      ${aporteCre > 0 ? `<div class="fin-hint">Esta quincena: +${usd(aporteCre)} → ${usd(cre + emp + aporteCre)}</div>` : ''}
       <div style="display:flex;gap:8px;margin-top:10px">
-        <input id="fin-inp-cre" type="number" step="0.01" value="${cre.toFixed(2)}"
+        <input id="fin-inp-cre" type="number" step="0.01" value="${(cre + emp).toFixed(2)}"
           style="flex:1;padding:8px 10px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px">
         <button class="btn" onclick="guardarFondo('crecimiento','fin-inp-cre')" style="padding:8px 16px">✓</button>
-      </div>
-    </div>
-
-    <!-- Capital empresa -->
-    <div class="fin-sec-title">🏢 Capital empresa</div>
-    <div class="fin-fondo-card empresa">
-      <div style="font-size:26px;font-weight:800;margin-bottom:4px">${usd(emp)}</div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Reserva operativa</div>
-      ${aporteEmp > 0 ? `<div class="fin-hint">Esta quincena: +${usd(aporteEmp)} → ${usd(emp + aporteEmp)}</div>` : ''}
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <input id="fin-inp-emp" type="number" step="0.01" value="${emp.toFixed(2)}"
-          style="flex:1;padding:8px 10px;border:1px solid var(--bg3);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px">
-        <button class="btn" onclick="guardarFondo('empresa','fin-inp-emp')" style="padding:8px 16px">✓</button>
       </div>
     </div>
   `;
@@ -3264,12 +3244,8 @@ function renderFinPlanificador() {
     <div class="fin-sec-title">💼 ¿Alcanza el capital?</div>
     <div class="fin-card">
       <div class="fin-row">
-        <span class="fin-row-label">Fondo crecimiento</span>
-        <span class="fin-row-val">${$f(parseFloat(_fondos.crecimiento||0))}</span>
-      </div>
-      <div class="fin-row">
-        <span class="fin-row-label">Capital empresa</span>
-        <span class="fin-row-val">${$f(parseFloat(_fondos.empresa||0))}</span>
+        <span class="fin-row-label">Capital para crecimiento</span>
+        <span class="fin-row-val">${$f(parseFloat(_fondos.crecimiento||0) + parseFloat(_fondos.empresa||0))}</span>
       </div>
       <div class="fin-row" style="border-top:1px solid var(--bg3);padding-top:8px">
         <span class="fin-row-label" style="font-weight:700">Capital disponible</span>
