@@ -2838,14 +2838,16 @@ async function loadFinQuincena() {
   try {
     const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
     const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
-    // Solo pantalones de ESTA quincena (sin arrastre) — para el P&L del admin
+    // Usar pantsMes (total mes real) como base para el P&L — no se ve afectado por reinicio de quincena
+    window._finTotalMes = d.totalMes || 0;
+    window._finFechaInicio = d.fechaInicioStr || '';
     _finPantsAPI = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pantsQuincena) || 0), 0);
     _finPants = _finPantsAPI;
     _finLabel = d.quincenaLabel || '';
     // Guardar lista de vendedoras con datos completos para el card de arrastre
     window._finVendedoras     = (d.vendedoras || []).map(v => v.nombre);
-    window._finVendedorasData = d.vendedoras || [];  // {nombre, pantsQuincena, arrastre, pants}
-    if (d.mes) document.getElementById('fin-mes-label').textContent = d.mes;
+    window._finVendedorasData = d.vendedoras || [];
+    document.getElementById('fin-mes-label').textContent = getMesActualDisplay();
     renderFinQuincena();
   } catch(e) {
     div.innerHTML = `<div class="err-card">Error: ${e.message}</div>
@@ -2884,16 +2886,30 @@ function renderFinQuincena() {
         <div style="font-size:13px;color:var(--text2)">📅 ${_finLabel || 'Quincena actual'}</div>
         <div style="font-size:11px;background:var(--bg3);padding:3px 9px;border-radius:20px;color:var(--text3)">PE: ${beQ} pant</div>
       </div>
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pantalones esta quincena (desde 15 Jun)</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Total real ${getMesActualDisplay()}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="font-size:48px;font-weight:800;color:var(--gold);line-height:1">${window._finTotalMes || n}</div>
+        <div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:4px">pantalones vendidos</div>
+          <div style="font-size:11px;color:var(--text3)">${_finLabel || 'Quincena actual'}: <strong>${n}</strong></div>
+        </div>
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">📅 Inicio de quincena:</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input type="date" id="fin-fecha-quincena"
+            value="${window._finFechaInicio ? window._finFechaInicio.split('/').reverse().join('-') : ''}"
+            style="font-size:13px;background:var(--bg2);color:var(--text);border:1px solid var(--bg4);border-radius:8px;padding:4px 8px;flex:1;min-width:120px">
+          <button onclick="guardarFechaQuincena()" style="font-size:12px;background:var(--gold);color:#000;border:none;border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:700;white-space:nowrap">Guardar</button>
+          <button onclick="corregirFechaQuincena()" title="Poner el 1ro del mes" style="font-size:11px;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:8px;padding:5px 9px;cursor:pointer;white-space:nowrap">1ro</button>
+        </div>
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Ajuste manual de quincena:</div>
         <input id="fin-pants-input" type="number" min="0" value="${n}"
-          style="width:110px;font-size:40px;font-weight:800;color:var(--gold);background:var(--bg2);border:2px solid var(--bg4);border-radius:10px;padding:4px 10px;text-align:center;line-height:1"
+          style="width:110px;font-size:28px;font-weight:700;color:var(--text);background:var(--bg2);border:2px solid var(--bg4);border-radius:10px;padding:4px 10px;text-align:center;line-height:1"
           onchange="actualizarPantsManual(this.value)"
           onkeydown="if(event.key==='Enter'){this.blur()}">
-        <div>
-          <div style="font-size:12px;color:var(--text3)">← edita si es necesario</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">API: ${_finPantsAPI ?? n}</div>
-        </div>
       </div>
       <div style="font-size:12px;color:${n >= beQ ? 'var(--green)' : 'var(--red)'};font-weight:600;margin-bottom:10px">
         ${n >= beQ ? '✅ Sobre el punto de equilibrio' : `⚠️ Faltan ${beQ - n} pants para equilibrio`}
@@ -4758,6 +4774,47 @@ function guardarArrastre(nombre) {
   const encoded = encodeURIComponent(JSON.stringify(arrastres));
   fetch(`${API}?accion=setArrastres&data=${encoded}`).catch(() => {});
   mostrarToast(`✓ Arrastre de ${nombre}: ${val} pantalones guardado`);
+}
+
+// ══════════════════════════════════════════════════════════
+// DUEÑA — guardar fecha de inicio de quincena (manual)
+// ══════════════════════════════════════════════════════════
+async function guardarFechaQuincena() {
+  const input = document.getElementById('fin-fecha-quincena');
+  if (!input || !input.value) { showToast('Elige una fecha primero'); return; }
+  // Convertir de YYYY-MM-DD (input type=date) a DD/MM/YYYY (backend)
+  const [y, m, d] = input.value.split('-');
+  const fecha = `${d}/${m}/${y}`;
+  try {
+    const r = await fetch(`${API}?accion=setFechaQuincena&fecha=${encodeURIComponent(fecha)}`);
+    const data = await r.json();
+    if (data.success) {
+      showToast('✅ Quincena actualizada al ' + fecha);
+      setTimeout(() => loadFinQuincena(), 800);
+    } else {
+      showToast('Error: ' + (data.error || 'No se pudo guardar'));
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// DUEÑA — corregir fecha quincena al 1ro del mes
+// ══════════════════════════════════════════════════════════
+async function corregirFechaQuincena() {
+  try {
+    const r = await fetch(`${API}?accion=corregirQuincena`);
+    const data = await r.json();
+    if (data.success) {
+      showToast('✅ Quincena corregida al 1ro del mes (' + data.fecha + ')');
+      setTimeout(() => loadFinQuincena(), 800);
+    } else {
+      showToast('Error: ' + (data.error || 'No se pudo corregir'));
+    }
+  } catch(e) {
+    showToast('Error al corregir: ' + e.message);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
