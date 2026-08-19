@@ -744,9 +744,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   <div class="fin-subtabs" id="fsub-finanzas">
     <button class="fin-subtab active" id="fstab-quincena" onclick="showFinTab('quincena',this)">🏠 Resumen</button>
     <button class="fin-subtab" id="fstab-costos" onclick="showFinTab('costos',this)">⚙️ Costos</button>
-    <button class="fin-subtab" id="fstab-historial" onclick="showFinTab('historial',this)">📋 Historial</button>
-    <button class="fin-subtab" id="fstab-cierre" onclick="showFinTab('cierre',this)">📊 Cierre</button>
-    <button class="fin-subtab" id="fstab-productos" onclick="showFinTab('productos',this)">💲 Productos</button>
+    <button class="fin-subtab" id="fstab-proyeccion" onclick="showFinTab('proyeccion',this)">📈 Proyección</button>
   </div>
   <!-- Sub-tabs de Gestión -->
   <div class="fin-subtabs" id="fsub-gestion" style="display:none">
@@ -773,6 +771,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="fin-cierre" class="fin-screen" style="display:none">
       <div id="fin-cierre-content"></div>
+    </div>
+    <div id="fin-proyeccion" class="fin-screen" style="display:none">
+      <div id="fin-proyeccion-content"></div>
     </div>
     <div id="fin-fondos" class="fin-screen" style="display:none">
       <div id="fin-fondos-content"><div class="loading-msg"><div class="spinner"></div>Cargando fondos...</div></div>
@@ -2291,6 +2292,7 @@ const FIN = {
   varMat:      10.81, // tela $6.49 + liga $0.50 + bolsa $0.46 + etiq $0.07 + sticker $0.04 + confección $3.00 + empaque $0.25
   varAds:      2.00,
   fijosQuinc:  591,   // gastos fijos por QUINCENA (mensual $1182 ÷ 2)
+  metaVentas:  300,   // meta de pantalones vendidos por quincena
   utilNeta:    13.25, // $30 − $16.75 costo total (a 150 pants/quincena)
   costoTotal:  16.75,
   emgTecho:    2364,  // reserva 2 meses = 4 quincenas × $591
@@ -2317,7 +2319,8 @@ function _recalcFIN(obj) {
 // Aplica un objeto de costos guardados a los objetos FIN en memoria
 function _aplicarCostosAlFIN(saved) {
   if (!saved) return;
-  if (saved.fijosQuinc != null) FIN.fijosQuinc = saved.fijosQuinc;
+  if (saved.fijosQuinc  != null) FIN.fijosQuinc  = saved.fijosQuinc;
+  if (saved.metaVentas != null) FIN.metaVentas = saved.metaVentas;
   if (saved.varAds     != null) {
     FIN.varAds = saved.varAds;
     FIN_SUBLIMADO.varAds = saved.varAds;
@@ -2447,7 +2450,7 @@ function showFinCat(cat) {
 }
 
 function showFinTab(tab, btn) {
-  ['quincena','produccion','costos','historial','cierre','fondos','compras','inventario','productos','entregas-ctrl'].forEach(t => {
+  ['quincena','produccion','costos','historial','cierre','fondos','compras','inventario','productos','proyeccion','entregas-ctrl'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
@@ -2465,6 +2468,7 @@ function showFinTab(tab, btn) {
   if (tab === 'fondos')         renderFinFondos();
   if (tab === 'inventario')     renderFinInventario();
   if (tab === 'productos')      renderFinProductos();
+  if (tab === 'proyeccion')     renderFinProyeccion();
   if (tab === 'entregas-ctrl')  renderFinEntregasCtrl();
 }
 
@@ -2496,52 +2500,59 @@ function renderFinCostos() {
       <div class="fin-sec-title">🏢 Gastos fijos por quincena</div>
       <div class="fin-card">
         ${row('Total gastos fijos', 'cst-fijos', FIN.fijosQuinc, '1')}
+        ${row('Meta de ventas / quincena', 'cst-meta', FIN.metaVentas, '1')}
       </div>
 
       <!-- Unicolor -->
-      <div class="fin-sec-title" style="margin-top:18px">🩱 Pantalón Unicolor</div>
-      <div class="fin-card">
-        ${row('Precio de venta', 'cst-u-precio', FIN.precio)}
-        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
-        ${row('Tela', 'cst-u-tela', FIN.mat.tela)}
-        ${row('Liga', 'cst-u-liga', FIN.mat.liga)}
-        ${row('Bolsa', 'cst-u-bolsa', FIN.mat.bolsa)}
-        ${row('Etiqueta', 'cst-u-etiqueta', FIN.mat.etiqueta)}
-        ${row('Sticker', 'cst-u-sticker', FIN.mat.sticker)}
-        ${row('Confección', 'cst-u-confeccion', FIN.mat.confeccion)}
-        ${row('Empaquetado', 'cst-u-empaquetado', FIN.mat.empaquetado)}
+      <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
+        <div class="fin-sec-title" style="margin-top:0">🩱 Pantalón Unicolor</div>
+        <div class="fin-card">
+          ${row('Precio de venta', 'cst-u-precio', FIN.precio)}
+          <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+          ${row('Tela', 'cst-u-tela', FIN.mat.tela)}
+          ${row('Liga', 'cst-u-liga', FIN.mat.liga)}
+          ${row('Bolsa', 'cst-u-bolsa', FIN.mat.bolsa)}
+          ${row('Etiqueta', 'cst-u-etiqueta', FIN.mat.etiqueta)}
+          ${row('Sticker', 'cst-u-sticker', FIN.mat.sticker)}
+          ${row('Confección', 'cst-u-confeccion', FIN.mat.confeccion)}
+          ${row('Empaquetado', 'cst-u-empaquetado', FIN.mat.empaquetado)}
+        </div>
+        <div class="fin-card" id="costos-resumen-uni" style="background:var(--bg3)">${_renderCostosResumen('uni')}</div>
       </div>
-      <div class="fin-card" id="costos-resumen-uni" style="background:var(--bg3)">${_renderCostosResumen('uni')}</div>
 
       <!-- Sublimado -->
-      <div class="fin-sec-title" style="margin-top:18px">🎨 Pantalón Sublimado</div>
-      <div class="fin-card">
-        ${row('Precio de venta', 'cst-s-precio', FIN_SUBLIMADO.precio)}
-        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
-        ${row('Transfer / sublimado', 'cst-s-sublimado', FIN_SUBLIMADO.mat.sublimado)}
-        ${row('Tela', 'cst-s-tela', FIN_SUBLIMADO.mat.tela)}
-        ${row('Liga', 'cst-s-liga', FIN_SUBLIMADO.mat.liga)}
-        ${row('Bolsa', 'cst-s-bolsa', FIN_SUBLIMADO.mat.bolsa)}
-        ${row('Etiqueta', 'cst-s-etiqueta', FIN_SUBLIMADO.mat.etiqueta)}
-        ${row('Sticker', 'cst-s-sticker', FIN_SUBLIMADO.mat.sticker)}
-        ${row('Confección', 'cst-s-confeccion', FIN_SUBLIMADO.mat.confeccion)}
-        ${row('Empaquetado', 'cst-s-empaquetado', FIN_SUBLIMADO.mat.empaquetado)}
+      <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
+        <div class="fin-sec-title" style="margin-top:0">🎨 Pantalón Sublimado</div>
+        <div class="fin-card">
+          ${row('Precio de venta', 'cst-s-precio', FIN_SUBLIMADO.precio)}
+          <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+          ${row('Transfer / sublimado', 'cst-s-sublimado', FIN_SUBLIMADO.mat.sublimado)}
+          ${row('Tela', 'cst-s-tela', FIN_SUBLIMADO.mat.tela)}
+          ${row('Liga', 'cst-s-liga', FIN_SUBLIMADO.mat.liga)}
+          ${row('Bolsa', 'cst-s-bolsa', FIN_SUBLIMADO.mat.bolsa)}
+          ${row('Etiqueta', 'cst-s-etiqueta', FIN_SUBLIMADO.mat.etiqueta)}
+          ${row('Sticker', 'cst-s-sticker', FIN_SUBLIMADO.mat.sticker)}
+          ${row('Confección', 'cst-s-confeccion', FIN_SUBLIMADO.mat.confeccion)}
+          ${row('Empaquetado', 'cst-s-empaquetado', FIN_SUBLIMADO.mat.empaquetado)}
+        </div>
+        <div class="fin-card" id="costos-resumen-sub" style="background:var(--bg3)">${_renderCostosResumen('sub')}</div>
       </div>
-      <div class="fin-card" id="costos-resumen-sub" style="background:var(--bg3)">${_renderCostosResumen('sub')}</div>
 
       <!-- Pareo -->
-      <div class="fin-sec-title" style="margin-top:18px">🌊 Pantalón Pareo</div>
-      <div class="fin-card">
-        ${row('Precio de venta', 'cst-p-precio', FIN_PAREO.precio)}
-        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
-        ${row('Tela', 'cst-p-tela', FIN_PAREO.mat.tela)}
-        ${row('Bolsa', 'cst-p-bolsa', FIN_PAREO.mat.bolsa)}
-        ${row('Etiqueta', 'cst-p-etiqueta', FIN_PAREO.mat.etiqueta)}
-        ${row('Sticker', 'cst-p-sticker', FIN_PAREO.mat.sticker)}
-        ${row('Confección', 'cst-p-confeccion', FIN_PAREO.mat.confeccion)}
-        ${row('Empaquetado', 'cst-p-empaquetado', FIN_PAREO.mat.empaquetado)}
+      <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
+        <div class="fin-sec-title" style="margin-top:0">🌊 Pantalón Pareo</div>
+        <div class="fin-card">
+          ${row('Precio de venta', 'cst-p-precio', FIN_PAREO.precio)}
+          <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+          ${row('Tela', 'cst-p-tela', FIN_PAREO.mat.tela)}
+          ${row('Bolsa', 'cst-p-bolsa', FIN_PAREO.mat.bolsa)}
+          ${row('Etiqueta', 'cst-p-etiqueta', FIN_PAREO.mat.etiqueta)}
+          ${row('Sticker', 'cst-p-sticker', FIN_PAREO.mat.sticker)}
+          ${row('Confección', 'cst-p-confeccion', FIN_PAREO.mat.confeccion)}
+          ${row('Empaquetado', 'cst-p-empaquetado', FIN_PAREO.mat.empaquetado)}
+        </div>
+        <div class="fin-card" id="costos-resumen-par" style="background:var(--bg3)">${_renderCostosResumen('par')}</div>
       </div>
-      <div class="fin-card" id="costos-resumen-par" style="background:var(--bg3)">${_renderCostosResumen('par')}</div>
 
       <button class="btn btn-primary" onclick="guardarCostos()" style="width:100%;margin-top:16px;padding:14px;font-size:15px">
         💾 Guardar todos los costos
@@ -2550,30 +2561,57 @@ function renderFinCostos() {
 }
 
 function _renderCostosResumen(tipo, c) {
-  // tipo: 'uni' o 'sub'. c: objeto con valores desde inputs (opcional)
-  let precio, varAds, fijosQuinc, mat;
+  // tipo: 'uni' | 'sub' | 'par'. c: objeto desde inputs (opcional)
+  let precio, varAds, fijosQuinc, metaVentas, mat;
   if (c) {
-    varAds     = c.varAds;
-    fijosQuinc = c.fijosQuinc;
+    varAds      = c.varAds;
+    fijosQuinc  = c.fijosQuinc;
+    metaVentas  = c.metaVentas || 300;
     if (tipo === 'sub') { precio = c.sublimado.precio; mat = c.sublimado.mat; }
     else if (tipo === 'par') { precio = c.pareo.precio; mat = c.pareo.mat; }
     else                { precio = c.unicolor.precio;  mat = c.unicolor.mat;  }
   } else {
-    varAds     = FIN.varAds;
-    fijosQuinc = FIN.fijosQuinc;
+    varAds      = FIN.varAds;
+    fijosQuinc  = FIN.fijosQuinc;
+    metaVentas  = FIN.metaVentas || 300;
     if (tipo === 'sub') { precio = FIN_SUBLIMADO.precio; mat = FIN_SUBLIMADO.mat; }
     else if (tipo === 'par') { precio = FIN_PAREO.precio; mat = FIN_PAREO.mat; }
     else                { precio = FIN.precio;           mat = FIN.mat;           }
   }
   const { ads, ...sinAds } = mat;
-  const varMat   = Object.values(sinAds).reduce((a, b) => a + b, 0);
-  const utilNeta = precio - varMat - varAds;
-  const pe       = utilNeta > 0 ? Math.ceil(fijosQuinc / utilNeta) : '∞';
+  const varMat      = Object.values(sinAds).reduce((a, b) => a + b, 0);
+  const costoTotal  = varMat + varAds;
+  const utilNeta    = precio - costoTotal;
+  const margen      = precio > 0 ? ((utilNeta / precio) * 100).toFixed(1) : '0';
+  const pe          = utilNeta > 0 ? Math.ceil(fijosQuinc / utilNeta) : '∞';
+  // Con costos fijos distribuidos
+  const costoFijoPant  = metaVentas > 0 ? fijosQuinc / metaVentas : 0;
+  const costoRealTotal = costoTotal + costoFijoPant;
+  const utilReal       = precio - costoRealTotal;
+  const margenReal     = precio > 0 ? ((utilReal / precio) * 100).toFixed(1) : '0';
+  const posColor       = 'var(--green)';
+  const negColor       = 'var(--red)';
+  const R = (label, val, highlight, positivity) => {
+    const isPos = positivity !== undefined ? positivity : (utilNeta >= 0);
+    const color = highlight ? (isPos ? posColor : negColor) : 'inherit';
+    const weight = highlight ? '700' : '400';
+    return `<div class="fin-row" style="padding:4px 0">
+      <span class="fin-row-label" style="font-size:12px">${label}</span>
+      <span class="fin-row-val" style="font-size:12px;font-weight:${weight};color:${color}">${val}</span>
+    </div>`;
+  };
   return `
-    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Costo materiales / pant</span><span class="fin-row-val" style="font-size:12px">${$f(varMat)}</span></div>
-    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Costo total / pant</span><span class="fin-row-val" style="font-size:12px;font-weight:700">${$f(varMat + varAds)}</span></div>
-    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Utilidad neta / pant</span><span class="fin-row-val" style="font-size:13px;font-weight:700;color:${utilNeta>=0?'var(--green)':'var(--red)'}">${$f(utilNeta)}</span></div>
-    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Punto de equilibrio</span><span class="fin-row-val" style="font-size:12px;font-weight:700">${pe} pants</span></div>`;
+    ${R('Costo materiales / pant', $f(varMat))}
+    ${R('+ ADS / pauta', '+'+$f(varAds))}
+    <div style="border-top:2px dashed var(--bg4);margin:8px 0 4px"></div>
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Con costos fijos · meta ${metaVentas} pants/quinc</div>
+    ${R('Costo fijo / pant', $f(costoFijoPant))}
+    ${R('Costo real total / pant', $f(costoRealTotal))}
+    <div style="border-top:1px solid var(--bg4);margin:4px 0"></div>
+    ${R('Utilidad real / pant', $f(utilReal), true, utilReal>=0)}
+    ${R('Margen real', margenReal+'%', true, utilReal>=0)}
+    <div style="border-top:1px solid var(--bg4);margin:4px 0"></div>
+    ${R('Punto de equilibrio', pe+' pants')}`;
 }
 
 function actualizarCostosPreview() {
@@ -2592,6 +2630,7 @@ function _getCostosFromInputs() {
   return {
     varAds:     g('cst-ads'),
     fijosQuinc: g('cst-fijos'),
+    metaVentas: g('cst-meta') || 300,
     unicolor: {
       precio: g('cst-u-precio'),
       mat: {
@@ -2644,6 +2683,170 @@ async function guardarCostos() {
     .catch(() => {}); // silencioso si falla — ya quedó en localStorage
   showToast('✅ Costos guardados');
   renderFinCostos();
+}
+
+function renderFinProyeccion() {
+  const div = document.getElementById('fin-proyeccion-content');
+  if (!div) return;
+
+  div.innerHTML = `
+    <div style="padding:14px 16px 80px">
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:18px;text-transform:uppercase;letter-spacing:.06em">Estimado de producción · quincena</div>
+
+      <!-- Unicolor -->
+      <div class="fin-sec-title" style="margin-top:0">🩱 Unicolor</div>
+      <div class="fin-card">
+        ${_proyRow('Total unicolor', 'proy-uni')}
+      </div>
+
+      <!-- Sublimado desglosado -->
+      <div class="fin-sec-title" style="margin-top:16px">🎨 Sublimado</div>
+      <div class="fin-card">
+        ${_proyRow('Rayas blanco y negro', 'proy-sub-rbn')}
+        ${_proyRow('Rayas de colores', 'proy-sub-rcol')}
+        ${_proyRow('Puntos fondo negro', 'proy-sub-pfn')}
+        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+        <div class="fin-row" style="padding:4px 0">
+          <span class="fin-row-label" style="font-size:12px;color:var(--text3)">Total sublimado</span>
+          <span id="proy-sub-total" class="fin-row-val" style="font-size:12px;font-weight:700">0</span>
+        </div>
+      </div>
+
+      <!-- Pareo -->
+      <div class="fin-sec-title" style="margin-top:16px">🌊 Pareo</div>
+      <div class="fin-card">
+        ${_proyRow('Total pareo', 'proy-par')}
+      </div>
+
+      <!-- Botón guardar -->
+      <button class="btn btn-primary" onclick="guardarProyeccion()" style="width:100%;margin-top:16px;padding:12px;font-size:14px">
+        💾 Guardar cantidades
+      </button>
+
+      <!-- Resultado -->
+      <div id="proy-resultado"></div>
+    </div>`;
+
+  // Cargar desde localStorage o usar defaults
+  const saved = JSON.parse(localStorage.getItem('ceniza_proyeccion') || 'null');
+  const defaults = { 'proy-uni':100, 'proy-sub-rbn':5, 'proy-sub-rcol':5, 'proy-sub-pfn':5, 'proy-par':0 };
+  const vals = saved || defaults;
+  Object.entries({ 'proy-uni': vals.uni, 'proy-sub-rbn': vals.subRbn, 'proy-sub-rcol': vals.subCol, 'proy-sub-pfn': vals.subPfn, 'proy-par': vals.par }).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val ?? 0;
+  });
+
+  _calcProyeccion();
+}
+
+function guardarProyeccion() {
+  const gN = id => parseInt(document.getElementById(id)?.value || 0) || 0;
+  const data = {
+    uni:    gN('proy-uni'),
+    subRbn: gN('proy-sub-rbn'),
+    subCol: gN('proy-sub-rcol'),
+    subPfn: gN('proy-sub-pfn'),
+    par:    gN('proy-par')
+  };
+  localStorage.setItem('ceniza_proyeccion', JSON.stringify(data));
+  showToast('✅ Proyección guardada');
+}
+
+function _proyRow(label, id) {
+  return `
+    <div class="fin-row" style="align-items:center;padding:7px 0">
+      <span class="fin-row-label" style="font-size:13px">${label}</span>
+      <input type="number" id="${id}" value="0" min="0" step="1" inputmode="numeric"
+        style="width:80px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:4px 8px;color:var(--text);font-size:14px;font-weight:700"
+        oninput="_calcProyeccion()">
+    </div>`;
+}
+
+function _calcProyeccion() {
+  const res = document.getElementById('proy-resultado');
+  if (!res) return;
+  const gN = id => parseInt(document.getElementById(id)?.value || 0) || 0;
+
+  const qU   = gN('proy-uni');
+  const qSRbn  = gN('proy-sub-rbn');
+  const qSCol  = gN('proy-sub-rcol');
+  const qSPfn  = gN('proy-sub-pfn');
+  const qS   = qSRbn + qSCol + qSPfn;
+  const qP   = gN('proy-par');
+  const total = qU + qS + qP;
+
+  // Actualizar contador de total sublimado
+  const subTot = document.getElementById('proy-sub-total');
+  if (subTot) subTot.textContent = qS + ' pants';
+
+  if (total === 0) {
+    res.innerHTML = `<div class="fin-card" style="text-align:center;color:var(--text3);font-size:13px;padding:20px 0">Ingresa las cantidades para ver la proyección</div>`;
+    return;
+  }
+
+  // Costos variables por producto
+  const { ads: _ua, ...uMat } = FIN.mat;
+  const { ads: _sa, ...sMat } = FIN_SUBLIMADO.mat;
+  const pMat = FIN_PAREO.mat;
+
+  const uVarMat = Object.values(uMat).reduce((a,b)=>a+b,0);
+  const sVarMat = Object.values(sMat).reduce((a,b)=>a+b,0);
+  const pVarMat = Object.values(pMat).reduce((a,b)=>a+b,0);
+
+  const invU = uVarMat * qU;
+  const invS = sVarMat * qS;
+  const invP = pVarMat * qP;
+  const invTotal = invU + invS + invP;
+
+  const adsTotal    = FIN.varAds * total;
+  const ingU        = FIN.precio * qU;
+  const ingS        = FIN_SUBLIMADO.precio * qS;
+  const ingP        = FIN_PAREO.precio * qP;
+  const ingTotal    = ingU + ingS + ingP;
+  const costoVarTotal = invTotal + adsTotal;
+  const utilNeta    = ingTotal - costoVarTotal - FIN.fijosQuinc;
+  const margen      = ingTotal > 0 ? ((utilNeta / ingTotal) * 100).toFixed(1) : '0';
+
+  const R = (label, val, color, indent) => `
+    <div class="fin-row" style="padding:${indent?'3px 0 3px 10px':'5px 0'}">
+      <span class="fin-row-label" style="font-size:${indent?'11px':'12px'};color:${indent?'var(--text3)':'inherit'}">${label}</span>
+      <span class="fin-row-val" style="font-size:${indent?'11px':'12px'};font-weight:${color?'700':'400'};color:${color||'inherit'}">${val}</span>
+    </div>`;
+  const sep = `<div style="border-top:1px solid var(--bg4);margin:5px 0"></div>`;
+
+  res.innerHTML = `
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.06em">Inversión de materiales</div>
+    <div class="fin-card">
+      ${qU>0 ? R('🩱 Unicolor ('+qU+' pants)', $f(invU)) : ''}
+      ${qS>0 ? R('🎨 Sublimado ('+qS+' pants)', $f(invS)) : ''}
+      ${qSRbn>0 ? R('↳ Rayas B&N: '+qSRbn, $f(sVarMat*qSRbn), '', true) : ''}
+      ${qSCol>0 ? R('↳ Rayas colores: '+qSCol, $f(sVarMat*qSCol), '', true) : ''}
+      ${qSPfn>0 ? R('↳ Puntos fondo negro: '+qSPfn, $f(sVarMat*qSPfn), '', true) : ''}
+      ${qP>0 ? R('🌊 Pareo ('+qP+' pants)', $f(invP)) : ''}
+      ${sep}
+      ${R('Total materiales', $f(invTotal))}
+      ${R('+ ADS / pauta estimada', '+'+$f(adsTotal))}
+      ${sep}
+      ${R('💰 Inversión total necesaria', $f(costoVarTotal), 'var(--accent)')}
+    </div>
+
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.06em">Proyección de resultados · ${total} pants</div>
+    <div class="fin-card">
+      ${R('Ingreso proyectado', $f(ingTotal))}
+      ${R('− Costos variables', '−'+$f(costoVarTotal))}
+      ${R('− Gastos fijos quincena', '−'+$f(FIN.fijosQuinc))}
+      ${sep}
+      ${R('Utilidad proyectada', $f(utilNeta), utilNeta>=0?'var(--green)':'var(--red)')}
+      ${R('Margen proyectado', margen+'%', utilNeta>=0?'var(--green)':'var(--red)')}
+    </div>
+
+    <div class="fin-card" style="margin-top:12px;background:var(--bg3);border:1px solid var(--bg4)">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Tu ganancia estimada (${Math.round(FIN.dist.sueldo*100)}% de la utilidad)</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px">💵 Tu sueldo proyectado</span>
+        <span style="font-size:20px;font-weight:800;color:${utilNeta>=0?'var(--green)':'var(--red)'}">${$f(utilNeta * FIN.dist.sueldo)}</span>
+      </div>
+    </div>`;
 }
 
 function renderFinProductos() {
@@ -3973,7 +4176,7 @@ async function guardarCierre() {
   cfgSet('ceniza_historial_cierres', JSON.stringify(historial));
 
   mostrarToast(`✅ Quincena cerrada · +${fmt$(aEme)} emergencia · +${fmt$(aCre)} crecimiento`);
-  showFinSec('finanzas'); showFinTab('historial', document.getElementById('fstab-historial'));
+  showFinSec('finanzas'); showFinTab('quincena', document.getElementById('fstab-quincena'));
 }
 
 // ══════════════════════════════════════════════════════════
