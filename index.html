@@ -743,10 +743,10 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   <!-- Sub-tabs de Finanzas -->
   <div class="fin-subtabs" id="fsub-finanzas">
     <button class="fin-subtab active" id="fstab-quincena" onclick="showFinTab('quincena',this)">🏠 Resumen</button>
+    <button class="fin-subtab" id="fstab-costos" onclick="showFinTab('costos',this)">⚙️ Costos</button>
     <button class="fin-subtab" id="fstab-historial" onclick="showFinTab('historial',this)">📋 Historial</button>
     <button class="fin-subtab" id="fstab-cierre" onclick="showFinTab('cierre',this)">📊 Cierre</button>
     <button class="fin-subtab" id="fstab-productos" onclick="showFinTab('productos',this)">💲 Productos</button>
-    <button class="fin-subtab" id="fstab-lote" onclick="showFinTab('lote',this)">📐 Lotes</button>
   </div>
   <!-- Sub-tabs de Gestión -->
   <div class="fin-subtabs" id="fsub-gestion" style="display:none">
@@ -765,8 +765,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div id="fin-produccion" class="fin-screen" style="display:none">
       <div id="fin-produccion-content"></div>
     </div>
-    <div id="fin-lote" class="fin-screen" style="display:none">
-      <div id="fin-lote-content"></div>
+    <div id="fin-costos" class="fin-screen" style="display:none">
+      <div id="fin-costos-content"></div>
     </div>
     <div id="fin-historial" class="fin-screen" style="display:none">
       <div id="fin-historial-content"></div>
@@ -2305,6 +2305,47 @@ const FIN = {
   mat: { tela:6.49, liga:0.50, bolsa:0.46, etiqueta:0.07, sticker:0.04, confeccion:3.00, empaquetado:0.25, ads:2.00 }
 };
 
+// Cargar costos guardados por la usuaria (sobreescribe FIN en memoria)
+function _recalcFIN(obj) {
+  // Recalcula varMat, utilNeta y costoTotal a partir de mat (sin ads)
+  const { ads, ...sinAds } = obj.mat;
+  obj.varMat    = Object.values(sinAds).reduce((a, b) => a + b, 0);
+  obj.utilNeta  = obj.precio - obj.varMat - obj.varAds;
+  obj.costoTotal = obj.varMat + obj.varAds;
+}
+
+// Aplica un objeto de costos guardados a los objetos FIN en memoria
+function _aplicarCostosAlFIN(saved) {
+  if (!saved) return;
+  if (saved.fijosQuinc != null) FIN.fijosQuinc = saved.fijosQuinc;
+  if (saved.varAds     != null) {
+    FIN.varAds = saved.varAds;
+    FIN_SUBLIMADO.varAds = saved.varAds;
+    FIN_PAREO.varAds     = saved.varAds;
+  }
+  const uni = saved.unicolor || saved;
+  if (uni.precio != null) FIN.precio = uni.precio;
+  if (uni.mat)   { Object.assign(FIN.mat, uni.mat); _recalcFIN(FIN); }
+  const sub = saved.sublimado;
+  if (sub) {
+    if (sub.precio != null) FIN_SUBLIMADO.precio = sub.precio;
+    if (sub.mat)   { Object.assign(FIN_SUBLIMADO.mat, sub.mat); _recalcFIN(FIN_SUBLIMADO); }
+  }
+  const par = saved.pareo;
+  if (par) {
+    if (par.precio != null) FIN_PAREO.precio = par.precio;
+    if (par.mat)   { Object.assign(FIN_PAREO.mat, par.mat); _recalcFIN(FIN_PAREO); }
+  }
+}
+
+function initFINFromStorage() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ceniza_costos') || 'null');
+    _aplicarCostosAlFIN(saved);
+  } catch(_) {}
+}
+initFINFromStorage();
+
 // ── Pantalón Sublimado ────────────────────────────────────────
 const FIN_SUBLIMADO = {
   precio:     45,
@@ -2313,6 +2354,16 @@ const FIN_SUBLIMADO = {
   utilNeta:   20.64, // $45 − $24.36
   costoTotal: 24.36,
   mat: { sublimado:6.50, tela:7.60, liga:0.50, bolsa:0.46, etiqueta:0.07, sticker:0.04, confeccion:3.00, empaquetado:0.25, ads:2.00 }
+};
+
+// ── Pantalón Pareo ────────────────────────────────────────────
+const FIN_PAREO = {
+  precio:     35,
+  varMat:     11.07, // tela $7.00 + bolsa $0.46 + etiq $0.07 + sticker $0.04 + confección $3.25 + empaque $0.25
+  varAds:     2.00,
+  utilNeta:   21.93, // $35 − $13.07
+  costoTotal: 13.07,
+  mat: { tela:7.00, bolsa:0.46, etiqueta:0.07, sticker:0.04, confeccion:3.25, empaquetado:0.25 }
 };
 
 // Formateador global de moneda
@@ -2346,6 +2397,22 @@ async function abrirAppDuena() {
   showFinSec('finanzas');
   loadFinQuincena();
   loadFinFondos();
+  loadCostosFromAPI(); // sincronizar costos desde el servidor en segundo plano
+}
+
+// Carga los costos guardados desde la hoja Config del servidor.
+// Si hay datos, los aplica y actualiza localStorage como respaldo.
+async function loadCostosFromAPI() {
+  try {
+    const config = await fetchData('leerConfig');
+    const raw = config && config['ceniza_costos_v2'];
+    if (!raw) return;
+    const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    localStorage.setItem('ceniza_costos', JSON.stringify(c));
+    _aplicarCostosAlFIN(c);
+  } catch(_) {
+    // Si falla, no pasa nada — ya se cargó desde localStorage al inicio
+  }
 }
 
 // Navegación principal de la dueña (nav-btn inferior)
@@ -2380,7 +2447,7 @@ function showFinCat(cat) {
 }
 
 function showFinTab(tab, btn) {
-  ['quincena','produccion','lote','historial','cierre','fondos','compras','inventario','productos','entregas-ctrl'].forEach(t => {
+  ['quincena','produccion','costos','historial','cierre','fondos','compras','inventario','productos','entregas-ctrl'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
@@ -2391,7 +2458,7 @@ function showFinTab(tab, btn) {
   }
   if (tab === 'quincena')       loadFinQuincena();
   if (tab === 'produccion')     renderFinProduccion();
-  if (tab === 'lote')           renderFinLote();
+  if (tab === 'costos')         renderFinCostos();
   if (tab === 'historial')      renderFinHistorial();
   if (tab === 'cierre')         renderFinCierre();
   if (tab === 'compras')        renderFinCompras();
@@ -2399,6 +2466,184 @@ function showFinTab(tab, btn) {
   if (tab === 'inventario')     renderFinInventario();
   if (tab === 'productos')      renderFinProductos();
   if (tab === 'entregas-ctrl')  renderFinEntregasCtrl();
+}
+
+// ══════════════════════════════════════════════════════════
+// COSTOS EDITABLES (Unicolor + Sublimado)
+// ══════════════════════════════════════════════════════════
+function renderFinCostos() {
+  const div = document.getElementById('fin-costos-content');
+  if (!div) return;
+
+  const row = (label, id, val, step) => `
+    <div class="fin-row" style="align-items:center;padding:7px 0">
+      <span class="fin-row-label" style="font-size:13px">${label}</span>
+      <input type="number" id="${id}" value="${parseFloat(val||0).toFixed(2)}" step="${step||'0.01'}" min="0"
+        inputmode="decimal"
+        style="width:80px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:4px 8px;color:var(--text);font-size:14px;font-weight:700"
+        oninput="actualizarCostosPreview()">
+    </div>`;
+
+  div.innerHTML = `
+    <div style="padding:14px 16px 80px">
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:16px;text-transform:uppercase;letter-spacing:.06em">Edita un costo → todo recalcula automáticamente</div>
+
+      <!-- Compartidos -->
+      <div class="fin-sec-title">📢 Publicidad (todos los productos)</div>
+      <div class="fin-card">
+        ${row('ADS / pauta por pant', 'cst-ads', FIN.varAds)}
+      </div>
+      <div class="fin-sec-title">🏢 Gastos fijos por quincena</div>
+      <div class="fin-card">
+        ${row('Total gastos fijos', 'cst-fijos', FIN.fijosQuinc, '1')}
+      </div>
+
+      <!-- Unicolor -->
+      <div class="fin-sec-title" style="margin-top:18px">🩱 Pantalón Unicolor</div>
+      <div class="fin-card">
+        ${row('Precio de venta', 'cst-u-precio', FIN.precio)}
+        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+        ${row('Tela', 'cst-u-tela', FIN.mat.tela)}
+        ${row('Liga', 'cst-u-liga', FIN.mat.liga)}
+        ${row('Bolsa', 'cst-u-bolsa', FIN.mat.bolsa)}
+        ${row('Etiqueta', 'cst-u-etiqueta', FIN.mat.etiqueta)}
+        ${row('Sticker', 'cst-u-sticker', FIN.mat.sticker)}
+        ${row('Confección', 'cst-u-confeccion', FIN.mat.confeccion)}
+        ${row('Empaquetado', 'cst-u-empaquetado', FIN.mat.empaquetado)}
+      </div>
+      <div class="fin-card" id="costos-resumen-uni" style="background:var(--bg3)">${_renderCostosResumen('uni')}</div>
+
+      <!-- Sublimado -->
+      <div class="fin-sec-title" style="margin-top:18px">🎨 Pantalón Sublimado</div>
+      <div class="fin-card">
+        ${row('Precio de venta', 'cst-s-precio', FIN_SUBLIMADO.precio)}
+        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+        ${row('Transfer / sublimado', 'cst-s-sublimado', FIN_SUBLIMADO.mat.sublimado)}
+        ${row('Tela', 'cst-s-tela', FIN_SUBLIMADO.mat.tela)}
+        ${row('Liga', 'cst-s-liga', FIN_SUBLIMADO.mat.liga)}
+        ${row('Bolsa', 'cst-s-bolsa', FIN_SUBLIMADO.mat.bolsa)}
+        ${row('Etiqueta', 'cst-s-etiqueta', FIN_SUBLIMADO.mat.etiqueta)}
+        ${row('Sticker', 'cst-s-sticker', FIN_SUBLIMADO.mat.sticker)}
+        ${row('Confección', 'cst-s-confeccion', FIN_SUBLIMADO.mat.confeccion)}
+        ${row('Empaquetado', 'cst-s-empaquetado', FIN_SUBLIMADO.mat.empaquetado)}
+      </div>
+      <div class="fin-card" id="costos-resumen-sub" style="background:var(--bg3)">${_renderCostosResumen('sub')}</div>
+
+      <!-- Pareo -->
+      <div class="fin-sec-title" style="margin-top:18px">🌊 Pantalón Pareo</div>
+      <div class="fin-card">
+        ${row('Precio de venta', 'cst-p-precio', FIN_PAREO.precio)}
+        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+        ${row('Tela', 'cst-p-tela', FIN_PAREO.mat.tela)}
+        ${row('Bolsa', 'cst-p-bolsa', FIN_PAREO.mat.bolsa)}
+        ${row('Etiqueta', 'cst-p-etiqueta', FIN_PAREO.mat.etiqueta)}
+        ${row('Sticker', 'cst-p-sticker', FIN_PAREO.mat.sticker)}
+        ${row('Confección', 'cst-p-confeccion', FIN_PAREO.mat.confeccion)}
+        ${row('Empaquetado', 'cst-p-empaquetado', FIN_PAREO.mat.empaquetado)}
+      </div>
+      <div class="fin-card" id="costos-resumen-par" style="background:var(--bg3)">${_renderCostosResumen('par')}</div>
+
+      <button class="btn btn-primary" onclick="guardarCostos()" style="width:100%;margin-top:16px;padding:14px;font-size:15px">
+        💾 Guardar todos los costos
+      </button>
+    </div>`;
+}
+
+function _renderCostosResumen(tipo, c) {
+  // tipo: 'uni' o 'sub'. c: objeto con valores desde inputs (opcional)
+  let precio, varAds, fijosQuinc, mat;
+  if (c) {
+    varAds     = c.varAds;
+    fijosQuinc = c.fijosQuinc;
+    if (tipo === 'sub') { precio = c.sublimado.precio; mat = c.sublimado.mat; }
+    else if (tipo === 'par') { precio = c.pareo.precio; mat = c.pareo.mat; }
+    else                { precio = c.unicolor.precio;  mat = c.unicolor.mat;  }
+  } else {
+    varAds     = FIN.varAds;
+    fijosQuinc = FIN.fijosQuinc;
+    if (tipo === 'sub') { precio = FIN_SUBLIMADO.precio; mat = FIN_SUBLIMADO.mat; }
+    else if (tipo === 'par') { precio = FIN_PAREO.precio; mat = FIN_PAREO.mat; }
+    else                { precio = FIN.precio;           mat = FIN.mat;           }
+  }
+  const { ads, ...sinAds } = mat;
+  const varMat   = Object.values(sinAds).reduce((a, b) => a + b, 0);
+  const utilNeta = precio - varMat - varAds;
+  const pe       = utilNeta > 0 ? Math.ceil(fijosQuinc / utilNeta) : '∞';
+  return `
+    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Costo materiales / pant</span><span class="fin-row-val" style="font-size:12px">${$f(varMat)}</span></div>
+    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Costo total / pant</span><span class="fin-row-val" style="font-size:12px;font-weight:700">${$f(varMat + varAds)}</span></div>
+    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Utilidad neta / pant</span><span class="fin-row-val" style="font-size:13px;font-weight:700;color:${utilNeta>=0?'var(--green)':'var(--red)'}">${$f(utilNeta)}</span></div>
+    <div class="fin-row"><span class="fin-row-label" style="font-size:12px">Punto de equilibrio</span><span class="fin-row-val" style="font-size:12px;font-weight:700">${pe} pants</span></div>`;
+}
+
+function actualizarCostosPreview() {
+  const c = _getCostosFromInputs();
+  if (!c) return;
+  const rU = document.getElementById('costos-resumen-uni');
+  const rS = document.getElementById('costos-resumen-sub');
+  const rP = document.getElementById('costos-resumen-par');
+  if (rU) rU.innerHTML = _renderCostosResumen('uni', c);
+  if (rS) rS.innerHTML = _renderCostosResumen('sub', c);
+  if (rP) rP.innerHTML = _renderCostosResumen('par', c);
+}
+
+function _getCostosFromInputs() {
+  const g = id => parseFloat(document.getElementById(id)?.value || 0) || 0;
+  return {
+    varAds:     g('cst-ads'),
+    fijosQuinc: g('cst-fijos'),
+    unicolor: {
+      precio: g('cst-u-precio'),
+      mat: {
+        tela:        g('cst-u-tela'),
+        liga:        g('cst-u-liga'),
+        bolsa:       g('cst-u-bolsa'),
+        etiqueta:    g('cst-u-etiqueta'),
+        sticker:     g('cst-u-sticker'),
+        confeccion:  g('cst-u-confeccion'),
+        empaquetado: g('cst-u-empaquetado')
+      }
+    },
+    sublimado: {
+      precio: g('cst-s-precio'),
+      mat: {
+        sublimado:   g('cst-s-sublimado'),
+        tela:        g('cst-s-tela'),
+        liga:        g('cst-s-liga'),
+        bolsa:       g('cst-s-bolsa'),
+        etiqueta:    g('cst-s-etiqueta'),
+        sticker:     g('cst-s-sticker'),
+        confeccion:  g('cst-s-confeccion'),
+        empaquetado: g('cst-s-empaquetado')
+      }
+    },
+    pareo: {
+      precio: g('cst-p-precio'),
+      mat: {
+        tela:        g('cst-p-tela'),
+        bolsa:       g('cst-p-bolsa'),
+        etiqueta:    g('cst-p-etiqueta'),
+        sticker:     g('cst-p-sticker'),
+        confeccion:  g('cst-p-confeccion'),
+        empaquetado: g('cst-p-empaquetado')
+      }
+    }
+  };
+}
+
+async function guardarCostos() {
+  const c = _getCostosFromInputs();
+  if (!c) return;
+  const json = JSON.stringify(c);
+  // 1. Guardar localmente (respaldo offline)
+  localStorage.setItem('ceniza_costos', json);
+  // 2. Aplicar a FIN en memoria
+  _aplicarCostosAlFIN(c);
+  // 3. Guardar en el servidor (hoja Config) — no bloquea la UI
+  fetch(`${API}?accion=guardarConfig&clave=ceniza_costos_v2&valor=${encodeURIComponent(json)}`)
+    .catch(() => {}); // silencioso si falla — ya quedó en localStorage
+  showToast('✅ Costos guardados');
+  renderFinCostos();
 }
 
 function renderFinProductos() {
@@ -2878,7 +3123,33 @@ function renderFinQuincena() {
 
   const neg = v => v < 0 ? `style="color:var(--red)"` : '';
 
+  // Datos de comisión de Angi para el resumen rápido
+  const _angiData = (window._finVendedorasData || []).find(v => (v.nombre||'').toLowerCase() === 'angi');
+  const _angiTotal = _angiData ? $f(parseFloat(_angiData.totalAPagar)) : '–';
+  const _angiPants = _angiData ? _angiData.pants : '–';
+  const _angiPct   = _angiData ? _angiData.pct : '';
+
   document.getElementById('fin-quincena-content').innerHTML = `
+    <!-- Card de resumen rápido -->
+    <div class="fin-card" style="margin-bottom:10px;padding:14px 16px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">📌 Resumen rápido · ${getMesActualDisplay()}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:var(--bg3);border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Tu sueldo</div>
+          <div style="font-size:22px;font-weight:800;color:${utilReal >= 0 ? 'var(--green)' : 'var(--red)'}">${$f(dist.sueldo)}</div>
+          <div style="font-size:10px;color:var(--text3)">proyectado · 40%</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Comisión Angi</div>
+          <div style="font-size:22px;font-weight:800;color:var(--gold)">${_angiTotal}</div>
+          <div style="font-size:10px;color:var(--text3)">${_angiPants} pants · ${_angiPct}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;text-align:center;font-size:12px;font-weight:600;color:${n >= beQ ? 'var(--green)' : 'var(--red)'}">
+        ${n >= beQ ? `✅ Sobre equilibrio (PE: ${beQ} pants)` : `⚠️ Faltan ${beQ - n} pants para equilibrio (PE: ${beQ})`}
+      </div>
+    </div>
+
     <!-- Resumen base -->
     <div class="fin-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
