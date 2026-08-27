@@ -99,6 +99,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .form-group label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em}
 .form-group input,.form-group select,.form-group textarea{background:var(--bg3);border:none;border-radius:var(--radius-sm);padding:13px 16px;font-size:15px;color:var(--text);font-family:inherit;outline:none;transition:box-shadow 0.15s,background 0.15s;width:100%;-webkit-appearance:none}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{box-shadow:0 0 0 2px var(--gold);background:var(--bg2)}
+#add-item-form .form-group input,#add-item-form .form-group select,#add-item-form .form-group textarea{background:var(--bg1);border:1px solid var(--bg4)}
+#add-item-form .form-group input:focus,#add-item-form .form-group select:focus{background:var(--bg1)}
 .form-group select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
 .form-group textarea{resize:none;line-height:1.5}
 .form-divider{grid-column:1/-1;height:1px;background:var(--bg3);margin:4px 0}
@@ -948,6 +950,13 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
           <div id="add-item-form" class="add-item-box" style="display:none">
             <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">Nuevo pantalón</div>
             <div class="add-item-grid">
+              <div class="form-group" style="grid-column:1/-1">
+                <label>Producto *</label>
+                <select id="ai-producto" onchange="actualizarColoresProducto()">
+                  <option value="Pantalón Ceniza">Pantalón Ceniza</option>
+                  <option value="Pantalón Pareo">Pantalón Pareo</option>
+                </select>
+              </div>
               <div class="form-group">
                 <label>Color *</label>
                 <select id="ai-color">
@@ -956,7 +965,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
                   <option>Marrón</option><option>Beige</option><option>Azul rey</option>
                   <option>Terracota</option><option>Fucsia</option><option>Rojo</option>
                   <option>Blanco</option><option>Amarillo</option><option>Morado</option>
-                  <option>Gris</option><option>Neón</option><option>Rayas</option><option>Puntos negros fondo blanco</option>
+                  <option>Gris</option><option>Neón</option><option>Rayas</option>
+                  <option>Puntos negros fondo blanco</option><option>Puntos blancos fondo negro</option>
                 </select>
               </div>
               <div class="form-group">
@@ -6913,18 +6923,45 @@ let formModo = 'nuevo';   // 'nuevo' | 'editar'
 let filaEdicion = null;
 let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdicion)
 
+const COLORES_PRODUCTO = {
+  'Pantalón Ceniza': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro'],
+  'Pantalón Pareo':  ['Negro','Azul marino','Gris','Beige']
+};
+const PRECIO_PRODUCTO = {
+  'Pantalón Ceniza': () => FIN.precio,
+  'Pantalón Pareo':  () => FIN_PAREO.precio
+};
+
+function actualizarColoresProducto() {
+  const prod = document.getElementById('ai-producto')?.value || 'Pantalón Ceniza';
+  const colSel = document.getElementById('ai-color');
+  if (!colSel) return;
+  const current = colSel.value;
+  const colores = COLORES_PRODUCTO[prod] || COLORES_PRODUCTO['Pantalón Ceniza'];
+  colSel.innerHTML = '<option value="">Color...</option>' + colores.map(c => `<option${c===current?' selected':''}>${c}</option>`).join('');
+  // Auto-fill monto según producto (siempre al cambiar producto)
+  const montoEl = document.getElementById('ai-monto');
+  if (montoEl) {
+    const precio = PRECIO_PRODUCTO[prod] ? PRECIO_PRODUCTO[prod]() : FIN.precio;
+    montoEl.value = parseFloat(precio).toFixed(2);
+  }
+}
+
 function mostrarAddItem() {
   document.getElementById('add-item-form').style.display = 'block';
   document.getElementById('btn-add-item').style.display = 'none';
+  actualizarColoresProducto();
   setTimeout(() => document.getElementById('ai-color').focus(), 100);
 }
 
 function ocultarAddItem() {
   document.getElementById('add-item-form').style.display = 'none';
   document.getElementById('btn-add-item').style.display = 'block';
+  const prod = document.getElementById('ai-producto'); if (prod) prod.value = 'Pantalón Ceniza';
   ['ai-color','ai-talla','ai-ruedo'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('ai-monto').value = '';
   const _rm = document.getElementById('ai-ruedo-manual'); if (_rm) { _rm.value=''; _rm.style.display='none'; }
+  actualizarColoresProducto();
   const lbl = document.querySelector('#add-item-form div');
   if (lbl) lbl.textContent = 'Nuevo pantalón';
 }
@@ -6938,6 +6975,7 @@ function toggleRuedoManual(val) {
 }
 
 function agregarItem() {
+  const producto = document.getElementById('ai-producto')?.value || 'Pantalón Ceniza';
   const color = document.getElementById('ai-color').value;
   const talla = document.getElementById('ai-talla').value;
   let ruedo = document.getElementById('ai-ruedo').value;
@@ -6947,7 +6985,7 @@ function agregarItem() {
     mostrarToast('⚠ Completa todos los campos del pantalón');
     return;
   }
-  carrito.push({ color, talla, ruedo, montoProducto: monto });
+  carrito.push({ producto, color, talla, ruedo, montoProducto: monto });
   ocultarAddItem();
   renderCarrito();
 }
@@ -6962,6 +7000,8 @@ function editarItem(idx) {
   if (!item) return;
   // Pre-llenar el formulario de agregar pantalón
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  set('ai-producto', item.producto || 'Pantalón Ceniza');
+  actualizarColoresProducto();
   set('ai-color', item.color);
   set('ai-talla', item.talla);
   const _stdRuedos = ['93','97','100','103','105','108','110','113'];
@@ -6997,7 +7037,7 @@ function renderCarrito() {
   lista.innerHTML = carrito.map((item, i) => `
     <div class="cart-item">
       <div class="cart-item-info">
-        <div class="cart-item-title">${item.color}</div>
+        <div class="cart-item-title">${item.producto && item.producto !== 'Pantalón Ceniza' ? '<span style="font-size:11px;color:var(--text3)">' + item.producto + ' · </span>' : ''}${item.color}</div>
         <div class="cart-item-det">Talla ${item.talla} · ${item.ruedo}cm · $${parseFloat(item.montoProducto).toFixed(2)}</div>
       </div>
       <div class="cart-item-btns">
@@ -7156,6 +7196,7 @@ function abrirEdicion(fila) {
     if (parts.length === 3) set('f-fecha-entrega', parts[2]+'-'+parts[1]+'-'+parts[0]);
   }
   carrito = [{
+    producto: p.producto || 'Pantalón Ceniza',
     color: p.color || '',
     talla: p.talla || '',
     ruedo: p.ruedo || '',
@@ -7196,6 +7237,7 @@ async function submitPedidos() {
         fila:          filaEdicion,
         telefono:      g('f-telefono'),
         cedula:        g('f-cedula'),
+        producto:      item.producto || 'Pantalón Ceniza',
         color:         item.color    || '',
         talla:         item.talla    || '',
         ruedo:         item.ruedo    || '',
