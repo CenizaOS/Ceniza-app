@@ -733,37 +733,18 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
 
-  <!-- Dos secciones grandes -->
-  <div class="fin-secs">
-    <button class="fin-sec active" id="fsec-finanzas" onclick="showFinSec('finanzas')">
-      <span class="fin-sec-icon">💰</span>Finanzas
-    </button>
-    <button class="fin-sec" id="fsec-gestion" onclick="showFinSec('gestion')">
-      <span class="fin-sec-icon">📦</span>Gestión
-    </button>
-  </div>
   <!-- Sub-tabs de Finanzas -->
   <div class="fin-subtabs" id="fsub-finanzas">
     <button class="fin-subtab active" id="fstab-quincena" onclick="showFinTab('quincena',this)">🏠 Resumen</button>
     <button class="fin-subtab" id="fstab-costos" onclick="showFinTab('costos',this)">⚙️ Costos</button>
     <button class="fin-subtab" id="fstab-proyeccion" onclick="showFinTab('proyeccion',this)">📈 Proyección</button>
-  </div>
-  <!-- Sub-tabs de Gestión -->
-  <div class="fin-subtabs" id="fsub-gestion" style="display:none">
-    <button class="fin-subtab active" id="fstab-entregas-ctrl" onclick="showFinTab('entregas-ctrl',this)">🛵 Entregas</button>
-    <button class="fin-subtab" id="fstab-produccion" onclick="showFinTab('produccion',this)">🏭 Producción</button>
-    <button class="fin-subtab" id="fstab-compras" onclick="showFinTab('compras',this)">🛍️ Compras</button>
-    <button class="fin-subtab" id="fstab-fondos" onclick="showFinTab('fondos',this)">🏦 Fondos</button>
-    <button class="fin-subtab" id="fstab-inventario" onclick="showFinTab('inventario',this)">📦 Inventario</button>
+    <button class="fin-subtab" id="fstab-registro" onclick="showFinTab('registro',this)">📒 Registro</button>
   </div>
 
   <!-- Contenido -->
   <div class="fin-body">
     <div id="fin-quincena" class="fin-screen">
       <div id="fin-quincena-content"><div class="loading-msg"><div class="spinner"></div>Calculando...</div></div>
-    </div>
-    <div id="fin-produccion" class="fin-screen" style="display:none">
-      <div id="fin-produccion-content"></div>
     </div>
     <div id="fin-costos" class="fin-screen" style="display:none">
       <div id="fin-costos-content"></div>
@@ -777,20 +758,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div id="fin-proyeccion" class="fin-screen" style="display:none">
       <div id="fin-proyeccion-content"></div>
     </div>
-    <div id="fin-fondos" class="fin-screen" style="display:none">
-      <div id="fin-fondos-content"><div class="loading-msg"><div class="spinner"></div>Cargando fondos...</div></div>
-    </div>
-    <div id="fin-compras" class="fin-screen" style="display:none">
-      <div id="fin-compras-content"></div>
-    </div>
-    <div id="fin-inventario" class="fin-screen" style="display:none">
-      <div id="fin-inventario-content"></div>
-    </div>
-    <div id="fin-productos" class="fin-screen" style="display:none">
-      <div id="fin-productos-content"></div>
-    </div>
-    <div id="fin-entregas-ctrl" class="fin-screen" style="display:none">
-      <div id="fin-entregas-ctrl-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    <div id="fin-registro" class="fin-screen" style="display:none">
+      <div id="fin-registro-content"></div>
     </div>
   </div>
 </div>
@@ -1219,7 +1188,9 @@ const CONFIG_KEYS = [
   'ceniza_lote_producto','ceniza_compras_efectivo_log','ceniza_produccion_lotes',
   'ceniza_historial_cierres','ceniza_cierre_ultimo','delivery_wa_number',
   'ceniza_pruebas',
-  'ceniza_costos_productos'
+  'ceniza_costos_productos',
+  'ceniza_registro_quincenas',
+  'ceniza_proyeccion'
 ];
 
 // Carga config desde Sheets → localStorage al iniciar
@@ -2418,11 +2389,32 @@ async function abrirAppDuena() {
 async function loadCostosFromAPI() {
   try {
     const config = await fetchData('leerConfig');
-    const raw = config && config['ceniza_costos_v2'];
-    if (!raw) return;
-    const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    localStorage.setItem('ceniza_costos', JSON.stringify(c));
-    _aplicarCostosAlFIN(c);
+    if (!config) return;
+
+    // Costos de pantalones
+    const rawCostos = config['ceniza_costos_v2'];
+    if (rawCostos) {
+      const c = typeof rawCostos === 'string' ? JSON.parse(rawCostos) : rawCostos;
+      localStorage.setItem('ceniza_costos', JSON.stringify(c));
+      _aplicarCostosAlFIN(c);
+    }
+
+    // Registro de quincenas — restaurar desde Sheets si localStorage está vacío o tiene menos datos
+    const rawReg = config['ceniza_registro_quincenas'];
+    if (rawReg) {
+      const remoto = typeof rawReg === 'string' ? JSON.parse(rawReg) : rawReg;
+      const local  = _getRegistros();
+      // Usar el que tenga más registros (el servidor es la fuente de verdad)
+      if (Array.isArray(remoto) && remoto.length >= local.length) {
+        localStorage.setItem('ceniza_registro_quincenas', JSON.stringify(remoto));
+      }
+    }
+
+    // Proyección de pantalones
+    const rawProy = config['ceniza_proyeccion'];
+    if (rawProy && !localStorage.getItem('ceniza_proyeccion')) {
+      localStorage.setItem('ceniza_proyeccion', typeof rawProy === 'string' ? rawProy : JSON.stringify(rawProy));
+    }
   } catch(_) {
     // Si falla, no pasa nada — ya se cargó desde localStorage al inicio
   }
@@ -2430,37 +2422,28 @@ async function loadCostosFromAPI() {
 
 // Navegación principal de la dueña (nav-btn inferior)
 function show(tab, btn) {
-  const tabMap = { dashboard:'quincena', produccion:'produccion', entregas:'historial', comisiones:'cierre' };
-  const secMap  = { dashboard:'finanzas', produccion:'gestion', entregas:'finanzas', comisiones:'finanzas' };
+  const tabMap = { dashboard:'quincena', entregas:'historial', comisiones:'cierre' };
   const finTab = tabMap[tab] || tab;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  showFinSec(secMap[tab] || 'finanzas');
   showFinTab(finTab);
 }
 
 // ── Tabs ─────────────────────────────────────────────────────
 function showFinSec(sec) {
-  ['finanzas','gestion'].forEach(s => {
-    const secBtn = document.getElementById('fsec-' + s);
-    const sub    = document.getElementById('fsub-' + s);
-    if (secBtn) secBtn.classList.toggle('active', s === sec);
-    if (sub)    sub.style.display = s === sec ? 'flex' : 'none';
-  });
-  const firstTab = { finanzas: 'quincena', gestion: 'entregas-ctrl' };
-  const subtabs = document.querySelectorAll('#fsub-' + sec + ' .fin-subtab');
+  const subtabs = document.querySelectorAll('#fsub-finanzas .fin-subtab');
   subtabs.forEach(b => b.classList.remove('active'));
   if (subtabs[0]) subtabs[0].classList.add('active');
-  showFinTab(firstTab[sec]);
+  showFinTab('quincena');
 }
 // Alias backward-compat
 function showFinCat(cat) {
-  const map = { resumen:'finanzas', taller:'gestion', gestion:'gestion' };
+  const map = { resumen:'finanzas' };
   showFinSec(map[cat] || 'finanzas');
 }
 
 function showFinTab(tab, btn) {
-  ['quincena','produccion','costos','historial','cierre','fondos','compras','inventario','productos','proyeccion','entregas-ctrl'].forEach(t => {
+  ['quincena','costos','historial','cierre','proyeccion','registro'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
@@ -2479,6 +2462,7 @@ function showFinTab(tab, btn) {
   if (tab === 'inventario')     renderFinInventario();
   if (tab === 'productos')      renderFinProductos();
   if (tab === 'proyeccion')     renderFinProyeccion();
+  if (tab === 'registro')       renderFinRegistro();
   if (tab === 'entregas-ctrl')  renderFinEntregasCtrl();
 }
 
@@ -2693,6 +2677,166 @@ async function guardarCostos() {
     .catch(() => {}); // silencioso si falla — ya quedó en localStorage
   showToast('✅ Costos guardados');
   renderFinCostos();
+}
+
+// ══════════════════════════════════════════════════════════
+// REGISTRO DE QUINCENAS
+// ══════════════════════════════════════════════════════════
+function _getRegistros() {
+  try { return JSON.parse(localStorage.getItem('ceniza_registro_quincenas') || '[]'); } catch(_) { return []; }
+}
+function _saveRegistros(arr) {
+  const json = JSON.stringify(arr);
+  localStorage.setItem('ceniza_registro_quincenas', json);
+  // Sincronizar con Google Sheets para que no se pierda al limpiar caché
+  fetch(`${API}?accion=guardarConfig&clave=ceniza_registro_quincenas&valor=${encodeURIComponent(json)}`)
+    .catch(() => {});
+}
+
+function renderFinRegistro() {
+  const div = document.getElementById('fin-registro-content');
+  if (!div) return;
+  const registros = _getRegistros();
+
+  const histHTML = registros.length === 0
+    ? `<div class="fin-card" style="text-align:center;color:var(--text3);font-size:13px;padding:20px 0">Aún no hay quincenas registradas</div>`
+    : registros.slice().reverse().map((r, i) => {
+        const idx = registros.length - 1 - i;
+        const diff = (parseFloat(r.saldoFinal) || 0) - (parseFloat(r.saldoInicial) || 0);
+        const diffColor = diff >= 0 ? 'var(--green)' : 'var(--red)';
+        const diffSign  = diff >= 0 ? '+' : '';
+        return `
+          <div class="fin-card" style="margin-bottom:10px;position:relative">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+              <div>
+                <div style="font-size:14px;font-weight:700">${r.quincena}</div>
+                <div style="font-size:11px;color:var(--text3)">${r.fechaRegistro || ''}</div>
+              </div>
+              <button onclick="eliminarRegistro(${idx})" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0 4px">✕</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:${r.adsGastado?'8px':'0'}">
+              <div style="background:var(--bg3);border-radius:8px;padding:8px 4px">
+                <div style="font-size:10px;color:var(--text3);margin-bottom:2px">INICIO</div>
+                <div style="font-size:15px;font-weight:700">${$f(r.saldoInicial)}</div>
+              </div>
+              <div style="background:var(--bg3);border-radius:8px;padding:8px 4px">
+                <div style="font-size:10px;color:var(--text3);margin-bottom:2px">CIERRE</div>
+                <div style="font-size:15px;font-weight:700">${$f(r.saldoFinal)}</div>
+              </div>
+              <div style="background:var(--bg3);border-radius:8px;padding:8px 4px">
+                <div style="font-size:10px;color:var(--text3);margin-bottom:2px">DIFERENCIA</div>
+                <div style="font-size:15px;font-weight:700;color:${diffColor}">${diffSign}${$f(Math.abs(diff))}</div>
+              </div>
+            </div>
+            ${r.adsGastado ? `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border-radius:8px;padding:7px 10px;margin-bottom:6px">
+              <span style="font-size:12px;color:var(--text3)">📢 ADS / pauta gastada</span>
+              <span style="font-size:13px;font-weight:700;color:var(--red)">−${$f(r.adsGastado)}</span>
+            </div>` : ''}
+            ${(r.qCeniza || r.qSub || r.qPareo) ? `<div style="background:var(--bg3);border-radius:8px;padding:7px 10px;margin-bottom:6px">
+              <div style="font-size:10px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Pantalones vendidos</div>
+              <div style="display:flex;gap:8px">
+                ${r.qCeniza ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1">
+                  <div style="font-size:10px;color:var(--text3)">🩱 Ceniza</div>
+                  <div style="font-size:15px;font-weight:700">${r.qCeniza}</div>
+                </div>` : ''}
+                ${r.qSub ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1">
+                  <div style="font-size:10px;color:var(--text3)">🎨 Sublimado</div>
+                  <div style="font-size:15px;font-weight:700">${r.qSub}</div>
+                </div>` : ''}
+                ${r.qPareo ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1">
+                  <div style="font-size:10px;color:var(--text3)">🌊 Pareo</div>
+                  <div style="font-size:15px;font-weight:700">${r.qPareo}</div>
+                </div>` : ''}
+              </div>
+            </div>` : ''}
+            ${r.notas ? `<div style="margin-top:8px;font-size:12px;color:var(--text3);border-top:1px solid var(--bg4);padding-top:6px">${r.notas}</div>` : ''}
+          </div>`;
+      }).join('');
+
+  div.innerHTML = `
+    <div style="padding:14px 16px 80px">
+      <!-- Formulario nuevo registro -->
+      <div class="fin-sec-title" style="margin-top:0">📝 Nueva quincena</div>
+      <div class="fin-card">
+        <div class="fin-row" style="align-items:center;padding:7px 0">
+          <span class="fin-row-label" style="font-size:13px">Quincena</span>
+          <input type="text" id="reg-quincena" placeholder="Ej: 1ra quincena sept 2026"
+            style="width:55%;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px">
+        </div>
+        <div class="fin-row" style="align-items:center;padding:7px 0">
+          <span class="fin-row-label" style="font-size:13px">Saldo inicial ($)</span>
+          <input type="number" id="reg-inicio" placeholder="0.00" min="0" step="0.01" inputmode="decimal"
+            style="width:100px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700">
+        </div>
+        <div class="fin-row" style="align-items:center;padding:7px 0">
+          <span class="fin-row-label" style="font-size:13px">Saldo final ($)</span>
+          <input type="number" id="reg-final" placeholder="0.00" min="0" step="0.01" inputmode="decimal"
+            style="width:100px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700">
+        </div>
+        <div class="fin-row" style="align-items:center;padding:7px 0">
+          <span class="fin-row-label" style="font-size:13px">ADS / pauta gastada ($)</span>
+          <input type="number" id="reg-ads" placeholder="0.00" min="0" step="0.01" inputmode="decimal"
+            style="width:100px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700">
+        </div>
+        <div style="border-top:1px solid var(--bg3);margin:8px 0 4px"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Pantalones vendidos</div>
+        <div class="fin-row" style="align-items:center;padding:6px 0">
+          <span class="fin-row-label" style="font-size:13px">🩱 Ceniza</span>
+          <input type="number" id="reg-q-ceniza" placeholder="0" min="0" step="1" inputmode="numeric"
+            style="width:80px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700">
+        </div>
+        <div class="fin-row" style="align-items:center;padding:6px 0">
+          <span class="fin-row-label" style="font-size:13px">🎨 Sublimado</span>
+          <input type="number" id="reg-q-sub" placeholder="0" min="0" step="1" inputmode="numeric"
+            style="width:80px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700">
+        </div>
+        <div class="fin-row" style="align-items:center;padding:6px 0">
+          <span class="fin-row-label" style="font-size:13px">🌊 Pareo</span>
+          <input type="number" id="reg-q-pareo" placeholder="0" min="0" step="1" inputmode="numeric"
+            style="width:80px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700">
+        </div>
+        <div style="padding:6px 0">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Notas (opcional)</div>
+          <textarea id="reg-notas" placeholder="Observaciones de la quincena..." rows="2"
+            style="width:100%;box-sizing:border-box;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;font-family:inherit;resize:none"></textarea>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="guardarRegistroQuincena()" style="width:100%;padding:13px;font-size:14px;margin-bottom:24px">
+        💾 Guardar registro
+      </button>
+
+      <!-- Historial -->
+      <div class="fin-sec-title">📋 Historial de quincenas</div>
+      ${histHTML}
+    </div>`;
+}
+
+function guardarRegistroQuincena() {
+  const quincena = (document.getElementById('reg-quincena')?.value || '').trim();
+  const saldoInicial = parseFloat(document.getElementById('reg-inicio')?.value || 0) || 0;
+  const saldoFinal   = parseFloat(document.getElementById('reg-final')?.value || 0) || 0;
+  const adsGastado   = parseFloat(document.getElementById('reg-ads')?.value || 0) || 0;
+  const qCeniza      = parseInt(document.getElementById('reg-q-ceniza')?.value || 0) || 0;
+  const qSub         = parseInt(document.getElementById('reg-q-sub')?.value || 0) || 0;
+  const qPareo       = parseInt(document.getElementById('reg-q-pareo')?.value || 0) || 0;
+  const notas        = (document.getElementById('reg-notas')?.value || '').trim();
+  if (!quincena) { showToast('⚠️ Ingresa el nombre de la quincena'); return; }
+  const hoy = new Date();
+  const fechaRegistro = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+  const registros = _getRegistros();
+  registros.push({ id: Date.now(), quincena, fechaRegistro, saldoInicial, saldoFinal, adsGastado, qCeniza, qSub, qPareo, notas });
+  _saveRegistros(registros);
+  showToast('✅ Quincena registrada');
+  renderFinRegistro();
+}
+
+function eliminarRegistro(idx) {
+  const registros = _getRegistros();
+  if (idx < 0 || idx >= registros.length) return;
+  registros.splice(idx, 1);
+  _saveRegistros(registros);
+  showToast('Registro eliminado');
+  renderFinRegistro();
 }
 
 function renderFinProyeccion() {
@@ -5074,11 +5218,6 @@ function renderFinLote() {
       </div>
     </div>
 
-    <!-- Acceso rápido a Compras -->
-    <button onclick="showFinCat('gestion'); showFinTab('compras', document.getElementById('fstab-compras'))"
-      style="width:100%;margin-top:14px;background:var(--bg2);border:1px solid var(--bg4);border-radius:12px;padding:12px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;text-align:center">
-      🛍️ Ver lista de compras →
-    </button>
   `;
 }
 
