@@ -3088,12 +3088,24 @@ async function _cargarProgressProyeccion() {
   try {
     const { inicio, fin } = _rangoQuincenaActual();
 
-    // Pedir producción (activas en quincena) e historial (entregadas) en paralelo
+    // Pedir producción (activas) e historial (entregadas) en paralelo
     const [prodData, histData] = await Promise.all([
       fetchData('produccion'),
       fetchData('historial').catch(() => ({ pedidos: [] }))
     ]);
     localStorage.setItem('ceniza_cache_pedidos', JSON.stringify(prodData));
+
+    // Filtrar items de producción a la quincena actual por fechaRegistro
+    // (GAS puede devolver órdenes activas de quincenas anteriores)
+    const prodQuincena = [];
+    (prodData.grupos || []).forEach(g => {
+      (g.items || []).forEach(item => {
+        const f = _parseFecha(item.fechaRegistro);
+        // Si el item tiene fecha válida, solo incluir si cae en la quincena
+        // Si no tiene fecha, incluir (asumir que es del período actual)
+        if (!f || (f >= inicio && f <= fin)) prodQuincena.push(item);
+      });
+    });
 
     // Filtrar historial solo a la quincena en curso por fechaRegistro
     const histQuincena = (histData.pedidos || []).filter(p => {
@@ -3101,10 +3113,8 @@ async function _cargarProgressProyeccion() {
       return f && f >= inicio && f <= fin;
     });
 
-    const combinado = {
-      grupos:  prodData.grupos || [],
-      pedidos: histQuincena
-    };
+    // Combinar ambas fuentes (ya sin estructura de grupos)
+    const combinado = { grupos: [], pedidos: [...prodQuincena, ...histQuincena] };
     _renderProyProgress(_contarVentasProy(combinado));
   } catch(e) {
     if (div) div.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px 0">No se pudo cargar el avance · <span style="cursor:pointer;text-decoration:underline" onclick="_cargarProgressProyeccion()">Reintentar</span></div>`;
