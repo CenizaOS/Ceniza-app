@@ -922,7 +922,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
               <div class="form-group" style="grid-column:1/-1">
                 <label>Producto *</label>
                 <select id="ai-producto" onchange="actualizarColoresProducto()">
-                  <option value="Pantalón Ceniza">Pantalón Ceniza</option>
+                  <option value="Pantalón Clásico">Pantalón Clásico</option>
                   <option value="Pantalón Pareo">Pantalón Pareo</option>
                 </select>
               </div>
@@ -1285,7 +1285,7 @@ function saveColoresTela(list) { cfgSet('ceniza_colores_tela', list); }
 // ══ COSTOS DE PRODUCTOS ══
 const PROD_COSTOS_DEFAULT = {
   unicolor: {
-    nombre: 'Pantalón Ceniza Unicolor', precio: 30,
+    nombre: 'Pantalón Clásico Unicolor', precio: 30,
     items: [
       { label: 'Tela 2.7 metros', costo: 5.5 },
       { label: 'Liga', costo: 0.5 },
@@ -1299,7 +1299,7 @@ const PROD_COSTOS_DEFAULT = {
     ]
   },
   sublimado: {
-    nombre: 'Pantalón Ceniza Sublimado', precio: 53,
+    nombre: 'Pantalón Clásico Sublimado', precio: 53,
     items: [
       { label: 'Sublimado ($5.4 cash/metro)', costo: 14.5 },
       { label: 'Tela 2.7 metros', costo: 5.5 },
@@ -7162,20 +7162,20 @@ let _submitting = false;  // bandera anti-duplicado
 let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdicion)
 
 const COLORES_PRODUCTO = {
-  'Pantalón Ceniza': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro'],
-  'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige']
+  'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos'],
+  'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige','Rayas blanco y negro','Puntos blancos']
 };
 const PRECIO_PRODUCTO = {
-  'Pantalón Ceniza': () => FIN.precio,
+  'Pantalón Clásico': () => FIN.precio,
   'Pantalón Pareo':  () => FIN_PAREO.precio
 };
 
 function actualizarColoresProducto() {
-  const prod = document.getElementById('ai-producto')?.value || 'Pantalón Ceniza';
+  const prod = document.getElementById('ai-producto')?.value || 'Pantalón Clásico';
   const colSel = document.getElementById('ai-color');
   if (!colSel) return;
   const current = colSel.value;
-  const colores = COLORES_PRODUCTO[prod] || COLORES_PRODUCTO['Pantalón Ceniza'];
+  const colores = COLORES_PRODUCTO[prod] || COLORES_PRODUCTO['Pantalón Clásico'];
   colSel.innerHTML = '<option value="">Color...</option>' + colores.map(c => `<option${c===current?' selected':''}>${c}</option>`).join('');
   // Auto-fill monto según producto (siempre al cambiar producto)
   const montoEl = document.getElementById('ai-monto');
@@ -7195,7 +7195,7 @@ function mostrarAddItem() {
 function ocultarAddItem() {
   document.getElementById('add-item-form').style.display = 'none';
   document.getElementById('btn-add-item').style.display = 'block';
-  const prod = document.getElementById('ai-producto'); if (prod) prod.value = 'Pantalón Ceniza';
+  const prod = document.getElementById('ai-producto'); if (prod) prod.value = 'Pantalón Clásico';
   ['ai-color','ai-talla','ai-ruedo'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('ai-monto').value = '';
   const _rm = document.getElementById('ai-ruedo-manual'); if (_rm) { _rm.value=''; _rm.style.display='none'; }
@@ -7213,7 +7213,7 @@ function toggleRuedoManual(val) {
 }
 
 function agregarItem() {
-  const producto = document.getElementById('ai-producto')?.value || 'Pantalón Ceniza';
+  const producto = document.getElementById('ai-producto')?.value || 'Pantalón Clásico';
   const color = document.getElementById('ai-color').value;
   const talla = document.getElementById('ai-talla').value;
   let ruedo = document.getElementById('ai-ruedo').value;
@@ -7238,7 +7238,7 @@ function editarItem(idx) {
   if (!item) return;
   // Pre-llenar el formulario de agregar pantalón
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-  set('ai-producto', item.producto || 'Pantalón Ceniza');
+  set('ai-producto', item.producto || 'Pantalón Clásico');
   actualizarColoresProducto();
   set('ai-color', item.color);
   set('ai-talla', item.talla);
@@ -7275,7 +7275,7 @@ function renderCarrito() {
   lista.innerHTML = carrito.map((item, i) => `
     <div class="cart-item">
       <div class="cart-item-info">
-        <div class="cart-item-title">${item.producto && item.producto !== 'Pantalón Ceniza' ? '<span style="font-size:11px;color:var(--text3)">' + item.producto + ' · </span>' : ''}${item.color}</div>
+        <div class="cart-item-title">${item.producto && item.producto !== 'Pantalón Clásico' ? '<span style="font-size:11px;color:var(--text3)">' + item.producto + ' · </span>' : ''}${item.color}</div>
         <div class="cart-item-det">Talla ${item.talla} · ${item.ruedo}cm · $${parseFloat(item.montoProducto).toFixed(2)}</div>
       </div>
       <div class="cart-item-btns">
@@ -7434,7 +7434,7 @@ function abrirEdicion(fila) {
     if (parts.length === 3) set('f-fecha-entrega', parts[2]+'-'+parts[1]+'-'+parts[0]);
   }
   carrito = [{
-    producto: p.producto || 'Pantalón Ceniza',
+    producto: p.producto || 'Pantalón Clásico',
     color: p.color || '',
     talla: p.talla || '',
     ruedo: p.ruedo || '',
@@ -7480,7 +7480,7 @@ async function submitPedidos() {
         fila:          filaEdicion,
         telefono:      g('f-telefono'),
         cedula:        g('f-cedula'),
-        producto:      item.producto || 'Pantalón Ceniza',
+        producto:      item.producto || 'Pantalón Clásico',
         color:         item.color    || '',
         talla:         item.talla    || '',
         ruedo:         item.ruedo    || '',
