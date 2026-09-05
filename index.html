@@ -5933,6 +5933,27 @@ async function loadVendedoraComisiones() {
 let fechaCostureraActual = new Date();
 let _costData = null; // caché de datos completos
 
+// Botón Actualizar de costurera — fuerza re-fetch ignorando caché
+async function refreshCosturera() {
+  _costData = null;
+  localStorage.removeItem('ceniza_cache_produccion');
+  const cont = document.getElementById('cost-content');
+  if (cont) cont.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Actualizando...</div>';
+  try {
+    const d = await fetchData('produccion');
+    document.getElementById('cost-mes').textContent = getMesActualDisplay();
+    _costData = d;
+    localStorage.setItem('ceniza_cache_produccion', JSON.stringify(d));
+    renderCosturera(d);
+    mostrarToast('Lista actualizada');
+  } catch(e) {
+    mostrarToast('Error al actualizar: ' + e.message);
+    // Intentar mostrar lo que haya en memoria
+    if (_costData) renderCosturera(_costData);
+    else if (cont) cont.innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="refreshCosturera()">${refreshIcon}Reintentar</button>`;
+  }
+}
+
 async function loadCosturera(offset) {
   if (offset !== undefined) {
     fechaCostureraActual = new Date(fechaCostureraActual);
@@ -5959,7 +5980,9 @@ async function loadCosturera(offset) {
     localStorage.setItem(_cacheKey, JSON.stringify(d));
     renderCosturera(d);
   } catch(e) {
-    if (!_cached) document.getElementById('cost-content').innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadCosturera()">${refreshIcon}Reintentar</button>`;
+    // Mostrar error siempre (incluso con caché) para que la costurera sepa que no se actualizó
+    mostrarToast('No se pudo actualizar: ' + e.message);
+    if (!_cached) document.getElementById('cost-content').innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="refreshCosturera()">${refreshIcon}Reintentar</button>`;
   }
 }
 
@@ -6043,7 +6066,7 @@ function renderCosturera(d) {
       });
     }
   }
-  html += `<button class="btn" onclick="_costData=null;loadCosturera()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
+  html += `<button class="btn" onclick="refreshCosturera()" style="margin-top:12px">${refreshIcon}Actualizar</button>`;
   // Agregar pruebas pendientes al final de la cola
   const pruebasPend = getPruebas().filter(function(x){ return x.estado !== 'listo'; });
   if (pruebasPend.length) {
