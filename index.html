@@ -2873,7 +2873,7 @@ function renderFinProyeccion() {
       </div>
 
       <!-- Botón guardar -->
-      <button class="btn btn-primary" onclick="guardarProyeccion()" style="width:100%;margin-top:16px;padding:12px;font-size:14px">
+      <button id="btn-guardar-proy" onclick="guardarProyeccion()" style="width:100%;margin-top:16px;padding:14px;font-size:15px;font-weight:700;background:var(--gold);color:#000;border:none;border-radius:12px;cursor:pointer;transition:transform 0.1s,background 0.2s,opacity 0.1s;active-transform:scale(0.97)">
         💾 Guardar cantidades
       </button>
 
@@ -2903,6 +2903,23 @@ function guardarProyeccion() {
     par:    gN('proy-par')
   };
   localStorage.setItem('ceniza_proyeccion', JSON.stringify(data));
+
+  // Feedback visual en el botón
+  const btn = document.getElementById('btn-guardar-proy');
+  if (btn) {
+    btn.textContent = '✅ ¡Guardado!';
+    btn.style.background = 'var(--green, #22c55e)';
+    btn.style.color = '#fff';
+    btn.style.transform = 'scale(0.96)';
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.textContent = '💾 Guardar cantidades';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.transform = '';
+      btn.disabled = false;
+    }, 1400);
+  }
   showToast('✅ Proyección guardada');
 }
 
@@ -6235,31 +6252,57 @@ async function loadSemanaCosturera() {
 }
 
 async function cambiarEstadoPedido(fila, estado, sel) {
-  const estadoAnterior = sel ? [...sel.options].find(o => !o.selected && o.defaultSelected)?.value || sel.value : estado;
-  // Actualizar UI al instante (optimistic)
+  // Guardar el estado anterior para poder revertir si falla
+  const estadoAnterior = sel
+    ? (sel.dataset.lastSaved || [...sel.options].find(o => o.defaultSelected)?.value || sel.value)
+    : estado;
+
+  // 1. Actualizar UI al instante (optimistic)
   const card = document.getElementById('cost-card-' + fila);
-  if (card) {
-    if (estado === 'Entregado a delivery') {
-      card.classList.add('entregado');
-    } else {
-      card.classList.remove('entregado');
+  if (card) card.classList.toggle('entregado', estado === 'Entregado a delivery');
+
+  // 2. Actualizar el caché en memoria Y en localStorage ahora mismo,
+  //    para que un "Actualizar" inmediato no revierta el cambio.
+  if (_costData) {
+    for (const g of (_costData.grupos || [])) {
+      const item = g.items && g.items.find(i => String(i.fila) === String(fila));
+      if (item) { item.estado = estado; break; }
     }
+    localStorage.setItem('ceniza_cache_produccion', JSON.stringify(_costData));
   }
-  // API en el fondo — sin bloquear
+
+  // 3. API en el fondo — sin bloquear
   fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(estado)}`)
     .then(r => r.json())
     .then(data => {
-      if (!data.success) {
+      if (data.success) {
+        // Confirmar: guardar el nuevo estado como "último guardado"
+        if (sel) sel.dataset.lastSaved = estado;
+      } else {
         mostrarToast('✕ ' + (data.error || 'Error al guardar'));
-        if (sel) sel.value = estadoAnterior;
+        // Revertir UI, select y caché
+        if (sel) { sel.value = estadoAnterior; }
         if (card) card.classList.toggle('entregado', estadoAnterior === 'Entregado a delivery');
+        if (_costData) {
+          for (const g of (_costData.grupos || [])) {
+            const item = g.items && g.items.find(i => String(i.fila) === String(fila));
+            if (item) { item.estado = estadoAnterior; break; }
+          }
+          localStorage.setItem('ceniza_cache_produccion', JSON.stringify(_costData));
+        }
       }
     })
     .catch(() => {
-      mostrarToast('✕ Sin conexión — reintentando...');
-      if (sel) sel.value = estadoAnterior;
-      const card = document.getElementById('cost-card-' + fila);
+      mostrarToast('✕ Sin conexión. Intenta de nuevo.');
+      if (sel) { sel.value = estadoAnterior; }
       if (card) card.classList.toggle('entregado', estadoAnterior === 'Entregado a delivery');
+      if (_costData) {
+        for (const g of (_costData.grupos || [])) {
+          const item = g.items && g.items.find(i => String(i.fila) === String(fila));
+          if (item) { item.estado = estadoAnterior; break; }
+        }
+        localStorage.setItem('ceniza_cache_produccion', JSON.stringify(_costData));
+      }
     });
 }
 
@@ -7060,6 +7103,7 @@ document.addEventListener('click', e => {
 let carrito = [];
 let formModo = 'nuevo';   // 'nuevo' | 'editar'
 let filaEdicion = null;
+let _submitting = false;  // bandera anti-duplicado
 let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdicion)
 
 const COLORES_PRODUCTO = {
@@ -7350,6 +7394,9 @@ function abrirEdicion(fila) {
 }
 
 async function submitPedidos() {
+  // Bloqueo anti-duplicado: si ya hay un envío en curso, ignorar esta llamada
+  if (_submitting) return;
+
   const g = id => document.getElementById(id)?.value || '';
   const esEdicion = formModo === 'editar';
   const nombre      = g('f-nombre');
@@ -7364,6 +7411,8 @@ async function submitPedidos() {
   if (!fechaEntrega) { mostrarToast('Selecciona la fecha de entrega'); return; }
   if (!metodoPago)   { mostrarToast('Selecciona el método de pago'); return; }
   if (!origen && !esEdicion) { mostrarToast('Selecciona el origen'); return; }
+
+  _submitting = true;
   const btn = document.getElementById('btn-submit');
   btn.textContent = esEdicion ? 'Guardando...' : 'Registrando...';
   btn.disabled = true;
@@ -7437,9 +7486,11 @@ async function submitPedidos() {
     }
   } catch (err) {
     mostrarToast('Error: ' + err.message);
-  } finally {
+    // Solo re-habilitar el botón si hubo error (para que pueda reintentar)
     btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
     btn.disabled = false;
+  } finally {
+    _submitting = false;
   }
 }
 window.addEventListener('DOMContentLoaded', () => { initApp(); _initPinPad(); });
