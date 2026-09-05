@@ -994,7 +994,7 @@ const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQ
 
 async function fetchData(accion, extra = '', _intento = 0) {
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 30000); // 30s timeout por intento
+  const tid = setTimeout(() => ctrl.abort(), 15000); // 15s timeout por intento
   try {
     const res = await fetch(`${API}?accion=${accion}${extra}`, { signal: ctrl.signal });
     clearTimeout(tid);
@@ -1004,7 +1004,7 @@ async function fetchData(accion, extra = '', _intento = 0) {
     clearTimeout(tid);
     // Reintentar hasta 2 veces automáticamente (cold start de Apps Script)
     if (_intento < 2 && e.name !== 'AbortError') {
-      await new Promise(r => setTimeout(r, 1500 * (_intento + 1))); // esperar 1.5s, 3s
+      await new Promise(r => setTimeout(r, 700 * (_intento + 1))); // esperar 0.7s, 1.4s
       return fetchData(accion, extra, _intento + 1);
     }
     if (e.name === 'AbortError') throw new Error('Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.');
@@ -2499,7 +2499,7 @@ function renderFinCostos() {
 
       <!-- Unicolor -->
       <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
-        <div class="fin-sec-title" style="margin-top:0">🩱 Pantalón Unicolor</div>
+        <div class="fin-sec-title" style="margin-top:0">🩱 Pantalón Clásico</div>
         <div class="fin-card">
           ${row('Precio de venta', 'cst-u-precio', FIN.precio)}
           <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
@@ -2761,7 +2761,7 @@ function renderFinRegistro() {
         <div style="border-top:1px solid var(--bg3);margin:10px 0 4px"></div>
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Pantalones vendidos</div>
         <div class="fin-row" style="align-items:center;padding:6px 0">
-          <span class="fin-row-label" style="font-size:13px">🩱 Ceniza</span>
+          <span class="fin-row-label" style="font-size:13px">🩱 Clásico</span>
           <input type="number" id="reg-c-ceniza" placeholder="0" min="0" step="1" inputmode="numeric"
             style="width:80px;text-align:right;background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;color:var(--text);font-size:14px;font-weight:700">
         </div>
@@ -2833,7 +2833,7 @@ function renderFinRegistro() {
             ${(r.qCeniza || r.qSub || r.qPareo) ? `<div style="background:var(--bg3);border-radius:8px;padding:7px 10px;margin-bottom:6px">
               <div style="font-size:10px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Pantalones vendidos</div>
               <div style="display:flex;gap:8px">
-                ${r.qCeniza ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">🩱 Ceniza</div><div style="font-size:15px;font-weight:700">${r.qCeniza}</div></div>` : ''}
+                ${r.qCeniza ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">🩱 Clásico</div><div style="font-size:15px;font-weight:700">${r.qCeniza}</div></div>` : ''}
                 ${r.qSub    ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">🎨 Sublimado</div><div style="font-size:15px;font-weight:700">${r.qSub}</div></div>` : ''}
                 ${r.qPareo  ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">🌊 Pareo</div><div style="font-size:15px;font-weight:700">${r.qPareo}</div></div>` : ''}
               </div>
@@ -2932,6 +2932,9 @@ function renderFinProyeccion() {
         💾 Guardar cantidades
       </button>
 
+      <!-- Progreso real vs proyección -->
+      <div id="proy-progress"></div>
+
       <!-- Resultado -->
       <div id="proy-resultado"></div>
     </div>`;
@@ -2946,6 +2949,7 @@ function renderFinProyeccion() {
   });
 
   _calcProyeccion();
+  _cargarProgressProyeccion();
 }
 
 function guardarProyeccion() {
@@ -2976,6 +2980,89 @@ function guardarProyeccion() {
     }, 1400);
   }
   showToast('✅ Proyección guardada');
+  // Refrescar barras de progreso con las nuevas metas (reusar datos en caché)
+  const _cached = localStorage.getItem('ceniza_cache_pedidos');
+  if (_cached) { try { _renderProyProgress(_contarVentasProy(JSON.parse(_cached))); } catch(_) {} }
+}
+
+// ── Progreso de proyección vs ventas reales ────────────────
+function _contarVentasProy(datos) {
+  let uni = 0, sub = 0, par = 0;
+  (datos.grupos || []).forEach(g => {
+    (g.items || []).forEach(item => {
+      if ((item.estado || '') === 'Cancelado') return;
+      const prod = item.producto || 'Pantalón Clásico';
+      if (prod === 'Pantalón Pareo') { par++; }
+      else if (SUBLIMADO_COLORS_SET.has(item.color)) { sub++; }
+      else { uni++; }
+    });
+  });
+  return { uni, sub, par };
+}
+
+function _renderProyProgress(ventas) {
+  const div = document.getElementById('proy-progress');
+  if (!div) return;
+  const gN = id => parseInt(document.getElementById(id)?.value || 0) || 0;
+  const meta = {
+    uni: gN('proy-uni'),
+    sub: gN('proy-sub-rbn') + gN('proy-sub-rcol') + gN('proy-sub-pfn'),
+    par: gN('proy-par')
+  };
+  const tipos = [
+    { key:'uni', emoji:'🩱', label:'unicolores', color:'var(--accent)' },
+    { key:'sub', emoji:'🎨', label:'sublimados', color:'#a855f7' },
+    { key:'par', emoji:'🌊', label:'pareo',      color:'#3b82f6' }
+  ];
+  const cards = tipos.filter(t => meta[t.key] > 0 || ventas[t.key] > 0).map(t => {
+    const v = ventas[t.key], m = meta[t.key];
+    const faltan = Math.max(0, m - v);
+    const pct = m > 0 ? Math.min(100, Math.round((v / m) * 100)) : 0;
+    const barColor = m === 0 ? 'var(--text3)' : pct >= 80 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+    let mensaje, mensajeColor;
+    if (m === 0) {
+      mensaje = 'Sin meta definida';
+      mensajeColor = 'var(--text3)';
+    } else if (faltan === 0) {
+      mensaje = `🎯 ¡Meta alcanzada! (${v} ${t.label})`;
+      mensajeColor = '#22c55e';
+    } else {
+      const icon = pct >= 50 ? '⚡' : '⚠️';
+      mensaje = `${icon} Te faltan <strong>${faltan} ${t.label}</strong>`;
+      mensajeColor = pct >= 50 ? '#f59e0b' : '#ef4444';
+    }
+    return `<div style="background:var(--bg3);border-radius:12px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:700">${t.emoji} ${t.label.charAt(0).toUpperCase() + t.label.slice(1)}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text2)">${v} / ${m || '—'} vendidos</span>
+      </div>
+      ${m > 0 ? `<div style="height:7px;background:var(--bg4);border-radius:4px;overflow:hidden;margin-bottom:8px">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:4px;transition:width .4s"></div>
+      </div>` : ''}
+      <div style="font-size:13px;color:${mensajeColor}">${mensaje}${m > 0 && faltan > 0 ? ` <span style="font-size:11px;color:var(--text3);font-weight:400">(${pct}% completado)</span>` : ''}</div>
+    </div>`;
+  });
+  div.innerHTML = cards.length
+    ? `<div style="font-size:11px;color:var(--text3);text-align:center;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.06em">📊 Avance real · quincena en curso</div>
+       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">${cards.join('')}</div>`
+    : '';
+}
+
+async function _cargarProgressProyeccion() {
+  const div = document.getElementById('proy-progress');
+  if (!div) return;
+  div.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:12px;padding:16px 0">Cargando ventas...</div>`;
+  try {
+    let datos = null;
+    const cached = localStorage.getItem('ceniza_cache_pedidos');
+    if (cached) { try { datos = JSON.parse(cached); } catch(_) {} }
+    if (!datos) datos = await fetchData('produccion');
+    // Refrescar caché en segundo plano
+    if (cached) fetchData('produccion').then(d => localStorage.setItem('ceniza_cache_pedidos', JSON.stringify(d))).catch(()=>{});
+    _renderProyProgress(_contarVentasProy(datos));
+  } catch(e) {
+    if (div) div.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px 0">No se pudo cargar el avance · <span style="cursor:pointer;text-decoration:underline" onclick="_cargarProgressProyeccion()">Reintentar</span></div>`;
+  }
 }
 
 function _proyRow(label, id) {
@@ -3506,26 +3593,41 @@ function eliminarColorTela(i) {
 // ══════════════════════════════════════════════════════════
 // TAB 1 · QUINCENA — P&L automático
 // ══════════════════════════════════════════════════════════
+function _applyQuincenaData(d) {
+  window._finTotalMes       = d.totalMes || 0;
+  window._finFechaInicio    = d.fechaInicioStr || '';
+  _finPantsAPI = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pantsQuincena) || 0), 0);
+  _finPants    = _finPantsAPI;
+  _finLabel    = d.quincenaLabel || '';
+  window._finVendedoras     = (d.vendedoras || []).map(v => v.nombre);
+  window._finVendedorasData = d.vendedoras || [];
+  document.getElementById('fin-mes-label').textContent = getMesActualDisplay();
+}
+
 async function loadFinQuincena() {
   const div = document.getElementById('fin-quincena-content');
-  div.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Calculando...</div>';
+  const CACHE_KEY = 'ceniza_cache_quincena';
+
+  // Mostrar caché al instante si existe
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    try { _applyQuincenaData(JSON.parse(cached)); renderFinQuincena(); } catch(_) {}
+  } else {
+    div.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Calculando...</div>';
+  }
+
   try {
     const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
     const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
-    // Usar pantsMes (total mes real) como base para el P&L — no se ve afectado por reinicio de quincena
-    window._finTotalMes = d.totalMes || 0;
-    window._finFechaInicio = d.fechaInicioStr || '';
-    _finPantsAPI = (d.vendedoras || []).reduce((a, v) => a + (parseInt(v.pantsQuincena) || 0), 0);
-    _finPants = _finPantsAPI;
-    _finLabel = d.quincenaLabel || '';
-    // Guardar lista de vendedoras con datos completos para el card de arrastre
-    window._finVendedoras     = (d.vendedoras || []).map(v => v.nombre);
-    window._finVendedorasData = d.vendedoras || [];
-    document.getElementById('fin-mes-label').textContent = getMesActualDisplay();
+    localStorage.setItem(CACHE_KEY, JSON.stringify(d));
+    _applyQuincenaData(d);
     renderFinQuincena();
   } catch(e) {
-    div.innerHTML = `<div class="err-card">Error: ${e.message}</div>
-      <button class="btn" onclick="loadFinQuincena()">↻ Reintentar</button>`;
+    if (!cached) {
+      div.innerHTML = `<div class="err-card">Error: ${e.message}</div>
+        <button class="btn" onclick="loadFinQuincena()">↻ Reintentar</button>`;
+    }
+    // Si hay caché, ya se mostró — no pisarlo con error
   }
 }
 
@@ -4105,7 +4207,7 @@ function renderFinCierre() {
       <div style="border-bottom:2px solid var(--gold-bg);margin-bottom:4px;padding-bottom:10px">
         <div class="fin-cuenta-row" style="border:none;padding-bottom:4px">
           <span class="fin-cuenta-icon">👖</span>
-          <span class="fin-cuenta-label" style="font-weight:700;color:var(--text)">Unicolor ($${FIN.precio})</span>
+          <span class="fin-cuenta-label" style="font-weight:700;color:var(--text)">Clásico ($${FIN.precio})</span>
           <input class="fin-cuenta-input" type="number" id="ci-pants-uni" placeholder="0"
             oninput="autoFillCierre()" inputmode="numeric"
             style="font-size:18px;font-weight:800;color:var(--gold);border-color:var(--gold)">
@@ -5641,30 +5743,43 @@ function renderVendPedidos(misOrdenes) {
   if (q) { const inp = document.getElementById('vend-buscar-input'); if(inp){ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length); } }
 }
 
+function _applyVendedoraPedidos(d) {
+  document.getElementById('vend-mes').textContent = getMesActualDisplay();
+  const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
+  const misOrdenes = [];
+  pedidosMap = {};
+  (d.grupos || []).forEach(g => {
+    g.items.forEach(p => {
+      if ((p.responsable || '').trim() === nombre) {
+        misOrdenes.push(p);
+        pedidosMap[p.fila] = p;
+      }
+    });
+  });
+  _misOrdenes = misOrdenes;
+  renderVendPedidos(misOrdenes);
+}
+
 async function loadVendedoraPedidos() {
   const el = document.getElementById('vend-pedidos-content');
-  el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  const CACHE_KEY = 'ceniza_cache_pedidos';
+
+  // Mostrar caché al instante si existe
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    try { _applyVendedoraPedidos(JSON.parse(cached)); } catch(_) {}
+  } else {
+    el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  }
+
   try {
     const d = await fetchData('produccion');
-    document.getElementById('vend-mes').textContent = getMesActualDisplay();
-    const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
-
-    // Recolectar todos los pedidos de esta vendedora
-    const misOrdenes = [];
-    pedidosMap = {};
-    (d.grupos || []).forEach(g => {
-      g.items.forEach(p => {
-        if ((p.responsable || '').trim() === nombre) {
-          misOrdenes.push(p);
-          pedidosMap[p.fila] = p;
-        }
-      });
-    });
-    _misOrdenes = misOrdenes;
-
-    renderVendPedidos(misOrdenes);
+    localStorage.setItem(CACHE_KEY, JSON.stringify(d));
+    _applyVendedoraPedidos(d);
   } catch(e) {
-    el.innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraPedidos()">${refreshIcon}Reintentar</button>`;
+    if (!cached) {
+      el.innerHTML = `<div class="err-card">Error al cargar.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraPedidos()">${refreshIcon}Reintentar</button>`;
+    }
   }
 }
 
@@ -6452,20 +6567,35 @@ function renderCajaSemanal() {
 let _delCache = {};
 let _historialCache = null; // caché de todas las entregas históricas
 
+// Persistir y restaurar _delCache desde localStorage
+function _delCacheSave(fecha, data) {
+  _delCache[fecha] = data;
+  try { localStorage.setItem('ceniza_cache_del_' + fecha, JSON.stringify(data)); } catch(_) {}
+}
+function _delCacheLoad(fecha) {
+  if (_delCache[fecha]) return _delCache[fecha];
+  try {
+    const raw = localStorage.getItem('ceniza_cache_del_' + fecha);
+    if (raw) { _delCache[fecha] = JSON.parse(raw); return _delCache[fecha]; }
+  } catch(_) {}
+  return null;
+}
+
 async function loadDelivery(offset, forzar=false) {
   if (offset !== undefined) {
     fechaDeliveryActual = new Date(fechaDeliveryActual);
     fechaDeliveryActual.setDate(fechaDeliveryActual.getDate() + offset);
   }
   const fecha = fechaStr(fechaDeliveryActual);
-  // Hit de cache: renderizar instantaneamente
+  // Hit de cache: renderizar instantaneamente (memoria o localStorage)
   if (forzar) { delete _delCache[fecha]; _historialCache = null; } // forzar limpia todo
-  if (!forzar && _delCache[fecha]) {
-    renderDelivery(_applyHistorialMerge(_delCache[fecha], fecha), fecha);
+  const cachedData = forzar ? null : _delCacheLoad(fecha);
+  if (cachedData) {
+    renderDelivery(_applyHistorialMerge(cachedData, fecha), fecha);
     _prefetchDelivery();
-    return;
+    if (!forzar) return; // ya está fresco, no re-fetch
   }
-  document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
+  if (!cachedData) document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   syncArreglos().catch(() => {}); // en segundo plano, no bloquear
   try {
     // Historial carga en segundo plano; cuando termina re-renderiza si el usuario sigue en la misma fecha
@@ -6483,7 +6613,7 @@ async function loadDelivery(offset, forzar=false) {
     const d = await fetchData('entregas', `&fecha=${fecha}`);
 
     const dMerged = _applyHistorialMerge(d, fecha);
-    _delCache[fecha] = dMerged;
+    _delCacheSave(fecha, dMerged);
     document.getElementById('del-mes').textContent = dMerged.fecha || '';
     renderDelivery(dMerged, fecha);
     _prefetchDelivery();
@@ -7160,6 +7290,9 @@ let formModo = 'nuevo';   // 'nuevo' | 'editar'
 let filaEdicion = null;
 let _submitting = false;  // bandera anti-duplicado
 let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdicion)
+
+// Colores que corresponden a pantalón sublimado
+const SUBLIMADO_COLORS_SET = new Set(['Rayas blanco y negro','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos']);
 
 const COLORES_PRODUCTO = {
   'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos'],
