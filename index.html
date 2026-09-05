@@ -5711,16 +5711,19 @@ function renderVendPedidos(misOrdenes) {
   const el = document.getElementById('vend-pedidos-content');
   const q = (document.getElementById('vend-buscar-input')?.value || '').toLowerCase().trim();
 
-  // Fecha de hoy en formato DD/MM/YYYY (igual que fechaRegistro del servidor)
+  // Normaliza DD/MM/YYYY ignorando ceros → "4/9/2026" y "04/09/2026" son iguales
   const _hoy = new Date();
-  const hoyStr = String(_hoy.getDate()).padStart(2,'0') + '/' +
-                 String(_hoy.getMonth()+1).padStart(2,'0') + '/' +
-                 _hoy.getFullYear();
+  const _normFecha = s => {
+    const p = (s || '').split('/');
+    if (p.length !== 3) return '';
+    return parseInt(p[0]) + '/' + parseInt(p[1]) + '/' + p[2];
+  };
+  const hoyStr = _hoy.getDate() + '/' + (_hoy.getMonth()+1) + '/' + _hoy.getFullYear();
 
   // Filtrar: si hay búsqueda o toggle "ver todos", mostrar todo; si no, solo hoy
   const mostrarTodos = q || _vendVerTodos;
   const ordenes = misOrdenes.filter(p => {
-    const passaFecha = mostrarTodos || (p.fechaRegistro === hoyStr);
+    const passaFecha = mostrarTodos || (_normFecha(p.fechaRegistro) === hoyStr);
     const passaBusq  = !q || (p.cliente||'').toLowerCase().includes(q);
     return passaFecha && passaBusq;
   });
