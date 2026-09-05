@@ -7311,6 +7311,7 @@ let carrito = [];
 let formModo = 'nuevo';   // 'nuevo' | 'editar'
 let filaEdicion = null;
 let _submitting = false;  // bandera anti-duplicado
+let _reqId = '';          // ID único por apertura de formulario
 let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdicion)
 
 // Colores que corresponden a pantalón sublimado
@@ -7452,6 +7453,9 @@ function renderCarrito() {
 // FORMULARIO
 // ══════════════════════════════════════════════════════════
 function abrirFormulario(){
+  // Resetear flag anti-duplicado cada vez que se abre el formulario
+  _submitting = false;
+  _reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   formModo = 'nuevo';
   filaEdicion = null;
   document.querySelector('.form-title').textContent = 'Nuevo pedido';
@@ -7678,7 +7682,8 @@ async function submitPedidos() {
         montoEfectivo: g('f-monto-efectivo') || '0',
         vuelto:        g('f-vuelto') || '0',
         responsable:   localStorage.getItem('vendedora_nombre') || '',
-        items:         JSON.stringify(carrito)
+        items:         JSON.stringify(carrito),
+        reqId:         _reqId
       });
       const r = await fetch(API+'?accion=registrarPedidos&'+params);
       const data = await r.json();
@@ -7699,8 +7704,7 @@ async function submitPedidos() {
     // Solo re-habilitar el botón si hubo error (para que pueda reintentar)
     btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
     btn.disabled = false;
-  } finally {
-    _submitting = false;
+    _submitting = false;  // solo se resetea en error; en éxito el formulario queda cerrado
   }
 }
 window.addEventListener('DOMContentLoaded', () => { initApp(); _initPinPad(); });
