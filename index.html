@@ -2487,11 +2487,11 @@ function renderFinCostos() {
       <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:16px;text-transform:uppercase;letter-spacing:.06em">Edita un costo → todo recalcula automáticamente</div>
 
       <!-- Compartidos -->
-      <div class="fin-sec-title">📢 Publicidad (todos los productos)</div>
+      <div class="fin-sec-title">Publicidad (todos los productos)</div>
       <div class="fin-card">
         ${row('ADS / pauta por pant', 'cst-ads', FIN.varAds)}
       </div>
-      <div class="fin-sec-title">🏢 Gastos fijos por quincena</div>
+      <div class="fin-sec-title">Gastos fijos por quincena</div>
       <div class="fin-card">
         ${row('Total gastos fijos', 'cst-fijos', FIN.fijosQuinc, '1')}
         ${row('Meta de ventas / quincena', 'cst-meta', FIN.metaVentas, '1')}
@@ -2499,7 +2499,7 @@ function renderFinCostos() {
 
       <!-- Unicolor -->
       <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
-        <div class="fin-sec-title" style="margin-top:0">🩱 Pantalón Clásico</div>
+        <div class="fin-sec-title" style="margin-top:0">Pantalón Clásico</div>
         <div class="fin-card">
           ${row('Precio de venta', 'cst-u-precio', FIN.precio)}
           <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
@@ -2516,7 +2516,7 @@ function renderFinCostos() {
 
       <!-- Sublimado -->
       <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
-        <div class="fin-sec-title" style="margin-top:0">🎨 Pantalón Sublimado</div>
+        <div class="fin-sec-title" style="margin-top:0">Pantalón Sublimado</div>
         <div class="fin-card">
           ${row('Precio de venta', 'cst-s-precio', FIN_SUBLIMADO.precio)}
           <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
@@ -2534,7 +2534,7 @@ function renderFinCostos() {
 
       <!-- Pareo -->
       <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
-        <div class="fin-sec-title" style="margin-top:0">🌊 Pantalón Pareo</div>
+        <div class="fin-sec-title" style="margin-top:0">Pantalón Pareo</div>
         <div class="fin-card">
           ${row('Precio de venta', 'cst-p-precio', FIN_PAREO.precio)}
           <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
@@ -2745,7 +2745,7 @@ function renderFinRegistro() {
         <div style="font-size:15px;font-weight:700">${abierta.quincena}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Inicio: ${abierta.fechaInicio || ''}</div>
       </div>
-      <div class="fin-sec-title" style="margin-top:0">🔒 Cerrar quincena</div>
+      <div class="fin-sec-title" style="margin-top:0">Cerrar quincena</div>
       <div class="fin-card">
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Saldo final</div>
         ${_saldoRow('reg-c-bs', 'Bolívares (Bs)')}
@@ -2783,11 +2783,11 @@ function renderFinRegistro() {
       </div>
       <button onclick="cerrarQuincena('${abierta.id}')"
         style="width:100%;padding:14px;font-size:15px;font-weight:700;background:#22c55e;color:#fff;border:none;border-radius:12px;cursor:pointer;margin-bottom:24px;transition:opacity .15s">
-        🔒 Cerrar quincena
+        Cerrar quincena
       </button>`;
   } else {
     formHTML = `
-      <div class="fin-sec-title" style="margin-top:0">🟢 Iniciar nueva quincena</div>
+      <div class="fin-sec-title" style="margin-top:0">Iniciar nueva quincena</div>
       <div class="fin-card">
         <div class="fin-row" style="align-items:center;padding:7px 0">
           <span class="fin-row-label" style="font-size:13px">Nombre</span>
@@ -2833,7 +2833,7 @@ function renderFinRegistro() {
             ${(r.qCeniza || r.qSub || r.qPareo) ? `<div style="background:var(--bg3);border-radius:8px;padding:7px 10px;margin-bottom:6px">
               <div style="font-size:10px;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">Pantalones vendidos</div>
               <div style="display:flex;gap:8px">
-                ${r.qCeniza ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">🩱 Clásico</div><div style="font-size:15px;font-weight:700">${r.qCeniza}</div></div>` : ''}
+                ${r.qCeniza ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">Clásico</div><div style="font-size:15px;font-weight:700">${r.qCeniza}</div></div>` : ''}
                 ${r.qSub    ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">🎨 Sublimado</div><div style="font-size:15px;font-weight:700">${r.qSub}</div></div>` : ''}
                 ${r.qPareo  ? `<div style="background:var(--bg4);border-radius:6px;padding:5px 10px;text-align:center;flex:1"><div style="font-size:10px;color:var(--text3)">🌊 Pareo</div><div style="font-size:15px;font-weight:700">${r.qPareo}</div></div>` : ''}
               </div>
@@ -2845,7 +2845,7 @@ function renderFinRegistro() {
   div.innerHTML = `
     <div style="padding:14px 16px 80px">
       ${formHTML}
-      <div class="fin-sec-title" style="margin-top:0">📋 Historial de quincenas</div>
+      <div class="fin-sec-title" style="margin-top:0">Historial de quincenas</div>
       ${histHTML}
     </div>`;
 }
@@ -2902,29 +2902,31 @@ function renderFinProyeccion() {
     <div style="padding:14px 16px 80px">
       <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:18px;text-transform:uppercase;letter-spacing:.06em">Estimado de producción · quincena</div>
 
-      <!-- Unicolor -->
-      <div class="fin-sec-title" style="margin-top:0">🩱 Unicolor</div>
+      <!-- Pantalón Clásico -->
+      <div class="fin-sec-title" style="margin-top:0">Pantalón Clásico</div>
       <div class="fin-card">
-        ${_proyRow('Total unicolor', 'proy-uni')}
-      </div>
-
-      <!-- Sublimado desglosado -->
-      <div class="fin-sec-title" style="margin-top:16px">🎨 Sublimado</div>
-      <div class="fin-card">
-        ${_proyRow('Rayas blanco y negro', 'proy-sub-rbn')}
-        ${_proyRow('Rayas de colores', 'proy-sub-rcol')}
-        ${_proyRow('Puntos fondo negro', 'proy-sub-pfn')}
+        ${_proyRow('Unicolor', 'proy-clas-uni')}
+        <div style="border-top:1px solid var(--bg3);margin:4px 0"></div>
+        ${_proyRow('Sublimado · Rayas B&N', 'proy-sub-rbn')}
+        ${_proyRow('Sublimado · Rayas color', 'proy-sub-rcol')}
+        ${_proyRow('Sublimado · Puntos', 'proy-sub-pfn')}
         <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
         <div class="fin-row" style="padding:4px 0">
-          <span class="fin-row-label" style="font-size:12px;color:var(--text3)">Total sublimado</span>
-          <span id="proy-sub-total" class="fin-row-val" style="font-size:12px;font-weight:700">0</span>
+          <span class="fin-row-label" style="font-size:12px;color:var(--text3)">Total Clásico</span>
+          <span id="proy-clas-total" class="fin-row-val" style="font-size:12px;font-weight:700">0</span>
         </div>
       </div>
 
-      <!-- Pareo -->
-      <div class="fin-sec-title" style="margin-top:16px">🌊 Pareo</div>
+      <!-- Pantalón Pareo -->
+      <div class="fin-sec-title" style="margin-top:16px">Pantalón Pareo</div>
       <div class="fin-card">
-        ${_proyRow('Total pareo', 'proy-par')}
+        ${_proyRow('Unicolor', 'proy-par-uni')}
+        ${_proyRow('Sublimado', 'proy-par-sub')}
+        <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
+        <div class="fin-row" style="padding:4px 0">
+          <span class="fin-row-label" style="font-size:12px;color:var(--text3)">Total Pareo</span>
+          <span id="proy-par-total" class="fin-row-val" style="font-size:12px;font-weight:700">0</span>
+        </div>
       </div>
 
       <!-- Botón guardar -->
@@ -2939,11 +2941,17 @@ function renderFinProyeccion() {
       <div id="proy-resultado"></div>
     </div>`;
 
-  // Cargar desde localStorage o usar defaults
+  // Cargar desde localStorage o usar defaults (con compatibilidad hacia formato anterior)
   const saved = JSON.parse(localStorage.getItem('ceniza_proyeccion') || 'null');
-  const defaults = { 'proy-uni':100, 'proy-sub-rbn':5, 'proy-sub-rcol':5, 'proy-sub-pfn':5, 'proy-par':0 };
-  const vals = saved || defaults;
-  Object.entries({ 'proy-uni': vals.uni, 'proy-sub-rbn': vals.subRbn, 'proy-sub-rcol': vals.subCol, 'proy-sub-pfn': vals.subPfn, 'proy-par': vals.par }).forEach(([id, val]) => {
+  const v = saved || {};
+  Object.entries({
+    'proy-clas-uni':  v.clasUni  ?? v.uni ?? 100,
+    'proy-sub-rbn':   v.subRbn   ?? 5,
+    'proy-sub-rcol':  v.subCol   ?? 5,
+    'proy-sub-pfn':   v.subPfn   ?? 5,
+    'proy-par-uni':   v.parUni   ?? v.par ?? 0,
+    'proy-par-sub':   v.parSub   ?? 0
+  }).forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (el) el.value = val ?? 0;
   });
@@ -2955,11 +2963,12 @@ function renderFinProyeccion() {
 function guardarProyeccion() {
   const gN = id => parseInt(document.getElementById(id)?.value || 0) || 0;
   const data = {
-    uni:    gN('proy-uni'),
-    subRbn: gN('proy-sub-rbn'),
-    subCol: gN('proy-sub-rcol'),
-    subPfn: gN('proy-sub-pfn'),
-    par:    gN('proy-par')
+    clasUni: gN('proy-clas-uni'),
+    subRbn:  gN('proy-sub-rbn'),
+    subCol:  gN('proy-sub-rcol'),
+    subPfn:  gN('proy-sub-pfn'),
+    parUni:  gN('proy-par-uni'),
+    parSub:  gN('proy-par-sub')
   };
   localStorage.setItem('ceniza_proyeccion', JSON.stringify(data));
 
@@ -2987,17 +2996,20 @@ function guardarProyeccion() {
 
 // ── Progreso de proyección vs ventas reales ────────────────
 function _contarVentasProy(datos) {
-  let uni = 0, sub = 0, par = 0;
+  let clasUni = 0, clasSub = 0, parUni = 0, parSub = 0;
   (datos.grupos || []).forEach(g => {
     (g.items || []).forEach(item => {
       if ((item.estado || '') === 'Cancelado') return;
       const prod = item.producto || 'Pantalón Clásico';
-      if (prod === 'Pantalón Pareo') { par++; }
-      else if (SUBLIMADO_COLORS_SET.has(item.color)) { sub++; }
-      else { uni++; }
+      const esSubl = SUBLIMADO_COLORS_SET.has(item.color);
+      if (prod === 'Pantalón Pareo') {
+        if (esSubl) parSub++; else parUni++;
+      } else {
+        if (esSubl) clasSub++; else clasUni++;
+      }
     });
   });
-  return { uni, sub, par };
+  return { clasUni, clasSub, parUni, parSub };
 }
 
 function _renderProyProgress(ventas) {
@@ -3005,14 +3017,16 @@ function _renderProyProgress(ventas) {
   if (!div) return;
   const gN = id => parseInt(document.getElementById(id)?.value || 0) || 0;
   const meta = {
-    uni: gN('proy-uni'),
-    sub: gN('proy-sub-rbn') + gN('proy-sub-rcol') + gN('proy-sub-pfn'),
-    par: gN('proy-par')
+    clasUni: gN('proy-clas-uni'),
+    clasSub: gN('proy-sub-rbn') + gN('proy-sub-rcol') + gN('proy-sub-pfn'),
+    parUni:  gN('proy-par-uni'),
+    parSub:  gN('proy-par-sub')
   };
   const tipos = [
-    { key:'uni', emoji:'🩱', label:'unicolores', color:'var(--accent)' },
-    { key:'sub', emoji:'🎨', label:'sublimados', color:'#a855f7' },
-    { key:'par', emoji:'🌊', label:'pareo',      color:'#3b82f6' }
+    { key:'clasUni', label:'Clásico Unicolor',  color:'var(--accent)' },
+    { key:'clasSub', label:'Clásico Sublimado', color:'#a855f7' },
+    { key:'parUni',  label:'Pareo Unicolor',    color:'#3b82f6' },
+    { key:'parSub',  label:'Pareo Sublimado',   color:'#06b6d4' }
   ];
   const cards = tipos.filter(t => meta[t.key] > 0 || ventas[t.key] > 0).map(t => {
     const v = ventas[t.key], m = meta[t.key];
@@ -3024,7 +3038,7 @@ function _renderProyProgress(ventas) {
       mensaje = 'Sin meta definida';
       mensajeColor = 'var(--text3)';
     } else if (faltan === 0) {
-      mensaje = `🎯 ¡Meta alcanzada! (${v} ${t.label})`;
+      mensaje = `¡Meta alcanzada! (${v} ${t.label})`;
       mensajeColor = '#22c55e';
     } else {
       const icon = pct >= 50 ? '⚡' : '⚠️';
@@ -3033,7 +3047,7 @@ function _renderProyProgress(ventas) {
     }
     return `<div style="background:var(--bg3);border-radius:12px;padding:12px 14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:700">${t.emoji} ${t.label.charAt(0).toUpperCase() + t.label.slice(1)}</span>
+        <span style="font-size:13px;font-weight:700">${t.label}</span>
         <span style="font-size:12px;font-weight:700;color:var(--text2)">${v} / ${m || '—'} vendidos</span>
       </div>
       ${m > 0 ? `<div style="height:7px;background:var(--bg4);border-radius:4px;overflow:hidden;margin-bottom:8px">
@@ -3043,7 +3057,7 @@ function _renderProyProgress(ventas) {
     </div>`;
   });
   div.innerHTML = cards.length
-    ? `<div style="font-size:11px;color:var(--text3);text-align:center;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.06em">📊 Avance real · quincena en curso</div>
+    ? `<div style="font-size:11px;color:var(--text3);text-align:center;margin:18px 0 8px;text-transform:uppercase;letter-spacing:.06em">Avance real · quincena en curso</div>
        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">${cards.join('')}</div>`
     : '';
 }
@@ -3080,17 +3094,24 @@ function _calcProyeccion() {
   if (!res) return;
   const gN = id => parseInt(document.getElementById(id)?.value || 0) || 0;
 
-  const qU   = gN('proy-uni');
-  const qSRbn  = gN('proy-sub-rbn');
-  const qSCol  = gN('proy-sub-rcol');
-  const qSPfn  = gN('proy-sub-pfn');
-  const qS   = qSRbn + qSCol + qSPfn;
-  const qP   = gN('proy-par');
-  const total = qU + qS + qP;
+  const qClasUni = gN('proy-clas-uni');
+  const qSRbn    = gN('proy-sub-rbn');
+  const qSCol    = gN('proy-sub-rcol');
+  const qSPfn    = gN('proy-sub-pfn');
+  const qClasSub = qSRbn + qSCol + qSPfn;
+  const qParUni  = gN('proy-par-uni');
+  const qParSub  = gN('proy-par-sub');
+  const qClas    = qClasUni + qClasSub;
+  const qPar     = qParUni + qParSub;
+  // alias para cálculo financiero (compatibilidad con FIN/FIN_SUBLIMADO/FIN_PAREO)
+  const qU = qClasUni, qS = qClasSub, qP = qPar;
+  const total = qClas + qPar;
 
-  // Actualizar contador de total sublimado
-  const subTot = document.getElementById('proy-sub-total');
-  if (subTot) subTot.textContent = qS + ' pants';
+  // Actualizar totales en UI
+  const clasTot = document.getElementById('proy-clas-total');
+  if (clasTot) clasTot.textContent = qClas + ' pants';
+  const parTot = document.getElementById('proy-par-total');
+  if (parTot) parTot.textContent = qPar + ' pants';
 
   if (total === 0) {
     res.innerHTML = `<div class="fin-card" style="text-align:center;color:var(--text3);font-size:13px;padding:20px 0">Ingresa las cantidades para ver la proyección</div>`;
@@ -3130,12 +3151,13 @@ function _calcProyeccion() {
   res.innerHTML = `
     <div style="font-size:11px;color:var(--text3);text-align:center;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.06em">Inversión de materiales</div>
     <div class="fin-card">
-      ${qU>0 ? R('🩱 Unicolor ('+qU+' pants)', $f(invU)) : ''}
-      ${qS>0 ? R('🎨 Sublimado ('+qS+' pants)', $f(invS)) : ''}
+      ${qClasUni>0 ? R('Clásico Unicolor ('+qClasUni+')', $f(uVarMat*qClasUni)) : ''}
+      ${qClasSub>0 ? R('Clásico Sublimado ('+qClasSub+')', $f(invS)) : ''}
       ${qSRbn>0 ? R('↳ Rayas B&N: '+qSRbn, $f(sVarMat*qSRbn), '', true) : ''}
       ${qSCol>0 ? R('↳ Rayas colores: '+qSCol, $f(sVarMat*qSCol), '', true) : ''}
-      ${qSPfn>0 ? R('↳ Puntos fondo negro: '+qSPfn, $f(sVarMat*qSPfn), '', true) : ''}
-      ${qP>0 ? R('🌊 Pareo ('+qP+' pants)', $f(invP)) : ''}
+      ${qSPfn>0 ? R('↳ Puntos: '+qSPfn, $f(sVarMat*qSPfn), '', true) : ''}
+      ${qParUni>0 ? R('Pareo Unicolor ('+qParUni+')', $f(pVarMat*qParUni)) : ''}
+      ${qParSub>0 ? R('Pareo Sublimado ('+qParSub+')', $f(pVarMat*qParSub)) : ''}
       ${sep}
       ${R('Total materiales', $f(invTotal))}
       ${R('+ ADS / pauta estimada', '+'+$f(adsTotal))}
@@ -3719,7 +3741,7 @@ function renderFinQuincena() {
     </div>
 
     <!-- P&L -->
-    <div class="fin-sec-title">📊 Estado de resultados</div>
+    <div class="fin-sec-title">Estado de resultados</div>
     <div class="fin-card">
       <div class="fin-row">
         <span class="fin-row-label">Ingresos (${n} × $30)</span>
@@ -3752,7 +3774,7 @@ function renderFinQuincena() {
     </div>
 
     <!-- Distribución -->
-    <div class="fin-sec-title">🧮 Distribución (si utilidad > 0)</div>
+    <div class="fin-sec-title">Distribución (si utilidad > 0)</div>
     <div class="fin-dist-grid">
       <div class="fin-dist-cell">
         <div class="fin-dist-cell-label">Tu sueldo · 40%</div>
@@ -3770,7 +3792,7 @@ function renderFinQuincena() {
     </div>
 
     <!-- Detalle por pant -->
-    <div class="fin-sec-title">🔍 Análisis por pantalón</div>
+    <div class="fin-sec-title">Análisis por pantalón</div>
     <div class="fin-card">
       <div class="fin-row">
         <span class="fin-row-label">Costo fijo real esta quincena/pant</span>
@@ -3939,7 +3961,7 @@ function renderFinFondos() {
     </div>
 
     <!-- Emergencia -->
-    <div class="fin-sec-title">🛡 Fondo de emergencia</div>
+    <div class="fin-sec-title">Fondo de emergencia</div>
     <div class="fin-fondo-card emergencia">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
@@ -3966,7 +3988,7 @@ function renderFinFondos() {
     </div>
 
     <!-- Capital para crecimiento -->
-    <div class="fin-sec-title">📈 Capital para crecimiento de la empresa</div>
+    <div class="fin-sec-title">Capital para crecimiento de la empresa</div>
     <div class="fin-fondo-card crecimiento">
       <div style="font-size:26px;font-weight:800;margin-bottom:4px">${usd(cre + emp)}</div>
       <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Para próxima tanda, nuevos productos y reserva operativa</div>
@@ -4020,13 +4042,13 @@ function renderFinPlanificador() {
   ).join('');
 
   document.getElementById('fin-tanda-content').innerHTML = `
-    <div class="fin-sec-title">🎯 Pantalones a producir</div>
+    <div class="fin-sec-title">Pantalones a producir</div>
     <div class="fin-plan-qty-row">${quickBtns}</div>
     <input type="number" class="fin-plan-input" id="fin-plan-inp" value="${n}" min="1"
       oninput="setFinPlanPants(this.value)">
     <div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:14px">pantalones</div>
 
-    <div class="fin-sec-title">💸 Inversión requerida</div>
+    <div class="fin-sec-title">Inversión requerida</div>
     <div class="fin-card">
       ${rows.map(r => `
         <div class="fin-row">
@@ -4043,7 +4065,7 @@ function renderFinPlanificador() {
       </div>
     </div>
 
-    <div class="fin-sec-title">💼 ¿Alcanza el capital?</div>
+    <div class="fin-sec-title">¿Alcanza el capital?</div>
     <div class="fin-card">
       <div class="fin-row">
         <span class="fin-row-label">Capital para crecimiento</span>
@@ -4059,7 +4081,7 @@ function renderFinPlanificador() {
       </div>
     </div>
 
-    <div class="fin-sec-title">📈 Proyección si se venden los ${n}</div>
+    <div class="fin-sec-title">Proyección si se venden los ${n}</div>
     <div class="fin-dist-grid">
       <div class="fin-dist-cell">
         <div class="fin-dist-cell-label">Ingresos</div>
@@ -4120,7 +4142,7 @@ function renderFinCuentas() {
       💱 Guardar tasas
     </button>
 
-    <div class="fin-sec-title">🏧 Saldo por cuenta</div>
+    <div class="fin-sec-title">Saldo por cuenta</div>
     <div class="fin-card">
       ${cuentas.map(c => `
         <div class="fin-cuenta-row">
@@ -4899,7 +4921,7 @@ function renderFinProduccion() {
     <!-- ── Resumen financiero ── -->
     ${lotes.length ? `
     <div style="background:var(--bg2);border-radius:14px;padding:16px;margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">📊 Resumen quincena</div>
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Resumen quincena</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center">
           <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:4px">Pants</div>
@@ -5416,7 +5438,7 @@ function setLoteProducto(tipo) {
 function renderFinNuevo() {
   const cre = parseFloat(_fondos.crecimiento || 0);
   document.getElementById('fin-nuevo-content').innerHTML = `
-    <div class="fin-sec-title">✨ Nuevo producto</div>
+    <div class="fin-sec-title">Nuevo producto</div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:12px">
       Planifica el lanzamiento · Financiado del fondo de crecimiento
     </div>
@@ -5448,7 +5470,7 @@ function renderFinNuevo() {
       </div>
     </div>
     <div id="fin-nv-resultado" style="display:none">
-      <div class="fin-sec-title">📊 Resumen</div>
+      <div class="fin-sec-title">Resumen</div>
       <div class="fin-dist-grid" id="fin-nv-grid"></div>
       <div class="fin-card" id="fin-nv-viab" style="margin-top:0"></div>
     </div>
