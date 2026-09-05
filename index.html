@@ -5779,7 +5779,7 @@ function renderVendPedidos(misOrdenes) {
   const fechasOrdenadas = Object.entries(porFecha)
     .sort((a, b) => b[1].sort.localeCompare(a[1].sort));
 
-  const totalHoy = misOrdenes.filter(p => p.fechaRegistro === hoyStr).length;
+  const totalHoy = misOrdenes.filter(p => _normFecha(p.fechaRegistro) === hoyStr).length;
   const subtitulo = q
     ? `${ordenes.length} resultado${ordenes.length!==1?'s':''} para "${q}"`
     : _vendVerTodos
@@ -5831,7 +5831,7 @@ function renderVendPedidos(misOrdenes) {
 
   // Enlace para ver días anteriores (solo cuando no hay búsqueda)
   if (!q) {
-    const anteriorCount = misOrdenes.filter(p => p.fechaRegistro !== hoyStr).length;
+    const anteriorCount = misOrdenes.filter(p => _normFecha(p.fechaRegistro) !== hoyStr).length;
     if (!_vendVerTodos && anteriorCount > 0) {
       html += `<div style="text-align:center;margin:12px 0 4px">
         <button onclick="_vendVerTodos=true;renderVendPedidos(_misOrdenes)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;text-decoration:underline">
