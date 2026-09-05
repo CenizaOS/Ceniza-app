@@ -5673,10 +5673,25 @@ function showVendTab(tab) {
 // ══════════════════════════════════════════════════════════
 let _misOrdenes = []; // cache local para búsqueda sin re-fetch
 
+let _vendVerTodos = false; // toggle ver solo hoy vs todos los días
+
 function renderVendPedidos(misOrdenes) {
   const el = document.getElementById('vend-pedidos-content');
   const q = (document.getElementById('vend-buscar-input')?.value || '').toLowerCase().trim();
-  const ordenes = q ? misOrdenes.filter(p => (p.cliente||'').toLowerCase().includes(q)) : misOrdenes;
+
+  // Fecha de hoy en formato DD/MM/YYYY (igual que fechaRegistro del servidor)
+  const _hoy = new Date();
+  const hoyStr = String(_hoy.getDate()).padStart(2,'0') + '/' +
+                 String(_hoy.getMonth()+1).padStart(2,'0') + '/' +
+                 _hoy.getFullYear();
+
+  // Filtrar: si hay búsqueda o toggle "ver todos", mostrar todo; si no, solo hoy
+  const mostrarTodos = q || _vendVerTodos;
+  const ordenes = misOrdenes.filter(p => {
+    const passaFecha = mostrarTodos || (p.fechaRegistro === hoyStr);
+    const passaBusq  = !q || (p.cliente||'').toLowerCase().includes(q);
+    return passaFecha && passaBusq;
+  });
 
   const estadoColor = {
     'En producción':        'var(--gold)',
@@ -5690,10 +5705,10 @@ function renderVendPedidos(misOrdenes) {
       <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text3)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input id="vend-buscar-input" type="search" placeholder="Buscar cliente…" value="${q}"
         style="width:100%;box-sizing:border-box;padding:9px 12px 9px 32px;border:1px solid var(--bg3);border-radius:10px;font-size:14px;background:var(--bg2);color:var(--text);outline:none"
-        oninput="renderVendPedidos(_misOrdenes)">
+        oninput="_vendVerTodos=false;renderVendPedidos(_misOrdenes)">
     </div>`;
 
-  if (!ordenes.length && !q) {
+  if (!misOrdenes.length) {
     el.innerHTML = `
       <button class="vend-nuevo-btn" onclick="abrirFormulario()">
         <div class="vend-nuevo-plus">＋</div>
@@ -5719,6 +5734,13 @@ function renderVendPedidos(misOrdenes) {
   const fechasOrdenadas = Object.entries(porFecha)
     .sort((a, b) => b[1].sort.localeCompare(a[1].sort));
 
+  const totalHoy = misOrdenes.filter(p => p.fechaRegistro === hoyStr).length;
+  const subtitulo = q
+    ? `${ordenes.length} resultado${ordenes.length!==1?'s':''} para "${q}"`
+    : _vendVerTodos
+      ? `En producción · ${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''}`
+      : `Hoy · ${totalHoy} pantalón${totalHoy!==1?'es':''}`;
+
   let html = `
     <button class="vend-nuevo-btn" onclick="abrirFormulario()">
       <div class="vend-nuevo-plus">＋</div>
@@ -5727,15 +5749,18 @@ function renderVendPedidos(misOrdenes) {
         <div class="vend-nuevo-sub">Toca para abrir el formulario</div>
       </div>
     </button>
-    ${searchBar}
-    <div class="vend-cola-label">${q ? `${ordenes.length} resultado${ordenes.length!==1?'s':''} para "${q}"` : `En producción · ${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''}`}</div>`;
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      ${searchBar.trim().replace('<div style="position:relative;margin-bottom:8px">', '<div style="position:relative;flex:1">')}
+      <button onclick="loadVendedoraPedidos()" style="flex-shrink:0;background:var(--bg3);border:1px solid var(--bg4);border-radius:10px;padding:9px 13px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:5px;white-space:nowrap">${refreshIcon}Actualizar</button>
+    </div>
+    <div class="vend-cola-label">${subtitulo}</div>`;
 
-  if (!ordenes.length && q) {
-    html += `<div class="vend-empty-pedidos"><div style="font-size:22px;margin-bottom:6px">🔍</div><div>Sin resultados para "${q}"</div></div>`;
+  if (!ordenes.length) {
+    html += `<div class="vend-empty-pedidos"><div style="font-size:22px;margin-bottom:6px">${q ? '🔍' : '📋'}</div><div>${q ? `Sin resultados para "${q}"` : 'Sin registros hoy'}</div></div>`;
   } else {
     fechasOrdenadas.forEach(([fecha, grupo]) => {
       const items = grupo.items;
-      html += `<div class="vend-order-date">📆 Registrado: ${fecha}</div>`;
+      html += `<div class="vend-order-date">Registrado: ${fecha}</div>`;
       html += `<div class="vend-order-card">`;
       items.forEach(p => {
         const talla  = p.talla ? p.talla.replace(/^T/i,'') : '';
@@ -5759,9 +5784,25 @@ function renderVendPedidos(misOrdenes) {
     });
   }
 
-  html += `<button class="btn" onclick="loadVendedoraPedidos()" style="margin-bottom:8px">${refreshIcon}Actualizar</button>`;
+  // Enlace para ver días anteriores (solo cuando no hay búsqueda)
+  if (!q) {
+    const anteriorCount = misOrdenes.filter(p => p.fechaRegistro !== hoyStr).length;
+    if (!_vendVerTodos && anteriorCount > 0) {
+      html += `<div style="text-align:center;margin:12px 0 4px">
+        <button onclick="_vendVerTodos=true;renderVendPedidos(_misOrdenes)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;text-decoration:underline">
+          Ver ${anteriorCount} pedido${anteriorCount!==1?'s':''} de días anteriores
+        </button>
+      </div>`;
+    } else if (_vendVerTodos) {
+      html += `<div style="text-align:center;margin:12px 0 4px">
+        <button onclick="_vendVerTodos=false;renderVendPedidos(_misOrdenes)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;text-decoration:underline">
+          Mostrar solo hoy
+        </button>
+      </div>`;
+    }
+  }
+
   el.innerHTML = html;
-  // Restaurar foco si el usuario estaba buscando
   if (q) { const inp = document.getElementById('vend-buscar-input'); if(inp){ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length); } }
 }
 
