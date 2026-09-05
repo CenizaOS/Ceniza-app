@@ -3063,22 +3063,47 @@ function _renderProyProgress(ventas) {
     : '';
 }
 
+// Devuelve {inicio: Date, fin: Date} de la quincena actual
+function _rangoQuincenaActual() {
+  const hoy = new Date();
+  const d = hoy.getDate(), m = hoy.getMonth(), y = hoy.getFullYear();
+  const inicio = d <= 15 ? new Date(y, m, 1)  : new Date(y, m, 16);
+  const fin    = d <= 15 ? new Date(y, m, 15) : new Date(y, m + 1, 0);
+  fin.setHours(23, 59, 59, 999);
+  return { inicio, fin };
+}
+
+// Parsea fecha DD/MM/YYYY → Date
+function _parseFecha(str) {
+  if (!str) return null;
+  const p = str.split('/');
+  if (p.length !== 3) return null;
+  return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+}
+
 async function _cargarProgressProyeccion() {
   const div = document.getElementById('proy-progress');
   if (!div) return;
   div.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:12px;padding:16px 0">Cargando ventas...</div>`;
   try {
-    // Pedir producción (activas) e historial (entregadas) en paralelo para el conteo completo
+    const { inicio, fin } = _rangoQuincenaActual();
+
+    // Pedir producción (activas en quincena) e historial (entregadas) en paralelo
     const [prodData, histData] = await Promise.all([
       fetchData('produccion'),
       fetchData('historial').catch(() => ({ pedidos: [] }))
     ]);
-    // Guardar producción en caché para otras secciones
     localStorage.setItem('ceniza_cache_pedidos', JSON.stringify(prodData));
-    // Combinar: produccion tiene órdenes activas, historial tiene las ya entregadas
+
+    // Filtrar historial solo a la quincena en curso por fechaRegistro
+    const histQuincena = (histData.pedidos || []).filter(p => {
+      const f = _parseFecha(p.fechaRegistro);
+      return f && f >= inicio && f <= fin;
+    });
+
     const combinado = {
-      grupos:  prodData.grupos  || [],
-      pedidos: histData.pedidos || []
+      grupos:  prodData.grupos || [],
+      pedidos: histQuincena
     };
     _renderProyProgress(_contarVentasProy(combinado));
   } catch(e) {
