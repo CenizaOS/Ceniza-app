@@ -7677,7 +7677,10 @@ async function submitPedidos() {
         montoEfectivo: g('f-monto-efectivo') || '0',
         vuelto:        g('f-vuelto') || '0'
       });
-      const r = await fetch(API+'?accion=editarPedido&'+params);
+      const _ctrl1 = new AbortController();
+      const _tid1 = setTimeout(() => _ctrl1.abort(), 20000);
+      const r = await fetch(API+'?accion=editarPedido&'+params, { signal: _ctrl1.signal });
+      clearTimeout(_tid1);
       const data = await r.json();
       if (data.success) {
         cerrarFormulario();
@@ -7686,7 +7689,8 @@ async function submitPedidos() {
         resetForm();
         mostrarToast('Pedido de '+nombre+' actualizado');
         _prodCache = null;
-        loadVendedoraPedidos();
+        localStorage.removeItem('ceniza_cache_pedidos');
+        setTimeout(() => loadVendedoraPedidos(), 1500);
       } else {
         throw new Error(data.error || 'Error desconocido');
       }
@@ -7708,7 +7712,10 @@ async function submitPedidos() {
         items:         JSON.stringify(carrito),
         reqId:         _reqId
       });
-      const r = await fetch(API+'?accion=registrarPedidos&'+params);
+      const _ctrl2 = new AbortController();
+      const _tid2 = setTimeout(() => _ctrl2.abort(), 20000);
+      const r = await fetch(API+'?accion=registrarPedidos&'+params, { signal: _ctrl2.signal });
+      clearTimeout(_tid2);
       const data = await r.json();
       if (data.success) {
         cerrarFormulario();
@@ -7717,13 +7724,17 @@ async function submitPedidos() {
         resetForm();
         mostrarToast('Pedido registrado');
         _prodCache = null;
-        loadVendedoraPedidos();
+        localStorage.removeItem('ceniza_cache_pedidos');
+        setTimeout(() => loadVendedoraPedidos(), 1500);
       } else {
         throw new Error(data.error || 'Error desconocido');
       }
     }
   } catch (err) {
-    mostrarToast('Error: ' + err.message);
+    const msg = err.name === 'AbortError'
+      ? 'Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.'
+      : 'Error: ' + err.message;
+    mostrarToast(msg);
     // Solo re-habilitar el botón si hubo error (para que pueda reintentar)
     btn.textContent = esEdicion ? 'Guardar cambios' : 'Registrar pedido';
     btn.disabled = false;
