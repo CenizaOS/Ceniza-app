@@ -2497,7 +2497,7 @@ function renderFinCostos() {
         ${row('Meta de ventas / quincena', 'cst-meta', FIN.metaVentas, '1')}
       </div>
 
-      <!-- Unicolor -->
+      <!-- Clásico -->
       <div style="margin-top:28px;border-top:2px solid var(--bg4);padding-top:20px">
         <div class="fin-sec-title" style="margin-top:0">Pantalón Clásico</div>
         <div class="fin-card">
@@ -2905,11 +2905,11 @@ function renderFinProyeccion() {
       <!-- Pantalón Clásico -->
       <div class="fin-sec-title" style="margin-top:0">Pantalón Clásico</div>
       <div class="fin-card">
-        ${_proyRow('Unicolor', 'proy-clas-uni')}
+        ${_proyRow('Clásico Unicolor', 'proy-clas-uni')}
         <div style="border-top:1px solid var(--bg3);margin:4px 0"></div>
-        ${_proyRow('Sublimado · Rayas B&N', 'proy-sub-rbn')}
-        ${_proyRow('Sublimado · Rayas color', 'proy-sub-rcol')}
-        ${_proyRow('Sublimado · Puntos', 'proy-sub-pfn')}
+        ${_proyRow('Sub · Rayas B&N', 'proy-sub-rbn')}
+        ${_proyRow('Sub · Rayas color', 'proy-sub-rcol')}
+        ${_proyRow('Sub · Puntos', 'proy-sub-pfn')}
         <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
         <div class="fin-row" style="padding:4px 0">
           <span class="fin-row-label" style="font-size:12px;color:var(--text3)">Total Clásico</span>
@@ -2920,8 +2920,8 @@ function renderFinProyeccion() {
       <!-- Pantalón Pareo -->
       <div class="fin-sec-title" style="margin-top:16px">Pantalón Pareo</div>
       <div class="fin-card">
-        ${_proyRow('Unicolor', 'proy-par-uni')}
-        ${_proyRow('Sublimado', 'proy-par-sub')}
+        ${_proyRow('Pareo Unicolor', 'proy-par-uni')}
+        ${_proyRow('Pareo Sublimado', 'proy-par-sub')}
         <div style="border-top:1px solid var(--bg3);margin:6px 0"></div>
         <div class="fin-row" style="padding:4px 0">
           <span class="fin-row-label" style="font-size:12px;color:var(--text3)">Total Pareo</span>
@@ -2989,25 +2989,26 @@ function guardarProyeccion() {
     }, 1400);
   }
   showToast('✅ Proyección guardada');
-  // Refrescar barras de progreso con las nuevas metas (reusar datos en caché)
-  const _cached = localStorage.getItem('ceniza_cache_pedidos');
-  if (_cached) { try { _renderProyProgress(_contarVentasProy(JSON.parse(_cached))); } catch(_) {} }
+  // Refrescar barras de progreso recargando datos completos
+  _cargarProgressProyeccion();
 }
 
 // ── Progreso de proyección vs ventas reales ────────────────
 function _contarVentasProy(datos) {
   let clasUni = 0, clasSub = 0, parUni = 0, parSub = 0;
-  (datos.grupos || []).forEach(g => {
-    (g.items || []).forEach(item => {
-      if ((item.estado || '') === 'Cancelado') return;
-      const prod = item.producto || 'Pantalón Clásico';
-      const esSubl = SUBLIMADO_COLORS_SET.has(item.color);
-      if (prod === 'Pantalón Pareo') {
-        if (esSubl) parSub++; else parUni++;
-      } else {
-        if (esSubl) clasSub++; else clasUni++;
-      }
-    });
+  // Acepta tanto estructura de produccion {grupos:[{items:[]}]} como historial {pedidos:[]}
+  const items = [];
+  (datos.grupos || []).forEach(g => items.push(...(g.items || [])));
+  (datos.pedidos || []).forEach(p => items.push(p));
+  items.forEach(item => {
+    if ((item.estado || '') === 'Cancelado') return;
+    const prod = item.producto || 'Pantalón Clásico';
+    const esSubl = SUBLIMADO_COLORS_SET.has(item.color);
+    if (prod === 'Pantalón Pareo') {
+      if (esSubl) parSub++; else parUni++;
+    } else {
+      if (esSubl) clasSub++; else clasUni++;
+    }
   });
   return { clasUni, clasSub, parUni, parSub };
 }
@@ -3067,13 +3068,19 @@ async function _cargarProgressProyeccion() {
   if (!div) return;
   div.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:12px;padding:16px 0">Cargando ventas...</div>`;
   try {
-    let datos = null;
-    const cached = localStorage.getItem('ceniza_cache_pedidos');
-    if (cached) { try { datos = JSON.parse(cached); } catch(_) {} }
-    if (!datos) datos = await fetchData('produccion');
-    // Refrescar caché en segundo plano
-    if (cached) fetchData('produccion').then(d => localStorage.setItem('ceniza_cache_pedidos', JSON.stringify(d))).catch(()=>{});
-    _renderProyProgress(_contarVentasProy(datos));
+    // Pedir producción (activas) e historial (entregadas) en paralelo para el conteo completo
+    const [prodData, histData] = await Promise.all([
+      fetchData('produccion'),
+      fetchData('historial').catch(() => ({ pedidos: [] }))
+    ]);
+    // Guardar producción en caché para otras secciones
+    localStorage.setItem('ceniza_cache_pedidos', JSON.stringify(prodData));
+    // Combinar: produccion tiene órdenes activas, historial tiene las ya entregadas
+    const combinado = {
+      grupos:  prodData.grupos  || [],
+      pedidos: histData.pedidos || []
+    };
+    _renderProyProgress(_contarVentasProy(combinado));
   } catch(e) {
     if (div) div.innerHTML = `<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px 0">No se pudo cargar el avance · <span style="cursor:pointer;text-decoration:underline" onclick="_cargarProgressProyeccion()">Reintentar</span></div>`;
   }
@@ -4994,7 +5001,7 @@ function renderFinProduccion() {
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <div style="flex:1">
             <div style="font-size:14px;font-weight:700;color:var(--text)">
-              ${l.producto === 'sublimado' ? '🌈 Sublimado' : '🎨 Unicolor'} · ${n} pantalones
+              ${l.producto === 'sublimado' ? 'Clásico Sublimado' : 'Clásico Unicolor'} · ${n} pantalones
             </div>
             <div style="font-size:11px;color:${estadoColor[l.estado]||'var(--text3)'};margin-top:3px;font-weight:700">
               ${estadoLabel[l.estado] || l.estado}
@@ -5047,11 +5054,11 @@ function renderFinProduccion() {
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <button id="prod-tipo-unicolor" onclick="setProdTipo('unicolor')"
           style="flex:1;padding:10px 6px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)">
-          🎨 Unicolor<br><span style="font-size:10px;font-weight:400">$30 · util $13.25</span>
+          Clásico Unicolor<br><span style="font-size:10px;font-weight:400">$30 · util $13.25</span>
         </button>
         <button id="prod-tipo-sublimado" onclick="setProdTipo('sublimado')"
           style="flex:1;padding:10px 6px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--bg4);background:var(--bg2);color:var(--text)">
-          🌈 Sublimado<br><span style="font-size:10px;font-weight:400">$45 · util $20.64</span>
+          Clásico Sublimado<br><span style="font-size:10px;font-weight:400">$45 · util $20.64</span>
         </button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -5321,15 +5328,15 @@ function renderFinLote() {
   div.innerHTML = `
     <!-- Selector de producto -->
     <div class="cierre-bloque">
-      <div class="cierre-titulo">👖 Tipo de pantalón</div>
+      <div class="cierre-titulo">Tipo de pantalón</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <button onclick="setLoteProducto('unicolor')"
           style="padding:12px 8px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid ${esSublimado?'var(--bg4)':'var(--gold)'};background:${esSublimado?'var(--bg2)':'var(--gold-bg)'};color:${esSublimado?'var(--text)':'var(--gold-dim)'}">
-          🎨 Unicolor<br><span style="font-size:11px;font-weight:400">$30 · util $13.25</span>
+          Clásico Unicolor<br><span style="font-size:11px;font-weight:400">$30 · util $13.25</span>
         </button>
         <button onclick="setLoteProducto('sublimado')"
           style="padding:12px 8px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid ${esSublimado?'var(--gold)':'var(--bg4)'};background:${esSublimado?'var(--gold-bg)':'var(--bg2)'};color:${esSublimado?'var(--gold-dim)':'var(--text)'}">
-          🌈 Sublimado<br><span style="font-size:11px;font-weight:400">$45 · util $20.64</span>
+          Clásico Sublimado<br><span style="font-size:11px;font-weight:400">$45 · util $20.64</span>
         </button>
       </div>
     </div>
@@ -6027,6 +6034,16 @@ async function loadCosturera(offset) {
   }
 }
 
+
+// Normaliza nombres de producto viejos → nombre actual
+function _normProd(prod) {
+  if (!prod) return 'Pantalón Clásico';
+  const p = prod.trim();
+  if (p === 'Pantalón Ceniza' || p === 'Unicolor' || p === 'unicolor' || p === 'Pantalón Unicolor') return 'Pantalón Clásico';
+  if (p === 'Sublimado' || p === 'sublimado' || p === 'Pantalón Sublimado') return 'Pantalón Clásico';
+  return p;
+}
+
 function renderCosturera(d) {
   _lastCostureraData = d; // store for prueba re-renders
   const fechaSelec = fechaStr(fechaCostureraActual);
@@ -6071,7 +6088,7 @@ function renderCosturera(d) {
       html += `<div class="cost-card${entregado ? ' entregado' : ''}" id="cost-card-${p.fila}">
         <div class="cost-info">
           <div class="cost-name">${p.cliente}</div>
-          <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+p.producto:''}</div>
+          <div class="cost-det">${p.color} · Talla ${p.talla} · ${p.ruedo}cm${p.producto?' · '+_normProd(p.producto):''}</div>
           ${p.tipoEntrega ? `<div style="font-size:11px;color:var(--text3);margin-top:3px">${entregaIcono} ${p.tipoEntrega}</div>` : ''}
         </div>
         <select class="estado-select" onchange="cambiarEstadoPedido(${p.fila},this.value,this)">${opts}</select>
@@ -7495,7 +7512,7 @@ function renderCarrito() {
   lista.innerHTML = carrito.map((item, i) => `
     <div class="cart-item">
       <div class="cart-item-info">
-        <div class="cart-item-title">${item.producto && item.producto !== 'Pantalón Clásico' ? '<span style="font-size:11px;color:var(--text3)">' + item.producto + ' · </span>' : ''}${item.color}</div>
+        <div class="cart-item-title">${item.producto && _normProd(item.producto) !== 'Pantalón Clásico' ? '<span style="font-size:11px;color:var(--text3)">' + _normProd(item.producto) + ' · </span>' : ''}${item.color}</div>
         <div class="cart-item-det">Talla ${item.talla} · ${item.ruedo}cm · $${parseFloat(item.montoProducto).toFixed(2)}</div>
       </div>
       <div class="cart-item-btns">
