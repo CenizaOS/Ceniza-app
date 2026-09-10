@@ -984,6 +984,16 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
           <textarea id="f-notas" placeholder="Instrucciones especiales, etc." rows="2"></textarea>
         </div>
 
+        <!-- ── CAMBIO DE TALLA ── -->
+        <div style="grid-column:1/-1;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="f-cambio-talla"
+              style="width:18px;height:18px;accent-color:var(--gold);cursor:pointer;flex-shrink:0;padding:0;border-radius:4px;background:none;-webkit-appearance:checkbox;appearance:checkbox;outline:none;box-shadow:none">
+            <span style="font-size:14px;font-weight:600;color:var(--text)">Es cambio de talla</span>
+          </label>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px;margin-left:28px">No suma al conteo de ventas nuevas</div>
+        </div>
+
       </div>
       <button class="btn-submit" id="btn-submit" onclick="submitPedidos()" disabled style="opacity:0.45">Registrar pedido (0)</button>
     </div>
@@ -1822,7 +1832,7 @@ function renderVendRecogidas() {
     const lbl = arregloEstadoLabel(a.estado);
     const tipoStr = a.tipo === 'ruedo'
       ? `Ruedo · quitar ${a.cm||'?'} cm`
-      : a.tipo === 'descosido' ? 'Descosido' : a.tipo === 'talla_menos' ? 'Cambio de talla' : (a.tipo || '');
+      : a.tipo === 'descosido' ? 'Descosido' : a.tipo === 'talla_menos' ? 'Talla menos' : (a.tipo || '');
     const esListo = a.estado === 'arreglado';
     const esPendienteEntrega = a.estado === 'pendiente_entrega';
     let fechaEntregaStr = '';
@@ -1921,10 +1931,6 @@ function renderVendRecogidas() {
           style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text)">
           Descosido
         </button>
-        <button id="arr-tipo-talla_menos" onclick="arrSelTipo('talla_menos')"
-          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text)">
-          Cambio talla
-        </button>
       </div>
       <div id="arr-cm-wrap" style="margin-bottom:7px">
         <input id="arr-cm" placeholder="¿Cuántos cm quitar? ej: 3" type="number" min="1"
@@ -2017,7 +2023,7 @@ function arrSelTipo(tipo) {
   _arrTipo = tipo;
   const act   = 'border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)';
   const inact = 'border:1px solid var(--bg4);background:var(--bg3);color:var(--text)';
-  ['ruedo','descosido','talla_menos'].forEach(t => {
+  ['ruedo','descosido'].forEach(t => {
     const btn = document.getElementById('arr-tipo-' + t);
     if (btn) btn.setAttribute('style', btn.getAttribute('style').replace(/border:[^;]+;background:[^;]+;color:[^;]+/, t === tipo ? act : inact));
   });
@@ -3102,6 +3108,7 @@ function _contarVentasProy(datos) {
   (datos.pedidos || []).forEach(p => items.push(p));
   items.forEach(item => {
     if ((item.estado || '') === 'Cancelado') return;
+    if (item.cambioDeTalla === 'true' || item.cambioDeTalla === true) return;
     const prod = item.producto || 'Pantalón Clásico';
     const esSubl = SUBLIMADO_COLORS_SET.has(item.color);
     if (prod === 'Pantalón Pareo') {
@@ -5879,7 +5886,7 @@ function renderVendPedidos(misOrdenes) {
   const fechasOrdenadas = Object.entries(porFecha)
     .sort((a, b) => b[1].sort.localeCompare(a[1].sort));
 
-  const totalHoy = misOrdenes.filter(p => _normFecha(p.fechaRegistro) === hoyStr).length;
+  const totalHoy = misOrdenes.filter(p => _normFecha(p.fechaRegistro) === hoyStr && p.cambioDeTalla !== 'true').length;
   const subtitulo = q
     ? `${ordenes.length} resultado${ordenes.length!==1?'s':''} para "${q}"`
     : _vendVerTodos
@@ -5911,9 +5918,10 @@ function renderVendPedidos(misOrdenes) {
         const talla  = p.talla ? p.talla.replace(/^T/i,'') : '';
         const detalle = [p.color, talla ? `T${talla}` : '', p.ruedo ? `ruedo ${p.ruedo}` : ''].filter(Boolean).join(' · ');
         const color  = estadoColor[p.estado] || 'var(--text3)';
+        const esCambio = p.cambioDeTalla === 'true';
         html += `<div class="vend-order-row">
           <div>
-            <div class="vend-order-client">${p.cliente}</div>
+            <div class="vend-order-client">${p.cliente}${esCambio ? ' <span style="font-size:10px;font-weight:700;background:rgba(99,102,241,.15);color:#818cf8;border-radius:4px;padding:1px 5px;vertical-align:middle">Cambio talla</span>' : ''}</div>
             <div class="vend-order-detail">${detalle}</div>
           </div>
           <div class="vend-order-actions">
@@ -6326,7 +6334,7 @@ function renderCostArreglos() {
     const card = a => {
       const tipoStr = a.tipo === 'ruedo'
         ? `Ruedo · quitar ${a.cm||'?'} cm`
-        : a.tipo === 'descosido' ? 'Descosido' : a.tipo === 'talla_menos' ? 'Cambio de talla' : (a.tipo || '');
+        : a.tipo === 'descosido' ? 'Descosido' : a.tipo === 'talla_menos' ? 'Talla menos' : (a.tipo || '');
       const modeloColor = [a.modelo, a.color].filter(Boolean).join(' · ');
       return `
         <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:8px">
@@ -7806,6 +7814,7 @@ function resetForm(){
   document.getElementById('grupo-vuelto').style.display='none';
   document.getElementById('cliente-badge-wrap').style.display='none';
   const ca = document.getElementById('contacto-alerta'); if(ca) ca.style.display='none';
+  const cb = document.getElementById('f-cambio-talla'); if(cb) cb.checked = false;
   carrito = [];
   renderCarrito();
   ocultarAddItem();
@@ -7969,9 +7978,10 @@ async function submitPedidos() {
         notas:         g('f-notas'),
         montoEfectivo: g('f-monto-efectivo') || '0',
         vuelto:        g('f-vuelto') || '0',
-        responsable:   localStorage.getItem('vendedora_nombre') || '',
-        items:         JSON.stringify(carrito),
-        reqId:         _reqId
+        responsable:     localStorage.getItem('vendedora_nombre') || '',
+        items:           JSON.stringify(carrito),
+        reqId:           _reqId,
+        cambioDeTalla:   document.getElementById('f-cambio-talla')?.checked ? 'true' : 'false'
       });
       const _ctrl2 = new AbortController();
       const _tid2 = setTimeout(() => _ctrl2.abort(), 20000);
