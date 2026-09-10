@@ -6262,9 +6262,8 @@ function renderCosturera(d) {
             ${a.telefono ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">📞 ${a.telefono}</div>` : ''}
             ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:2px">${a.notas}</div>` : ''}
           </div>
-          <button onclick="arregloSetEstado(${a.id},'arreglado',()=>{_costData=null;loadCosturera()})"
-            style="flex-shrink:0;background:rgba(168,85,247,.12);border:1.5px solid #a855f7;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;color:#a855f7;white-space:nowrap">
-            ✅ Listo
+          <button class="del-check" onclick="arregloSetEstado(${a.id},'arreglado',()=>{_costData=null;loadCosturera()})" title="Marcar como listo">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
           </button>
         </div>`;
       });
@@ -6332,6 +6331,8 @@ function renderCostArreglos() {
     const listos   = all.filter(a => a.estado === 'arreglado');
 
     const card = a => {
+      const idx = all.indexOf(a);
+      const listo = a.estado === 'arreglado';
       const tipoStr = a.tipo === 'ruedo'
         ? `Ruedo · quitar ${a.cm||'?'} cm`
         : a.tipo === 'descosido' ? 'Descosido' : a.tipo === 'talla_menos' ? 'Talla menos' : (a.tipo || '');
@@ -6343,21 +6344,15 @@ function renderCostArreglos() {
               <div style="font-size:15px;font-weight:700">${a.cliente}</div>
               ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">${a.telefono}</div>` : ''}
             </div>
-            <span style="font-size:10px;font-weight:700;color:${arregloEstadoColor(a.estado)};background:${arregloEstadoColor(a.estado)}18;padding:3px 8px;border-radius:20px;white-space:nowrap">${arregloEstadoLabel(a.estado)}</span>
+            <button class="del-check${listo ? ' checked' : ''}" onclick="costureraToggleArregloListo(${idx})" title="${listo ? 'Marcar como pendiente' : 'Marcar como listo'}">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
           </div>
           ${modeloColor ? `<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px">${modeloColor}</div>` : ''}
           ${tipoStr ? `<div style="font-size:12px;color:var(--text2);margin-bottom:3px">Arreglo: ${tipoStr}</div>` : ''}
           ${a.direccion ? `<div style="font-size:12px;color:var(--text3);margin-bottom:3px">Dir: ${a.direccion}</div>` : ''}
           ${a.notas ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-bottom:6px">${a.notas}</div>` : ''}
-          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Recibido ${a.fechaRecibido||a.fecha||''}</div>
-          ${a.estado === 'recibido' ? `
-          <button onclick="costureraMarcarArregloListo(${all.indexOf(a)})"
-            style="width:100%;background:rgba(168,85,247,.12);color:#a855f7;border:1px solid #a855f7;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
-            Marcar como listo
-          </button>` : `
-          <div style="font-size:12px;font-weight:700;color:#22c55e;text-align:center;padding:6px 0">
-            Listo · esperando delivery
-          </div>`}
+          <div style="font-size:11px;color:var(--text3)">Recibido ${a.fechaRecibido||a.fecha||''}</div>
         </div>`;
     };
 
@@ -6377,12 +6372,16 @@ function renderCostArreglos() {
 }
 
 function costureraMarcarArregloListo(i) {
+  costureraToggleArregloListo(i);
+}
+function costureraToggleArregloListo(i) {
   const list = getArreglos();
   if (!list[i]) return;
-  list[i].estado = 'arreglado';
+  const eraListo = list[i].estado === 'arreglado';
+  list[i].estado = eraListo ? 'recibido' : 'arreglado';
   saveArreglos(list);
   renderCostArreglos();
-  mostrarToast('Marcado como listo');
+  mostrarToast(eraListo ? 'Marcado como pendiente' : 'Marcado como listo');
 }
 
 async function loadCostHistorial() {
