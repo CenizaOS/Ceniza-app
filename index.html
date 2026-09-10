@@ -674,11 +674,12 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
-  <div class="cost-tabs" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto">
+  <div class="cost-tabs" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto">
     <button class="cost-tab active" id="ctab-cola" onclick="showCostTab('cola')">🧵 Producción</button>
     <button class="cost-tab" id="ctab-semana" onclick="showCostTab('semana')">📅 Semana</button>
     <button class="cost-tab" id="ctab-insumos" onclick="showCostTab('insumos')">📦 Insumos</button>
     <button class="cost-tab" id="ctab-historial" onclick="showCostTab('historial')">📋 Historial</button>
+    <button class="cost-tab" id="ctab-arreglos" onclick="showCostTab('arreglos')" style="grid-column:1/-1">🔧 Arreglos</button>
   </div>
   <div class="cost-body">
     <div id="cost-screen-cola">
@@ -692,6 +693,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="cost-screen-historial" style="display:none">
       <div id="cost-historial-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
+    </div>
+    <div id="cost-screen-arreglos" style="display:none">
+      <div id="cost-arreglos-content"></div>
     </div>
   </div>
 </div>
@@ -1818,41 +1822,54 @@ function renderVendRecogidas() {
     const lbl = arregloEstadoLabel(a.estado);
     const tipoStr = a.tipo === 'ruedo'
       ? `Ruedo · quitar ${a.cm||'?'} cm`
-      : a.tipo === 'descosido' ? 'Descosido / error de fábrica' : a.tipo;
+      : a.tipo === 'descosido' ? 'Descosido' : a.tipo === 'talla_menos' ? 'Cambio de talla' : (a.tipo || '');
     const esListo = a.estado === 'arreglado';
     const esPendienteEntrega = a.estado === 'pendiente_entrega';
-    // Formatear fecha programada si existe
     let fechaEntregaStr = '';
     if (a.fechaEntregaProgramada) {
       const [y,m,d] = a.fechaEntregaProgramada.split('-');
       const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-      fechaEntregaStr = `${d} ${meses[parseInt(m)-1]} ${y}`;
+      fechaEntregaStr = `${d} ${meses[parseInt(m)-1]}`;
     }
+    // Fecha de entrega ingresada al registrar
+    let fechaEntStr = '';
+    if (a.fechaEntrega) {
+      const [y2,m2,d2] = a.fechaEntrega.split('-');
+      const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      fechaEntStr = `${d2} ${meses[parseInt(m2)-1]}`;
+    }
+    const deliveryStr = a.deliveryQuienPaga === 'cliente'
+      ? `Cliente paga delivery${a.deliveryMonto ? ' · $'+a.deliveryMonto : ''}`
+      : 'Ceniza cubre delivery';
     return `
       <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:8px;
                   opacity:${a.estado==='entregado'?'.45':'1'}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
           <div style="min-width:0">
             <div style="font-size:15px;font-weight:700;color:var(--text)">${a.cliente}</div>
-            ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 ${a.telefono}</div>` : ''}
+            ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">${a.telefono}</div>` : ''}
           </div>
           <span style="flex-shrink:0;font-size:10px;font-weight:700;color:${col};background:${col}18;padding:3px 8px;border-radius:20px;white-space:nowrap">${lbl}</span>
         </div>
-        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px">🔧 ${tipoStr}</div>
-        ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
-        ${a.notas     ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
-        ${esPendienteEntrega && fechaEntregaStr ? `<div style="font-size:12px;color:var(--gold-dim);font-weight:600;margin-top:5px">📅 Entrega: ${fechaEntregaStr}</div>` : ''}
+        ${(a.modelo||a.color) ? `<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px">${[a.modelo,a.color].filter(Boolean).join(' · ')}</div>` : ''}
+        ${tipoStr ? `<div style="font-size:12px;color:var(--text2);margin-bottom:3px">Arreglo: ${tipoStr}</div>` : ''}
+        ${a.tipoEntrega ? `<div style="font-size:12px;color:var(--text3);margin-bottom:3px">${a.tipoEntrega}</div>` : ''}
+        ${a.deliveryQuienPaga ? `<div style="font-size:12px;color:var(--text3);margin-bottom:3px">${deliveryStr}</div>` : ''}
+        ${a.direccion ? `<div style="font-size:12px;color:var(--text3);margin-bottom:3px">Dir: ${a.direccion}</div>` : ''}
+        ${fechaEntStr ? `<div style="font-size:12px;color:var(--gold-dim);font-weight:600;margin-bottom:3px">Entrega: ${fechaEntStr}</div>` : ''}
+        ${esPendienteEntrega && fechaEntregaStr ? `<div style="font-size:12px;color:var(--gold-dim);font-weight:600">Agendado: ${fechaEntregaStr}</div>` : ''}
+        ${a.notas ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
         <div style="font-size:11px;color:var(--text3);margin-top:6px">Registrado ${a.fecha||''}</div>
         <div style="display:flex;gap:6px;margin-top:10px">
           ${esListo ? `
           <button onclick="arregloAgendarEntrega(${i})"
             style="flex:1;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">
-            📅 Agendar entrega
+            Agendar entrega
           </button>` : ''}
           ${esPendienteEntrega ? `
           <button onclick="arregloAgendarEntrega(${i})"
             style="flex:1;background:var(--gold-bg);color:var(--gold-dim);border:1px solid var(--gold);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">
-            ✏️ Cambiar fecha
+            Cambiar fecha
           </button>` : ''}
           ${a.estado === 'entregado' ? '' : `
           <button onclick="eliminarArreglo(${i})"
@@ -1868,51 +1885,98 @@ function renderVendRecogidas() {
   div.innerHTML = `
     <!-- Formulario -->
     <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Registrar arreglo</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">Registrar arreglo</div>
 
+      <!-- Nombre y teléfono -->
       <input id="arr-cliente" placeholder="Nombre del cliente *" type="text"
         style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
-      <input id="arr-tel" placeholder="Teléfono del cliente" type="tel"
-        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
-      <input id="arr-dir" placeholder="Dirección o punto de encuentro" type="text"
+      <input id="arr-tel" placeholder="Nro de teléfono" type="tel"
         style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
 
-      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Tipo de entrega</div>
-      <select id="arr-tipo-entrega"
-        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px;-webkit-appearance:none">
-        <option value="Retiro personal">🏪 Retiro personal</option>
-        <option value="Delivery">🛵 Delivery</option>
-        <option value="Envío MRW">📦 Envío MRW</option>
-        <option value="Envío ZOOM">📦 Envío ZOOM</option>
-      </select>
+      <!-- Modelo -->
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Modelo del pantalón</div>
+      <div style="display:flex;gap:6px;margin-bottom:7px">
+        <button id="arr-mod-clasico" onclick="arrSelModelo('clasico')"
+          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)">
+          Clásico
+        </button>
+        <button id="arr-mod-pareo" onclick="arrSelModelo('pareo')"
+          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text)">
+          Pareo
+        </button>
+      </div>
 
+      <!-- Color -->
+      <input id="arr-color" placeholder="Color del pantalón" type="text"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
+
+      <!-- Tipo de arreglo -->
       <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Tipo de arreglo</div>
       <div style="display:flex;gap:6px;margin-bottom:7px">
         <button id="arr-tipo-ruedo" onclick="arrSelTipo('ruedo')"
           style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)">
-          📏 Ruedo
+          Ruedo
         </button>
         <button id="arr-tipo-descosido" onclick="arrSelTipo('descosido')"
           style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text)">
-          🧵 Descosido
+          Descosido
+        </button>
+        <button id="arr-tipo-talla_menos" onclick="arrSelTipo('talla_menos')"
+          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text)">
+          Cambio talla
         </button>
       </div>
       <div id="arr-cm-wrap" style="margin-bottom:7px">
         <input id="arr-cm" placeholder="¿Cuántos cm quitar? ej: 3" type="number" min="1"
           style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px">
       </div>
-      <input id="arr-notas" placeholder="Notas adicionales (talla, color, modelo...)" type="text"
+
+      <!-- Delivery: quién paga -->
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Delivery</div>
+      <div style="display:flex;gap:6px;margin-bottom:7px">
+        <button id="arr-del-ceniza" onclick="arrSelDelivery('ceniza')"
+          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)">
+          Ceniza lo cubre
+        </button>
+        <button id="arr-del-cliente" onclick="arrSelDelivery('cliente')"
+          style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--bg4);background:var(--bg3);color:var(--text)">
+          Paga el cliente
+        </button>
+      </div>
+      <div id="arr-del-monto-wrap" style="display:none;margin-bottom:7px">
+        <input id="arr-del-monto" placeholder="Monto del delivery $" type="number" min="0" step="0.01"
+          style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px">
+      </div>
+
+      <!-- Dirección y tipo de entrega -->
+      <input id="arr-dir" placeholder="Dirección de recogida y entrega" type="text"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
+      <select id="arr-tipo-entrega"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px;-webkit-appearance:none">
+        <option value="Retiro personal">Retiro personal</option>
+        <option value="Delivery">Delivery</option>
+        <option value="Envío MRW">Envío MRW</option>
+        <option value="Envío ZOOM">Envío ZOOM</option>
+      </select>
+
+      <!-- Fecha de entrega -->
+      <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">Fecha de entrega</div>
+      <input id="arr-fecha-entrega" type="date"
+        style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:7px">
+
+      <!-- Notas -->
+      <input id="arr-notas" placeholder="Notas adicionales" type="text"
         style="width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:9px 10px;color:var(--text);font-size:13px;margin-bottom:10px">
 
       <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">¿A quién va primero?</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
         <button onclick="agregarArreglo('pendiente_recogida')"
           style="background:var(--bg3);border:1.5px solid var(--bg4);border-radius:8px;padding:10px 8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text);line-height:1.4">
-          📦 Delivery<br><span style="font-weight:400;font-size:11px">irá a buscar</span>
+          Delivery<br><span style="font-weight:400;font-size:11px">irá a buscar</span>
         </button>
         <button onclick="agregarArreglo('recibido')"
           style="background:rgba(59,130,246,.1);border:1.5px solid #3b82f6;border-radius:8px;padding:10px 8px;font-size:12px;font-weight:700;cursor:pointer;color:#3b82f6;line-height:1.4">
-          🧵 Costurera<br><span style="font-weight:400;font-size:11px">ya lo tenemos</span>
+          Costurera<br><span style="font-weight:400;font-size:11px">ya lo tenemos</span>
         </button>
       </div>
     </div>
@@ -1936,23 +2000,53 @@ function renderVendRecogidas() {
       🗑 Limpiar completados
     </button>` : ''}
   `;
-  // Estado inicial del selector de tipo
-  _arrTipo = _arrTipo || 'ruedo';
-  arrSelTipo(_arrTipo, true);
+  // Inicializar toggles
+  _arrTipo     = _arrTipo     || 'ruedo';
+  _arrModelo   = _arrModelo   || 'clasico';
+  _arrDelivery = _arrDelivery || 'ceniza';
+  arrSelTipo(_arrTipo);
+  arrSelModelo(_arrModelo);
+  arrSelDelivery(_arrDelivery);
 }
 
 let _arrTipo = 'ruedo';
-function arrSelTipo(tipo, silente) {
+let _arrModelo = 'clasico';
+let _arrDelivery = 'ceniza';
+
+function arrSelTipo(tipo) {
   _arrTipo = tipo;
-  const ruedo    = document.getElementById('arr-tipo-ruedo');
-  const descosido= document.getElementById('arr-tipo-descosido');
-  const cmWrap   = document.getElementById('arr-cm-wrap');
-  if (!ruedo) return;
-  const actStyle   = 'border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)';
-  const inactStyle = 'border:1px solid var(--bg4);background:var(--bg3);color:var(--text)';
-  ruedo.style.cssText     += tipo === 'ruedo'     ? actStyle : inactStyle;
-  descosido.style.cssText += tipo === 'descosido' ? actStyle : inactStyle;
+  const act   = 'border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)';
+  const inact = 'border:1px solid var(--bg4);background:var(--bg3);color:var(--text)';
+  ['ruedo','descosido','talla_menos'].forEach(t => {
+    const btn = document.getElementById('arr-tipo-' + t);
+    if (btn) btn.setAttribute('style', btn.getAttribute('style').replace(/border:[^;]+;background:[^;]+;color:[^;]+/, t === tipo ? act : inact));
+  });
+  const cmWrap = document.getElementById('arr-cm-wrap');
   if (cmWrap) cmWrap.style.display = tipo === 'ruedo' ? '' : 'none';
+}
+
+function arrSelModelo(modelo) {
+  _arrModelo = modelo;
+  const clasico = document.getElementById('arr-mod-clasico');
+  const pareo   = document.getElementById('arr-mod-pareo');
+  if (!clasico) return;
+  const act   = 'border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)';
+  const inact = 'border:1px solid var(--bg4);background:var(--bg3);color:var(--text)';
+  clasico.setAttribute('style', clasico.getAttribute('style').replace(/border:[^;]+;background:[^;]+;color:[^;]+/, modelo==='clasico'?act:inact));
+  if (pareo) pareo.setAttribute('style', pareo.getAttribute('style').replace(/border:[^;]+;background:[^;]+;color:[^;]+/, modelo==='pareo'?act:inact));
+}
+
+function arrSelDelivery(quien) {
+  _arrDelivery = quien;
+  const ceniza  = document.getElementById('arr-del-ceniza');
+  const cliente = document.getElementById('arr-del-cliente');
+  const montoW  = document.getElementById('arr-del-monto-wrap');
+  if (!ceniza) return;
+  const act   = 'border:1px solid var(--gold);background:var(--gold-bg);color:var(--gold-dim)';
+  const inact = 'border:1px solid var(--bg4);background:var(--bg3);color:var(--text)';
+  ceniza.setAttribute('style', ceniza.getAttribute('style').replace(/border:[^;]+;background:[^;]+;color:[^;]+/, quien==='ceniza'?act:inact));
+  if (cliente) cliente.setAttribute('style', cliente.getAttribute('style').replace(/border:[^;]+;background:[^;]+;color:[^;]+/, quien==='cliente'?act:inact));
+  if (montoW) montoW.style.display = quien === 'cliente' ? '' : 'none';
 }
 
 function agregarArreglo(destino) {
@@ -1964,11 +2058,16 @@ function agregarArreglo(destino) {
     id:        Date.now(),
     cliente,
     telefono:  document.getElementById('arr-tel')?.value.trim()   || '',
-    direccion: document.getElementById('arr-dir')?.value.trim()   || '',
-    tipo:         _arrTipo,
-    tipoEntrega:  document.getElementById('arr-tipo-entrega')?.value || 'Retiro personal',
-    cm:           parseInt(document.getElementById('arr-cm')?.value) || null,
-    notas:        document.getElementById('arr-notas')?.value.trim() || '',
+    modelo:    _arrModelo === 'clasico' ? 'Pantalón Clásico' : 'Pantalón Pareo',
+    color:     document.getElementById('arr-color')?.value.trim() || '',
+    tipo:      _arrTipo,
+    cm:        _arrTipo === 'ruedo' ? (parseInt(document.getElementById('arr-cm')?.value) || null) : null,
+    deliveryQuienPaga: _arrDelivery,
+    deliveryMonto:     _arrDelivery === 'cliente' ? (parseFloat(document.getElementById('arr-del-monto')?.value) || 0) : 0,
+    direccion:    document.getElementById('arr-dir')?.value.trim()       || '',
+    tipoEntrega:  document.getElementById('arr-tipo-entrega')?.value      || 'Retiro personal',
+    fechaEntrega: document.getElementById('arr-fecha-entrega')?.value     || '',
+    notas:        document.getElementById('arr-notas')?.value.trim()      || '',
     estado:       destino,
     fecha:        now,
     vendedora:    localStorage.getItem('vendedora_nombre') || ''
@@ -1978,9 +2077,10 @@ function agregarArreglo(destino) {
   const list = getArreglos();
   list.unshift(a);
   saveArreglos(list);
-  ['arr-cliente','arr-tel','arr-dir','arr-cm','arr-notas'].forEach(id => {
+  ['arr-cliente','arr-tel','arr-color','arr-dir','arr-cm','arr-del-monto','arr-fecha-entrega','arr-notas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  _arrTipo = 'ruedo'; _arrModelo = 'clasico'; _arrDelivery = 'ceniza';
   renderVendRecogidas();
   const msg = destino === 'recibido'
     ? '✓ Arreglo registrado · asignado a la costurera'
@@ -6197,7 +6297,7 @@ function renderCosturera(d) {
 }
 
 function showCostTab(tab) {
-  ['cola','semana','insumos','historial'].forEach(t => {
+  ['cola','semana','insumos','historial','arreglos'].forEach(t => {
     document.getElementById('cost-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('ctab-' + t).classList.toggle('active', tab === t);
   });
@@ -6210,6 +6310,71 @@ function showCostTab(tab) {
     const el = document.getElementById('cost-historial-content');
     if (el.querySelector('.loading-msg') || el.querySelector('.err-card')) loadCostHistorial();
   }
+  if (tab === 'arreglos') renderCostArreglos();
+}
+
+function renderCostArreglos() {
+  const div = document.getElementById('cost-arreglos-content');
+  if (!div) return;
+  // Sync desde servidor y luego renderizar
+  syncArreglos().then(() => {
+    const all = getArreglos();
+    // Costurera ve los que están en su taller (recibido) o ya arreglados
+    const enTaller = all.filter(a => a.estado === 'recibido');
+    const listos   = all.filter(a => a.estado === 'arreglado');
+
+    const card = a => {
+      const tipoStr = a.tipo === 'ruedo'
+        ? `Ruedo · quitar ${a.cm||'?'} cm`
+        : a.tipo === 'descosido' ? 'Descosido' : a.tipo === 'talla_menos' ? 'Cambio de talla' : (a.tipo || '');
+      const modeloColor = [a.modelo, a.color].filter(Boolean).join(' · ');
+      return `
+        <div style="background:var(--bg2);border-radius:12px;padding:14px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+            <div>
+              <div style="font-size:15px;font-weight:700">${a.cliente}</div>
+              ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">${a.telefono}</div>` : ''}
+            </div>
+            <span style="font-size:10px;font-weight:700;color:${arregloEstadoColor(a.estado)};background:${arregloEstadoColor(a.estado)}18;padding:3px 8px;border-radius:20px;white-space:nowrap">${arregloEstadoLabel(a.estado)}</span>
+          </div>
+          ${modeloColor ? `<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px">${modeloColor}</div>` : ''}
+          ${tipoStr ? `<div style="font-size:12px;color:var(--text2);margin-bottom:3px">Arreglo: ${tipoStr}</div>` : ''}
+          ${a.direccion ? `<div style="font-size:12px;color:var(--text3);margin-bottom:3px">Dir: ${a.direccion}</div>` : ''}
+          ${a.notas ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-bottom:6px">${a.notas}</div>` : ''}
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Recibido ${a.fechaRecibido||a.fecha||''}</div>
+          ${a.estado === 'recibido' ? `
+          <button onclick="costureraMarcarArregloListo(${all.indexOf(a)})"
+            style="width:100%;background:rgba(168,85,247,.12);color:#a855f7;border:1px solid #a855f7;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">
+            Marcar como listo
+          </button>` : `
+          <div style="font-size:12px;font-weight:700;color:#22c55e;text-align:center;padding:6px 0">
+            Listo · esperando delivery
+          </div>`}
+        </div>`;
+    };
+
+    div.innerHTML = `
+      ${enTaller.length ? `
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">En taller (${enTaller.length})</div>
+        ${enTaller.map(a => card(a)).join('')}
+      ` : ''}
+      ${listos.length ? `
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 8px">Listos · por enviar (${listos.length})</div>
+        ${listos.map(a => card(a)).join('')}
+      ` : ''}
+      ${!enTaller.length && !listos.length ? `
+        <div style="text-align:center;padding:32px 0;color:var(--text3);font-size:13px">Sin arreglos pendientes</div>
+      ` : ''}`;
+  });
+}
+
+function costureraMarcarArregloListo(i) {
+  const list = getArreglos();
+  if (!list[i]) return;
+  list[i].estado = 'arreglado';
+  saveArreglos(list);
+  renderCostArreglos();
+  mostrarToast('Marcado como listo');
 }
 
 async function loadCostHistorial() {
