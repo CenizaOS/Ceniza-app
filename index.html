@@ -7189,9 +7189,11 @@ function renderDelivery(d, fecha) {
   // ── Pre-calcular arreglos del día ──────────────────────
   const _allArreglos   = getArreglos();
   const aRecoger       = _allArreglos.filter(a => a.estado === 'pendiente_recogida');
-  // Solo arreglos cuya fechaEntregaProgramada coincide EXACTAMENTE con la fecha vista
+  // Arreglos listos para entregar: los que costurera marcó como listos (arreglado)
+  // o los que la vendedora programó para esta fecha (pendiente_entrega)
   const aEntregar      = _allArreglos.filter(a =>
-    a.estado === 'pendiente_entrega' && a.fechaEntregaProgramada === fecha
+    a.estado === 'arreglado' ||
+    (a.estado === 'pendiente_entrega' && a.fechaEntregaProgramada === fecha)
   );
   // Mapa tipoEntrega → [arreglos del día]
   const arreglosPorTipo = {};
@@ -7207,17 +7209,23 @@ function renderDelivery(d, fecha) {
     const tipoStr = a.tipo === 'ruedo' ? `Ruedo · quitaron ${a.cm||'?'} cm` : 'Descosido reparado';
     const tel = (a.telefono||'').replace(/[^0-9]/g,'');
     const waLink = tel ? `https://wa.me/58${tel.startsWith('0')?tel.slice(1):tel}` : '';
-    return `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308;position:relative">
-      <div style="position:absolute;top:10px;right:10px;background:#eab308;color:#000;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:.05em">🔧 ARREGLO</div>
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;padding-right:64px">${a.cliente}</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">✅ ${tipoStr} · listo para entregar</div>
-      ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
-      ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
-      ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
-      <button onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})"
-        style="margin-top:8px;width:100%;background:rgba(34,197,94,.12);border:1px solid #22c55e;border-radius:7px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;color:#22c55e">
-        ✅ Entregado al cliente
-      </button>
+    const entregado = a.estado === 'entregado';
+    return `<div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #eab308">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="background:#eab308;color:#000;font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;letter-spacing:.05em">🔧 ARREGLO</span>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px">${a.cliente}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:3px">${tipoStr} · listo para entregar</div>
+          ${a.telefono ? `<div style="font-size:12px;color:var(--text3)">📞 <a href="tel:${a.telefono}" style="color:var(--text3)">${a.telefono}</a>${waLink?` <a href="${waLink}" target="_blank" style="color:#25d366;font-weight:700;margin-left:6px">WA</a>`:''}</div>` : ''}
+          ${a.direccion ? `<div style="font-size:12px;color:var(--text3)">📍 ${a.direccion}</div>` : ''}
+          ${a.notas ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:3px">${a.notas}</div>` : ''}
+        </div>
+        <button class="del-check${entregado ? ' checked' : ''}" onclick="arregloSetEstado(${a.id},'entregado',()=>{loadDelivery(0)})" title="Marcar como entregado">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
     </div>`;
   }
 
