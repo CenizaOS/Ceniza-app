@@ -1102,7 +1102,7 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
   // ── Persistir en localStorage: guardar los pedidos entregados por fecha ──
   // Persistir filas Y objetos completos para que sobrevivan si la API no los devuelve al recargar
   try {
-    // Guardar filas (compatibilidad)
+    // Guardar filas (compatibilidad, clave por fecha)
     const lsKey = 'ceniza_del_done_' + fechaCacheKey;
     let donePedidos = JSON.parse(localStorage.getItem(lsKey) || '[]');
     if (!yaEntregado) {
@@ -1111,6 +1111,20 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
       donePedidos = donePedidos.filter(f => !filas.includes(f));
     }
     localStorage.setItem(lsKey, JSON.stringify(donePedidos));
+
+    // ── Clave persistente para REZAGADAS (independiente de fecha) ──
+    // Necesario porque las rezagadas aparecen en cualquier fecha futura
+    const rezFilasEnCache = (_delCache[fechaCacheKey]?.rezagadas || []).map(r => r.fila);
+    const filasRezagadas = filas.filter(f => rezFilasEnCache.includes(f));
+    if (filasRezagadas.length) {
+      let rezDone = JSON.parse(localStorage.getItem('ceniza_del_rez_done') || '[]');
+      if (!yaEntregado) {
+        filasRezagadas.forEach(f => { if (!rezDone.includes(f)) rezDone.push(f); });
+      } else {
+        rezDone = rezDone.filter(f => !filasRezagadas.includes(f));
+      }
+      localStorage.setItem('ceniza_del_rez_done', JSON.stringify(rezDone));
+    }
 
     // Guardar objetos completos para poder re-agregarlos si la API los omite
     const lsItemsKey = 'ceniza_del_items_' + fechaCacheKey;
@@ -1130,6 +1144,9 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
       savedItems = savedItems.filter(p => !filas.includes(p.fila));
     }
     localStorage.setItem(lsItemsKey, JSON.stringify(savedItems));
+
+    // Persistir el caché actualizado (para que recarga no use datos viejos)
+    _delCacheSave(fechaCacheKey, _delCache[fechaCacheKey]);
   } catch(e) { /* localStorage no disponible, ignorar */ }
 
   try {
@@ -1140,19 +1157,21 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
     );
     if (resultados.some(r => !r.success)) {
       mostrarToast('✕ Error al guardar');
-      // Revertir UI y caché
+      // Revertir UI y caché (pedidos Y rezagadas)
       if (yaEntregado) {
         btn.classList.add('checked'); btn.title='Tap para revertir';
         if (card) card.classList.add('done');
         if (stats[0]) stats[0].textContent = Math.max(0,parseInt(stats[0].textContent)-1);
         if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent||0)+1;
-        if (_delCache[fechaCacheKey]?.pedidos) _delCache[fechaCacheKey].pedidos = _delCache[fechaCacheKey].pedidos.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a cliente'}):p);
+        if (_delCache[fechaCacheKey]?.pedidos)   _delCache[fechaCacheKey].pedidos   = _delCache[fechaCacheKey].pedidos.map(p   => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a cliente'}):p);
+        if (_delCache[fechaCacheKey]?.rezagadas) _delCache[fechaCacheKey].rezagadas = _delCache[fechaCacheKey].rezagadas.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a cliente'}):p);
       } else {
         btn.classList.remove('checked'); btn.title='Marcar como entregado';
         if (card) card.classList.remove('done');
         if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent||0)+1;
         if (stats[1]) stats[1].textContent = Math.max(0,parseInt(stats[1].textContent)-1);
-        if (_delCache[fechaCacheKey]?.pedidos) _delCache[fechaCacheKey].pedidos = _delCache[fechaCacheKey].pedidos.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a delivery'}):p);
+        if (_delCache[fechaCacheKey]?.pedidos)   _delCache[fechaCacheKey].pedidos   = _delCache[fechaCacheKey].pedidos.map(p   => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a delivery'}):p);
+        if (_delCache[fechaCacheKey]?.rezagadas) _delCache[fechaCacheKey].rezagadas = _delCache[fechaCacheKey].rezagadas.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a delivery'}):p);
       }
     } else {
       mostrarToast(yaEntregado ? '↩ Marcado como pendiente' : '✓ Entregado');
@@ -6971,6 +6990,17 @@ function _applyHistorialMerge(d, fecha) {
       );
     }
 
+    // ── 1b. Overlay persistente para REZAGADAS (independiente de fecha) ──
+    // Aplica incluso al día siguiente cuando la clave por-fecha ya no coincide
+    try {
+      const rezDoneFilas = JSON.parse(localStorage.getItem('ceniza_del_rez_done') || '[]');
+      if (rezDoneFilas.length) {
+        rezagadas = rezagadas.map(p =>
+          rezDoneFilas.includes(p.fila) ? Object.assign({}, p, { estado: 'Entregado a cliente' }) : p
+        );
+      }
+    } catch(_) {}
+
     // ── 2. Re-agregar ítems completos guardados (para ítems que la API omite en fechas pasadas) ──
     const lsItemsKey = 'ceniza_del_items_' + fecha;
     const savedItems = JSON.parse(localStorage.getItem(lsItemsKey) || '[]');
@@ -6997,6 +7027,20 @@ function _applyHistorialMerge(d, fecha) {
       pedidos = pedidos.concat(entregadosDelDia);
     }
   }
+
+  // ── Limpiar ceniza_del_rez_done de filas que ya no son rezagadas en la API ──
+  // Si GAS ya no las devuelve como rezagadas, el cambiarEstado fue exitoso → limpiar LS
+  try {
+    const rezDoneRaw = localStorage.getItem('ceniza_del_rez_done');
+    if (rezDoneRaw) {
+      let rezDone = JSON.parse(rezDoneRaw);
+      const filasRezActuales = new Set(rezagadas.map(r => r.fila));
+      const rezDoneFiltrado = rezDone.filter(f => filasRezActuales.has(f)); // mantener solo los que siguen siendo rezagadas
+      if (rezDoneFiltrado.length !== rezDone.length) {
+        localStorage.setItem('ceniza_del_rez_done', JSON.stringify(rezDoneFiltrado));
+      }
+    }
+  } catch(_) {}
 
   return Object.assign({}, d, { pedidos, rezagadas });
 }
