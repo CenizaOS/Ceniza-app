@@ -1057,6 +1057,9 @@ function mostrarToast(msg){
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3000);
 }
+// Varias pantallas de Administración llaman showToast(); no existía y rompía
+// justo después de guardar (costos, quincenas).
+const showToast = mostrarToast;
 function mostrarVuelto(cardId, bill, monto, btn) {
   document.querySelectorAll(`#vuelto-${cardId} .del-bill-btn`).forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -1226,33 +1229,39 @@ const CONFIG_KEYS = [
   'ceniza_proyeccion'
 ];
 
-// Carga config desde Sheets → localStorage al iniciar
+// Sheets manda. Antes cada teléfono se quedaba con su copia local para siempre
+// (solo bajaba de Sheets si no tenía nada) y al guardar mandaba la lista
+// completa: el teléfono con datos viejos pisaba lo que otro acababa de hacer.
+// Ahora, al abrir la app y cada vez que vuelve al frente, lo que hay en Sheets
+// reemplaza la copia local. Excepción: el historial de cierres es solo-agregar,
+// así que se conserva la versión con más entradas.
+let _ultimaSyncConfig  = 0;   // para no consultar Sheets más de una vez cada 30s
+let _pushesPendientes  = 0;   // no bajar de Sheets mientras haya un guardado en vuelo
+const SYNC_CONFIG_MIN_MS = 30000;
+
 async function syncConfigDesdeSheets() {
+  if (_pushesPendientes > 0) return;
   try {
-    const res = await fetch(`${API}?accion=leerConfig`);
-    const data = await res.json();
-    let restored = 0;
+    const data = await fetchData('leerConfig');
+    if (!data || data.error) throw new Error(data && data.error || 'sin datos');
+    let cambiadas = 0;
     for (const [clave, valor] of Object.entries(data)) {
-      if (CONFIG_KEYS.includes(clave) && valor && valor !== '') {
-        // Para el historial de cierres: tomar el que tenga más entradas (Sheets o local)
-        if (clave === 'ceniza_historial_cierres') {
-          try {
-            const local  = JSON.parse(localStorage.getItem(clave) || '[]');
-            const remote = JSON.parse(valor || '[]');
-            if (remote.length > local.length) {
-              localStorage.setItem(clave, valor);
-              restored++;
-            }
-          } catch(_) {}
-        } else if (!localStorage.getItem(clave)) {
-          // Para el resto: solo restaurar si no hay dato local ya
-          localStorage.setItem(clave, valor);
-          restored++;
-        }
+      if (!CONFIG_KEYS.includes(clave) || valor === '' || valor == null) continue;
+      const remoto = typeof valor === 'string' ? valor : JSON.stringify(valor);
+      if (clave === 'ceniza_historial_cierres') {
+        try {
+          const local = JSON.parse(localStorage.getItem(clave) || '[]');
+          if (JSON.parse(remoto).length <= local.length) continue;
+        } catch(_) {}
+      }
+      if (localStorage.getItem(clave) !== remoto) {
+        localStorage.setItem(clave, remoto);
+        cambiadas++;
       }
     }
-    if (restored > 0) {
-      console.log(`[Config] ${restored} claves restauradas desde Sheets`);
+    _ultimaSyncConfig = Date.now();
+    if (cambiadas > 0) {
+      console.log(`[Config] ${cambiadas} claves actualizadas desde Sheets`);
       // Si el historial está visible, re-renderizarlo con los datos recién cargados
       const histEl = document.getElementById('fin-historial');
       if (histEl && histEl.style.display !== 'none') renderFinHistorial();
@@ -1262,11 +1271,29 @@ async function syncConfigDesdeSheets() {
   }
 }
 
-// Guarda una clave en Sheets (fire & forget, no bloquea UI)
-function pushConfig(clave, valor) {
-  const encoded = encodeURIComponent(typeof valor === 'string' ? valor : JSON.stringify(valor));
-  fetch(`${API}?accion=guardarConfig&clave=${encodeURIComponent(clave)}&valor=${encoded}`)
-    .catch(() => {});
+// Al volver a la app (cambio de pestaña, desbloquear el teléfono) refrescar
+// la config si la última lectura tiene más de 30s.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (Date.now() - _ultimaSyncConfig < SYNC_CONFIG_MIN_MS) return;
+  syncConfigDesdeSheets();
+});
+
+// Guarda una clave en Sheets. No bloquea la UI, pero ya no es silencioso:
+// reintenta y, si al final no se pudo, avisa para que la persona lo repita.
+async function pushConfig(clave, valor) {
+  const str = typeof valor === 'string' ? valor : JSON.stringify(valor);
+  const extra = `&clave=${encodeURIComponent(clave)}&valor=${encodeURIComponent(str)}`;
+  _pushesPendientes++;
+  try {
+    const r = await fetchData('guardarConfig', extra);
+    if (!r || r.error || r.ok === false) throw new Error((r && r.error) || 'respuesta inválida');
+  } catch(e) {
+    console.warn('[Config] No se pudo guardar', clave, e.message);
+    mostrarToast('⚠️ No se guardó en la nube. Revisa tu conexión y vuelve a guardar.');
+  } finally {
+    _pushesPendientes--;
+  }
 }
 
 // Wrapper: guarda en localStorage + sincroniza a Sheets
@@ -2815,9 +2842,8 @@ async function guardarCostos() {
   localStorage.setItem('ceniza_costos', json);
   // 2. Aplicar a FIN en memoria
   _aplicarCostosAlFIN(c);
-  // 3. Guardar en el servidor (hoja Config) — no bloquea la UI
-  fetch(`${API}?accion=guardarConfig&clave=ceniza_costos_v2&valor=${encodeURIComponent(json)}`)
-    .catch(() => {}); // silencioso si falla — ya quedó en localStorage
+  // 3. Guardar en el servidor (hoja Config) — no bloquea la UI; avisa si falla
+  pushConfig('ceniza_costos_v2', json);
   showToast('✅ Costos guardados');
   renderFinCostos();
 }
@@ -2832,8 +2858,7 @@ function _saveRegistros(arr) {
   const json = JSON.stringify(arr);
   localStorage.setItem('ceniza_registro_quincenas', json);
   // Sincronizar con Google Sheets para que no se pierda al limpiar caché
-  fetch(`${API}?accion=guardarConfig&clave=ceniza_registro_quincenas&valor=${encodeURIComponent(json)}`)
-    .catch(() => {});
+  pushConfig('ceniza_registro_quincenas', json);
 }
 
 // ── Helper: fila de saldo ──────────────────────────────────
