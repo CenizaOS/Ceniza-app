@@ -68,14 +68,15 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 ## Vendedora names
 `responsable` (col 15) is free text from each phone. Both sides normalize it (trim, collapse spaces, capitalize, alias map): `normalizarResponsable()` in `Ceniza_GAS.js` and `normalizarNombre()` in `index.html`. To merge a new spelling, add it to `ALIAS_RESPONSABLES` (backend) **and** `ALIAS_NOMBRES` (frontend). Currently `angie → Angi`.
 
-## Quincena & arrastres
-- Start date lives in ScriptProperties `ceniza_fecha_inicio_quincena`; arrastres in `ARRASTRES`. Both are set only by `_establecerInicioQuincena()` (called by `reiniciarQuincena`, `setFechaQuincena`, `corregirQuincena`).
-- **Rule:** arrastre = pants sold in the month *before* the quincena start date (0 if it starts on the 1st). Computed server-side; the owner can still override per vendedora via `setArrastres`.
-- `getComisiones` ignores the client `arrastres` param and reads the server value; single counting rule is `contarPantsPorVendedora()`.
-- The dueña view caches arrastres in `localStorage.ceniza_arrastres` from the `comisiones` response (`_applyQuincenaData`).
+## Quincena & arrastres (fixed calendar — owner's rule, 2026-09-20)
+- **Q1 = 1–15, Q2 = 16–end of month.** Nothing is stored: `_rangosQuincena(_hoyCaracas())` derives current and previous quincena from today's date (Caracas).
+- **Arrastre = pants sold in the previous quincena** (in Q1 that's the previous month's Q2). Computed live by `getComisiones` / `getArrastres`; `pants` for the tier = current + arrastre.
+- Single counting rule: `contarPantsPorVendedora(datos, desde, hasta)` — excludes Cancelado/Cambio/Arreglo and `cambioDeTalla`, normalizes names.
+- Routes `reiniciarQuincena`, `setFechaQuincena`, `corregirQuincena`, `setArrastres` return an explanatory error (`_quincenaFija`) for old clients; the buttons were removed from the dueña UI. `comisiones` returns `quincenaLabel` and `quincenaAnteriorLabel`.
 
 ## Known Issues (verified 2026-09-20)
 - `dashboard` fails in production because the `Tasas` sheet doesn't exist (frontend never calls it — dead code).
+- `loadFinFondos()` throws `Cannot set properties of null` because `#fin-fondos-content` doesn't exist in the HTML (pre-existing; shows as an unhandled promise rejection in the dueña view).
 - GAS is GET-only; all writes go through query params. Errors come back as `{error}` with HTTP 200.
 
 ## Preferences

@@ -45,19 +45,6 @@ function normalizarResponsable(nombre) {
   return n.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
 }
 
-// Unifica las claves de un mapa {nombre: número} (p. ej. arrastres).
-// Si conviven una clave ya canónica y una variante, gana la canónica.
-function normalizarMapaResponsables(mapa) {
-  const out = {};
-  const claves = Object.keys(mapa || {});
-  claves.filter(k => normalizarResponsable(k) === k).forEach(k => { out[k] = parseInt(mapa[k]) || 0; });
-  claves.forEach(k => {
-    const key = normalizarResponsable(k);
-    if (key && !(key in out)) out[key] = parseInt(mapa[k]) || 0;
-  });
-  return out;
-}
-
 function doGet(e) {
   const accion = e.parameter.accion || "dashboard";
   let data;
@@ -73,7 +60,7 @@ function doGet(e) {
     else if (accion === "eliminarPedido")  data = eliminarPedido(e.parameter);
     else if (accion === "historial")       data = getHistorial(e.parameter.responsable);
     else if (accion === "semana")          data = getSemanaCosturera();
-    else if (accion === "reiniciarQuincena") data = reiniciarQuincena();
+    else if (accion === "reiniciarQuincena") data = _quincenaFija();
     else if (accion === "finanzas")        data = getFinanzas();
     else if (accion === "guardarFinanzas") data = guardarFinanzas(e.parameter);
     else if (accion === "getClientes")     data = getClientes();
@@ -82,13 +69,13 @@ function doGet(e) {
     else if (accion === "getArreglos")     data = getArreglosData();
     else if (accion === "setArreglos")     data = setArreglosData(e.parameter);
     else if (accion === "getArrastres")    data = getArrastresData();
-    else if (accion === "setArrastres")    data = setArrastresData(e.parameter);
+    else if (accion === "setArrastres")    data = _quincenaFija();
     else if (accion === "leerConfig")      data = leerConfig();
     else if (accion === "guardarConfig")   { guardarConfig(e.parameter.clave, e.parameter.valor); data = { ok: true }; }
     else if (accion === "limpiarResponsable") data = limpiarResponsable(e.parameter);
     else if (accion === "ping")            data = { ok: true, ts: Date.now() };
-    else if (accion === "corregirQuincena")    data = corregirQuincenaInicioMes();
-    else if (accion === "setFechaQuincena")   data = setFechaQuincena(e.parameter);
+    else if (accion === "corregirQuincena")    data = _quincenaFija();
+    else if (accion === "setFechaQuincena")   data = _quincenaFija();
     else data = { error: "Accion no reconocida" };
   } catch(err) {
     data = { error: err.message };
@@ -707,75 +694,58 @@ function contarPantsPorVendedora(datos, desde, hasta) {
   return conteo;
 }
 
-// ─── INICIO DE QUINCENA + ARRASTRES ──────────────────────────────────────────
-// Regla: arrastre = pantalones vendidos en el mes ANTES de la fecha de inicio
-// de la quincena. Si la quincena empieza el día 1, el arrastre es 0.
-// Así la comisión de Q2 se calcula sobre el acumulado del mes (Q1 + Q2)
-// sin que nadie tenga que copiar números a mano.
-function _establecerInicioQuincena(fechaStr) {
-  const inicio = _parseFechaVE(fechaStr);
-  if (!inicio) throw new Error("Fecha inválida: " + fechaStr);
-
-  const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
-  if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
-  const datos = ws.getDataRange().getDisplayValues();
-
-  const mesInicio = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
-  const arrastres = contarPantsPorVendedora(datos, mesInicio, inicio);
-
-  const props = PropertiesService.getScriptProperties();
-  props.setProperty("ceniza_fecha_inicio_quincena", fechaStr);
-  props.setProperty("ARRASTRES", JSON.stringify(arrastres));
-
-  return { success: true, fecha: fechaStr, arrastres };
+// ─── QUINCENAS FIJAS ─────────────────────────────────────────────────────────
+// Q1 = del 1 al 15 · Q2 = del 16 al último día del mes. Todo se deduce de la
+// fecha de hoy en Caracas: no hay fecha de inicio guardada ni reinicio manual.
+// Arrastre = pantalones de la quincena anterior (en Q1 es la Q2 del mes pasado).
+// Los rangos son [desde, hasta): `hasta` es el primer día de la siguiente.
+function _hoyCaracas() {
+  return _parseFechaVE(Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy"));
 }
 
-function reiniciarQuincena() {
-  try {
-    const hoy = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
-    return _establecerInicioQuincena(hoy);
-  } catch(err) {
-    return { success: false, error: err.message };
-  }
+function _rangosQuincena(hoy) {
+  const y = hoy.getFullYear(), m = hoy.getMonth();
+  const esQ2 = hoy.getDate() >= 16;
+  const actual   = esQ2 ? { desde: new Date(y, m, 16),     hasta: new Date(y, m + 1, 1) }
+                        : { desde: new Date(y, m, 1),      hasta: new Date(y, m, 16) };
+  const anterior = esQ2 ? { desde: new Date(y, m, 1),      hasta: new Date(y, m, 16) }
+                        : { desde: new Date(y, m - 1, 16), hasta: new Date(y, m, 1) };
+  return { esQ2, actual, anterior };
+}
+
+// "16/09 – 30/09" (hasta es exclusivo, así que se resta un día)
+function _etiquetaRango(r) {
+  const dm = d => String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+  return dm(r.desde) + " – " + dm(new Date(r.hasta.getTime() - 86400000));
+}
+
+// Los botones antiguos de reiniciar / fijar fecha ya no aplican.
+function _quincenaFija() {
+  return { success: false, error: "Las quincenas son fijas (1–15 y 16–fin de mes); el arrastre se calcula solo." };
 }
 
 // ─── COMISIONES ──────────────────────────────────────────────────────────────
-// El parámetro `arrastres` (lo que cada teléfono tenía en memoria) ya no se usa:
-// los arrastres viven en el servidor (ARRASTRES) y los calcula
-// _establecerInicioQuincena(), así que todos los dispositivos ven lo mismo.
+// Se calcula en vivo desde la hoja; el parámetro `arrastres` (memoria de cada
+// teléfono) se ignora para que todos los dispositivos vean lo mismo.
 function getComisiones(quincena, arrastresJson) {
   const ws    = ss.getSheetByName("Pedidos " + MES_ACTIVO);
   const datos = ws.getDataRange().getDisplayValues();
 
-  let fechaInicio = null, quincenaLabel = "Mes completo", fechaInicioStr = "";
-  try {
-    const propVal = PropertiesService.getScriptProperties().getProperty("ceniza_fecha_inicio_quincena");
-    if (propVal) {
-      fechaInicio = _parseFechaVE(propVal);
-      if (fechaInicio) {
-        fechaInicioStr = propVal;
-        const parts = propVal.split('/');
-        quincenaLabel = "Desde " + parts[0] + "/" + parts[1];
-      }
-    }
-  } catch(e) { /* ignorar */ }
+  const hoy = _hoyCaracas();
+  const q   = _rangosQuincena(hoy);
+  const mesInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-  // Sin fecha guardada: la quincena arranca el 1ro del mes actual
-  if (!fechaInicio) {
-    const hoy = new Date();
-    fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    quincenaLabel = "Desde 01/" + Utilities.formatDate(new Date(), "America/Caracas", "MM");
-  }
-
-  const hoyObj = new Date();
-  const mesInicio = new Date(hoyObj.getFullYear(), hoyObj.getMonth(), 1);
-
-  const conteo    = contarPantsPorVendedora(datos, fechaInicio, null);
+  const conteo    = contarPantsPorVendedora(datos, q.actual.desde,   q.actual.hasta);
+  const arrastres = contarPantsPorVendedora(datos, q.anterior.desde, q.anterior.hasta);
   const conteoMes = contarPantsPorVendedora(datos, mesInicio, null);
-  const arrastres = getArrastresData().arrastres || {};
+
+  const quincenaLabel         = (q.esQ2 ? "Q2 · " : "Q1 · ") + _etiquetaRango(q.actual);
+  const quincenaAnteriorLabel = (q.esQ2 ? "Q1 · " : "Q2 · ") + _etiquetaRango(q.anterior);
+  const d0 = q.actual.desde;
+  const fechaInicioStr = String(d0.getDate()).padStart(2, "0") + "/" + String(d0.getMonth() + 1).padStart(2, "0") + "/" + d0.getFullYear();
 
   const UTILIDAD_NETA = 13.25;
-  const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes)]);
+  const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres)]);
   const vendedoras = Array.from(todosNombres).map(nombre => {
     const pantsQuincena = conteo[nombre] || 0;
     const pantsMes      = conteoMes[nombre] || 0;
@@ -792,7 +762,7 @@ function getComisiones(quincena, arrastresJson) {
     return { nombre, pants, pantsQuincena, pantsMes, arrastre, pct: (pct*100).toFixed(0)+"%", baseFija: 100, comision, totalAPagar, nivelSiguiente, faltanParaSiguiente };
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
-  return { mes: MES_ACTIVO, quincenaLabel, fechaInicioStr, vendedoras, totalMes };
+  return { mes: MES_ACTIVO, quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes };
 }
 
 // ─── FINANZAS DUEÑA ───────────────────────────────────────────────────────────
@@ -899,28 +869,16 @@ function setArreglosData(p) {
 }
 
 // ─── ARRASTRES DE QUINCENA ────────────────────────────────────────────────────
+// Arrastre en vivo = pantalones por vendedora en la quincena anterior.
 function getArrastresData() {
   try {
-    const prop = PropertiesService.getScriptProperties();
-    const json = prop.getProperty('ARRASTRES') || '{}';
-    const arrastres = normalizarMapaResponsables(JSON.parse(json));
-    // Auto-corregir lo guardado si tenía variantes (p. ej. "Angie" y "Angi")
-    const limpio = JSON.stringify(arrastres);
-    if (limpio !== json) prop.setProperty('ARRASTRES', limpio);
-    return { arrastres };
+    const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
+    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
+    const datos = ws.getDataRange().getDisplayValues();
+    const q = _rangosQuincena(_hoyCaracas());
+    return { arrastres: contarPantsPorVendedora(datos, q.anterior.desde, q.anterior.hasta), quincena: _etiquetaRango(q.anterior) };
   } catch(err) {
     return { arrastres: {}, error: err.message };
-  }
-}
-
-function setArrastresData(p) {
-  try {
-    const prop = PropertiesService.getScriptProperties();
-    const arrastres = normalizarMapaResponsables(JSON.parse(p.data || '{}'));
-    prop.setProperty('ARRASTRES', JSON.stringify(arrastres));
-    return { success: true, arrastres };
-  } catch(err) {
-    return { success: false, error: err.message };
   }
 }
 
@@ -962,29 +920,6 @@ function guardarConfig(clave, valor) {
     }
   }
   sheet.appendRow([clave, valor]);
-}
-
-// ─── CORREGIR QUINCENA AL 1RO DEL MES ────────────────────────────────────────
-function corregirQuincenaInicioMes() {
-  try {
-    const fecha = "01/" + Utilities.formatDate(new Date(), "America/Caracas", "MM/yyyy");
-    return _establecerInicioQuincena(fecha);
-  } catch(err) {
-    return { success: false, error: err.message };
-  }
-}
-
-// ─── ESTABLECER FECHA DE INICIO DE QUINCENA (manual) ─────────────────────────
-function setFechaQuincena(p) {
-  try {
-    const fecha = (p.fecha || "").trim();
-    if (!fecha || !/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
-      throw new Error("Formato de fecha inválido. Usar DD/MM/YYYY");
-    }
-    return _establecerInicioQuincena(fecha);
-  } catch(err) {
-    return { success: false, error: err.message };
-  }
 }
 
 // ─── KEEP-ALIVE (trigger cada 4 minutos para evitar cold start) ───────────────

@@ -23,7 +23,7 @@
 - **Other sheets used**: `Clientes`, `Config` (key/value store via `leerConfig`/`guardarConfig`). `Tasas`, `Costos`, `Gastos fijos` are referenced by dead code but don't exist.
 - **GAS Account**: `cenizawomenswear@gmail.com`
 - **API URL**: `const API` in index.html ≈ line 1007 (deployment `AKfycbxMXnE6…S_b`)
-- **Script properties** (PropertiesService): `REQIDS` (last 100 reqIds for idempotency), `ceniza_arrastres`, `ceniza_fecha_inicio_quincena`
+- **Script properties** (PropertiesService): `REQIDS` (last 100 reqIds for idempotency), `ENCARGOS`, `ARREGLOS`. (`ARRASTRES` and `ceniza_fecha_inicio_quincena` are legacy — no longer read.)
 
 ### Git workflow
 - Local repo lives in `C:\Users\vsviv\OneDrive\Escritorio\Ceniza` (inside OneDrive — owner's choice).
@@ -64,19 +64,19 @@ const FIN = { precio:30, costoTotal:16.75, utilNeta:13.25, fijosQuinc:591, metaV
 |---|---|---|
 | `produccion` | `getProduccion()` | Returns `{grupos, mes, total}` grouped by fechaEntrega, plus rezagadas |
 | `entregas` | `getEntregas(fecha)` | Delivery list for a date |
-| `comisiones` | `getComisiones(quincena, arrastres)` | Per-vendedora tiers; reads `ceniza_fecha_inicio_quincena` |
+| `comisiones` | `getComisiones()` | Per-vendedora tiers, live: current fixed quincena + arrastre (previous quincena). Params ignored. |
 | `historial` | `getHistorial(responsable)` | |
 | `semana` | `getSemanaCosturera()` | Weekly totals Mon–Sat |
 | `registrarPedidos` | `registrarPedidos(p)` | Multi-item; idempotent via `reqId`; writes col 22 `cambioDeTalla` |
 | `registrar` | `registrarPedido(p)` | Legacy single-item |
 | `cambiarEstado` | `cambiarEstado(p)` | Validates against fixed estado list |
 | `editarPedido` / `eliminarPedido` | | |
-| `reiniciarQuincena` / `setFechaQuincena` / `corregirQuincena` | `_establecerInicioQuincena(fecha)` | Set start date (today / given / 1st of month) and recompute `ARRASTRES`; return `{fecha, arrastres}` |
+| `reiniciarQuincena` / `setFechaQuincena` / `corregirQuincena` / `setArrastres` | `_quincenaFija()` | Obsolete — return `{success:false, error}` explaining quincenas are fixed |
 | `finanzas` / `guardarFinanzas` | | fondos, cuentas, tasas |
 | `getClientes` | | Autocomplete + cédula lookup |
 | `getEncargos` / `setEncargos` | | Shopping/errand list (JSON blob) |
 | `getArreglos` / `setArreglos` | | Alterations list (JSON blob) |
-| `getArrastres` / `setArrastres` | | Carry-over pants per vendedora |
+| `getArrastres` | `getArrastresData()` | Live: pants per vendedora in the previous quincena |
 | `leerConfig` / `guardarConfig` | | Key/value in `Config` sheet (`ceniza_costos_v2`, `ceniza_registro_quincenas`, `ceniza_arreglos`…) |
 | `limpiarResponsable` | | Normalize vendedora names |
 | `ping` | | Health check |
@@ -134,8 +134,9 @@ const totalAPagar = BASE_FIJA + comision;
 
 ## Known Issues (2026-09-20)
 
-- **Vendedora names** (fixed 2026-09-20, pending backend deploy): col 15 is free text, so `Angie`/`Angi` split commissions and arrastres. Now normalized on write and read via `normalizarResponsable()` (GAS) / `normalizarNombre()` (frontend) with alias maps `ALIAS_RESPONSABLES` / `ALIAS_NOMBRES`. `getArrastres` self-heals the stored `ARRASTRES` property; `limpiarResponsable` is case-insensitive.
-- **Quincena start & arrastres** (fixed 2026-09-20, pending backend deploy): `reiniciarQuincena`, `setFechaQuincena` and `corregirQuincena` all go through `_establecerInicioQuincena(fecha)`, which stores the date in ScriptProperties and computes `ARRASTRES` = pants per vendedora in the month before that date (`contarPantsPorVendedora`). Previously the auto-capture used a nonexistent field and the other two buttons wrote to the missing `Tasas` sheet. `getComisiones` now ignores the client `arrastres` param.
+- **Vendedora names** (fixed 2026-09-20, pending backend deploy): col 15 is free text, so `Angie`/`Angi` split commissions and arrastres. Now normalized on write and read via `normalizarResponsable()` (GAS) / `normalizarNombre()` (frontend) with alias maps `ALIAS_RESPONSABLES` / `ALIAS_NOMBRES`. `limpiarResponsable` is case-insensitive.
+- **Quincenas are fixed calendar periods** (owner's rule, 2026-09-20, pending backend deploy): Q1 = 1–15, Q2 = 16–end. `_rangosQuincena(hoy)` derives current/previous ranges; arrastre = pants in the previous quincena, computed live (crosses month boundary: on Oct 3 the arrastre is Sep 16–30). No start date or arrastre is stored anymore; the Reiniciar / Guardar fecha / 1ro buttons and manual arrastre inputs were removed from the dueña UI. Old routes answer with `_quincenaFija()` error.
+- **`loadFinFondos` console error** (pre-existing): targets `#fin-fondos-content`, which isn't in the HTML.
 - **`Tasas` sheet missing**: breaks `dashboard` (unused) and `corregirQuincena`.
 - **No backend auth**: anyone with the script URL can write. PINs are client-side and visible in the public repo.
 - **GAS is GET-only**: all writes via query string; keep params short.
