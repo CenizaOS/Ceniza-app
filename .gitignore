@@ -1,0 +1,21 @@
+# Documentos y reportes (no son parte de la app)
+*.xlsx
+*.docx
+*.pdf
+
+# Imágenes de trabajo / previews
+*.jpg
+*.png
+
+# Versiones antiguas del backend (solo referencia local)
+archivo/
+
+# Scripts auxiliares de generación de documentos
+make_ads_doc.js
+make_guion.js
+crear_sheets.py
+
+# Artefactos de OneDrive
+*.tmp
+~$*
+desktop.ini
