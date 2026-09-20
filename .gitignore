@@ -15,6 +15,9 @@ make_ads_doc.js
 make_guion.js
 crear_sheets.py
 
+# Configuración local de herramientas
+.claude/
+
 # Artefactos de OneDrive
 *.tmp
 ~$*
