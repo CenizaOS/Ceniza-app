@@ -3983,29 +3983,41 @@ function renderFinQuincena() {
       </div>
     </div>
 
-    <!-- Arrastre (quincena anterior) + acumulado para el % de comisión -->
+    <!-- Conteo del mes por quincena (arrastre) + total general -->
     <div class="fin-card" style="margin-top:4px" id="arrastre-card">
       <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
-        📦 Arrastre · ${window._finLabelAnterior || '1ª quincena: se empieza desde cero'}
+        📦 Conteo del mes · ${getMesActualDisplay()}
       </div>
       ${(() => {
         // Quincenas fijas (1–15 y 16–fin de mes). El servidor calcula el arrastre en
         // vivo: solo en la 2ª quincena, y es lo vendido del 1 al 15 del mismo mes.
         const vData = window._finVendedorasData || [];
         if (!vData.length) return '<div style="font-size:12px;color:var(--text3)">Sin ventas registradas</div>';
-        const hayArrastre = !!window._finLabelAnterior;
-        return vData.map(vd => {
-          const q   = parseInt(vd.pantsQuincena) || 0;
-          const arr = parseInt(vd.arrastre) || 0;
-          const total = q + arr;
-          const desglose = hayArrastre ? `${arr} (1–15) + ${q} (16–fin) = ` : '';
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bg3)">
-            <span style="font-size:13px;font-weight:600;color:var(--text)">${vd.nombre}</span>
-            <span style="font-size:12px;color:var(--text3)">${desglose}<strong style="color:var(--gold)">${total}</strong> pant · ${vd.pct} · $${vd.totalAPagar}</span>
+        const esQ2 = !!window._finLabelAnterior;
+        const th = t => `<span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;text-align:center">${t}</span>`;
+        const td = (t, extra='') => `<span style="font-size:13px;font-weight:600;color:var(--text);text-align:center;${extra}">${t}</span>`;
+        const grid = 'display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:4px;align-items:center;padding:6px 0';
+        const cabecera = `<div style="${grid};border-bottom:1px solid var(--bg3)">${th('')}${th('1–15')}${th('16–fin')}${th('Mes')}${th('%')}</div>`;
+        const filas = vData.map(vd => {
+          const actual = parseInt(vd.pantsQuincena) || 0;
+          const arr    = parseInt(vd.arrastre) || 0;
+          const q1 = esQ2 ? arr : actual;
+          const q2 = esQ2 ? actual : '–';
+          const mes = parseInt(vd.pantsMes) || (q1 + (esQ2 ? actual : 0));
+          return `<div style="${grid};border-bottom:1px solid var(--bg3)">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">${vd.nombre}<div style="font-size:10px;color:var(--text3);font-weight:500">$${vd.totalAPagar}</div></span>
+            ${td(q1)}${td(q2, 'color:var(--text3)')}${td(mes, 'color:var(--gold);font-size:16px;font-weight:800')}${td(vd.pct)}
           </div>`;
-        }).join('') + `<div style="font-size:11px;color:var(--text3);margin-top:8px">${hayArrastre
-          ? 'Acumulado del mes (1ª + 2ª quincena) = base para el % de comisión. Se actualiza solo.'
-          : 'Del 1 al 15 se cuenta desde cero; a partir del 16 se suma lo vendido en la 1ª quincena.'}</div>`;
+        }).join('');
+        const totalGeneral = window._finTotalMes || vData.reduce((a, vd) => a + (parseInt(vd.pantsMes) || 0), 0);
+        return cabecera + filas + `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px">
+            <span style="font-size:12px;font-weight:700;color:var(--text2)">📊 Total general del mes</span>
+            <span style="font-size:22px;font-weight:800;color:var(--gold)">${totalGeneral} <span style="font-size:11px;color:var(--text3);font-weight:600">pant</span></span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">${esQ2
+            ? 'El % de comisión se calcula sobre el acumulado del mes (1–15 + 16–fin). Se actualiza solo.'
+            : 'Del 1 al 15 se cuenta desde cero; a partir del 16 se suma lo vendido en la 1ª quincena.'}</div>`;
       })()}
     </div>
   `;
