@@ -4032,7 +4032,59 @@ function renderFinQuincena() {
             : 'Del 1 al 15 se cuenta desde cero; a partir del 16 se suma lo vendido en la 1ª quincena.'}</div>`;
       })()}
     </div>
+
+    <!-- Historial de quincenas pasadas (se carga al pedirlo: recorre todas las hojas) -->
+    <div class="fin-card" style="margin-top:4px" id="hist-quincenas-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${window._histQuincenasHTML ? '10px' : '0'}">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">🗓 Historial de quincenas</div>
+        <button onclick="loadFinHistorialQuincenas()" style="font-size:11px;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:600">${window._histQuincenasHTML ? '↻ Actualizar' : 'Ver historial'}</button>
+      </div>
+      <div id="fin-hist-quincenas">${window._histQuincenasHTML || ''}</div>
+    </div>
   `;
+}
+
+// ── Historial de quincenas: ventas y comisión de cada quincena de cada mes ──
+async function loadFinHistorialQuincenas() {
+  const cont = document.getElementById('fin-hist-quincenas');
+  if (cont) cont.innerHTML = '<div class="loading-msg" style="padding:10px 0"><div class="spinner"></div>Recorriendo pedidos…</div>';
+  try {
+    const d = await fetchData('historialQuincenas');
+    if (!d.meses) throw new Error(d.error || 'Respuesta sin datos');
+    window._histQuincenasHTML = renderFinHistorialQuincenas(d.meses);
+  } catch(e) {
+    window._histQuincenasHTML = `<div class="err-card" style="margin:0">No se pudo cargar: ${e.message}</div>`;
+  }
+  renderFinQuincena();
+}
+
+function renderFinHistorialQuincenas(meses) {
+  if (!meses.length) return '<div style="font-size:12px;color:var(--text3)">Sin pedidos registrados</div>';
+  return meses.map(m => {
+    const filasQ = m.quincenas.map(q => {
+      const varias = q.vendedoras.length > 1;
+      const cab = `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0 ${varias ? '2px' : '7px'}">
+        <span style="font-size:13px;color:var(--text)">
+          <strong>${q.q === 1 ? '1ª' : '2ª'}</strong> · ${q.rango}
+          ${q.enCurso ? '<span style="font-size:10px;background:var(--gold-bg);color:var(--gold-dim);border-radius:10px;padding:1px 7px;margin-left:4px;font-weight:700">en curso</span>' : ''}
+        </span>
+        <span style="font-size:14px;font-weight:800;color:var(--gold)">${q.total} <span style="font-size:10px;color:var(--text3);font-weight:600">pant</span></span>
+      </div>`;
+      const det = q.vendedoras.map(v => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0 ${varias ? '4px' : '7px'} ${varias ? '12px' : '0'};font-size:11px;color:var(--text3)">
+          <span>${varias ? v.nombre + ' · ' : ''}${q.q === 2 ? `base ${v.base} (1ª + 2ª)` : `base ${v.base}`} · ${v.pct}</span>
+          <span style="font-weight:700;color:var(--text2)">$${v.totalAPagar}</span>
+        </div>`).join('');
+      return `<div style="border-bottom:1px solid var(--bg3)">${cab}${det}</div>`;
+    }).join('');
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0 2px;border-bottom:2px solid var(--bg4)">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${m.nombre}</span>
+        <span style="font-size:12px;color:var(--text3)">mes: <strong style="color:var(--text)">${m.total}</strong> pant</span>
+      </div>
+      ${filasQ}
+    </div>`;
+  }).join('') + '<div style="font-size:11px;color:var(--text3);margin-top:4px">Comisión de cada quincena = $100 + base × $13.25 × %. La 2ª usa como base 1ª + 2ª.</div>';
 }
 
 function actualizarPantsManual(val) {

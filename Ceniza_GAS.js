@@ -59,6 +59,7 @@ function doGet(e) {
     else if (accion === "editarPedido")    data = editarPedido(e.parameter);
     else if (accion === "eliminarPedido")  data = eliminarPedido(e.parameter);
     else if (accion === "historial")       data = getHistorial(e.parameter.responsable);
+    else if (accion === "historialQuincenas") data = getHistorialQuincenas();
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "reiniciarQuincena") data = _quincenaFija();
     else if (accion === "finanzas")        data = getFinanzas();
@@ -672,26 +673,47 @@ function eliminarPedido(p) {
 }
 
 // ─── CONTEO DE PANTALONES POR VENDEDORA ──────────────────────────────────────
-// Cuenta filas por responsable con fechaRegistro en [desde, hasta).
-// `hasta` null = sin límite. Excluye Cancelado / Cambio / Arreglo y cambios de talla.
-// Es la única regla de conteo: la usan comisiones y el cálculo de arrastres.
+// Única regla de "qué fila cuenta para comisión": excluye Cancelado / Cambio /
+// Arreglo y cambios de talla. Devuelve { resp, fecha } o null.
+function _filaComisionable(row) {
+  if (!row[1] || row[1] === "") return null;
+  const estado = row[11] || "";
+  if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") return null;
+  if ((row[21] || "").toString().trim() === "true") return null; // cambio de talla: no cuenta
+  const resp = normalizarResponsable(row[14]);
+  if (!resp) return null;
+  const fecha = _parseFechaVE(row[0]);
+  if (!fecha) return null;
+  return { resp, fecha };
+}
+
+// Cuenta filas por responsable con fechaRegistro en [desde, hasta). `hasta` null = sin límite.
 function contarPantsPorVendedora(datos, desde, hasta) {
   const conteo = {};
   for (let i = 1; i < datos.length; i++) {
-    const row = datos[i];
-    if (!row[1] || row[1] === "") continue;
-    const estado = row[11] || "";
-    if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") continue;
-    if ((row[21] || "").toString().trim() === "true") continue; // cambio de talla: no cuenta
-    const resp = normalizarResponsable(row[14]);
-    if (!resp) continue;
-    const fecha = _parseFechaVE(row[0]);
-    if (!fecha) continue;
-    if (desde && fecha < desde) continue;
-    if (hasta && fecha >= hasta) continue;
-    conteo[resp] = (conteo[resp] || 0) + 1;
+    const f = _filaComisionable(datos[i]);
+    if (!f) continue;
+    if (desde && f.fecha < desde) continue;
+    if (hasta && f.fecha >= hasta) continue;
+    conteo[f.resp] = (conteo[f.resp] || 0) + 1;
   }
   return conteo;
+}
+
+// ─── NIVELES DE COMISIÓN ─────────────────────────────────────────────────────
+// `pants` = base del mes (Q1, o Q1 + Q2 en la segunda quincena).
+const UTILIDAD_NETA = 13.25;
+const BASE_FIJA     = 100;
+function _calcularComision(pants) {
+  let pct = 0.08, nivelSiguiente = { pants: 150, pct: 9 };
+  if      (pants >= 400) { pct = 0.15; nivelSiguiente = null; }
+  else if (pants >= 300) { pct = 0.12; nivelSiguiente = { pants: 400, pct: 15 }; }
+  else if (pants >= 200) { pct = 0.10; nivelSiguiente = { pants: 300, pct: 12 }; }
+  else if (pants >= 150) { pct = 0.09; nivelSiguiente = { pants: 200, pct: 10 }; }
+  const comision    = (pants * UTILIDAD_NETA * pct).toFixed(2);
+  const totalAPagar = (BASE_FIJA + parseFloat(comision)).toFixed(2);
+  return { pct: (pct * 100).toFixed(0) + "%", comision, totalAPagar, nivelSiguiente,
+           faltanParaSiguiente: nivelSiguiente ? nivelSiguiente.pants - pants : 0 };
 }
 
 // ─── QUINCENAS FIJAS ─────────────────────────────────────────────────────────
@@ -744,25 +766,72 @@ function getComisiones(quincena, arrastresJson) {
   const d0 = q.actual.desde;
   const fechaInicioStr = String(d0.getDate()).padStart(2, "0") + "/" + String(d0.getMonth() + 1).padStart(2, "0") + "/" + d0.getFullYear();
 
-  const UTILIDAD_NETA = 13.25;
   const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres)]);
   const vendedoras = Array.from(todosNombres).map(nombre => {
     const pantsQuincena = conteo[nombre] || 0;
     const pantsMes      = conteoMes[nombre] || 0;
     const arrastre = parseInt(arrastres[nombre] || 0);
     const pants    = pantsQuincena + arrastre;
-    let pct = 0.08, nivelSiguiente = { pants: 150, pct: 9 };
-    if      (pants >= 400) { pct = 0.15; nivelSiguiente = null; }
-    else if (pants >= 300) { pct = 0.12; nivelSiguiente = { pants: 400, pct: 15 }; }
-    else if (pants >= 200) { pct = 0.10; nivelSiguiente = { pants: 300, pct: 12 }; }
-    else if (pants >= 150) { pct = 0.09; nivelSiguiente = { pants: 200, pct: 10 }; }
-    const comision            = (pants * UTILIDAD_NETA * pct).toFixed(2);
-    const totalAPagar         = (100 + parseFloat(comision)).toFixed(2);
-    const faltanParaSiguiente = nivelSiguiente ? nivelSiguiente.pants - pants : 0;
-    return { nombre, pants, pantsQuincena, pantsMes, arrastre, pct: (pct*100).toFixed(0)+"%", baseFija: 100, comision, totalAPagar, nivelSiguiente, faltanParaSiguiente };
+    return Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants));
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   return { mes: MES_ACTIVO, quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes };
+}
+
+// ─── HISTORIAL DE QUINCENAS ──────────────────────────────────────────────────
+// Recorre TODAS las hojas "Pedidos *" y agrupa por mes y quincena fija.
+// Para cada quincena calcula, por vendedora, los pantalones y la comisión con
+// la misma regla que la quincena en curso (Q2 usa como base Q1 + Q2).
+const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                  "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+function getHistorialQuincenas() {
+  const hojasP = ss.getSheets().filter(h => h.getName().startsWith("Pedidos "));
+  const meses = {}; // "2026-08" → { anio, mes, q: { 1: {Angi: n}, 2: {...} } }
+
+  for (const ws of hojasP) {
+    const datos = ws.getDataRange().getDisplayValues();
+    for (let i = 1; i < datos.length; i++) {
+      const f = _filaComisionable(datos[i]);
+      if (!f) continue;
+      const anio = f.fecha.getFullYear(), mes = f.fecha.getMonth();
+      const q = f.fecha.getDate() >= 16 ? 2 : 1;
+      const clave = anio + "-" + String(mes + 1).padStart(2, "0");
+      if (!meses[clave]) meses[clave] = { anio, mes, q: { 1: {}, 2: {} } };
+      const b = meses[clave].q[q];
+      b[f.resp] = (b[f.resp] || 0) + 1;
+    }
+  }
+
+  const hoy = _hoyCaracas();
+  const claveHoy = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0");
+  const qHoy = hoy.getDate() >= 16 ? 2 : 1;
+
+  const lista = Object.keys(meses).sort().reverse().map(clave => {
+    const m = meses[clave];
+    const rangos = _rangosQuincena(new Date(m.anio, m.mes, 16)); // fuerza Q2 para tener ambos rangos
+    const nombres = Array.from(new Set([...Object.keys(m.q[1]), ...Object.keys(m.q[2])])).sort();
+    const esMesActual = clave === claveHoy;
+
+    const quincenas = [1, 2].map(q => {
+      // Un mes anterior siempre tiene ambas quincenas; el actual solo hasta la de hoy
+      if (esMesActual && q > qHoy) return null;
+      const vendedoras = nombres.map(nombre => {
+        const q1 = m.q[1][nombre] || 0;
+        const pantsQuincena = m.q[q][nombre] || 0;
+        const base = q === 1 ? q1 : q1 + pantsQuincena;
+        return Object.assign({ nombre, pantsQuincena, base }, _calcularComision(base));
+      }).filter(v => v.base > 0);
+      const total = vendedoras.reduce((a, v) => a + v.pantsQuincena, 0);
+      return { q, rango: _etiquetaRango(q === 1 ? rangos.anterior : rangos.actual),
+               enCurso: esMesActual && q === qHoy, total, vendedoras };
+    }).filter(Boolean);
+
+    const total = quincenas.reduce((a, qq) => a + qq.total, 0);
+    return { clave, anio: m.anio, mes: m.mes + 1, nombre: MESES_ES[m.mes] + " " + m.anio, esMesActual, total, quincenas };
+  });
+
+  return { meses: lista };
 }
 
 // ─── FINANZAS DUEÑA ───────────────────────────────────────────────────────────
