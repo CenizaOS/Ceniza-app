@@ -135,7 +135,8 @@ const totalAPagar = BASE_FIJA + comision;
 
 ## Known Issues (2026-09-20)
 
-- **Vendedora duplicated by typo**: arrastres show both `Angie` and `Angi`. Column 15 is free text; consider normalizing on write or a fixed list.
+- **Vendedora names** (fixed 2026-09-20, pending backend deploy): col 15 is free text, so `Angie`/`Angi` split commissions and arrastres. Now normalized on write and read via `normalizarResponsable()` (GAS) / `normalizarNombre()` (frontend) with alias maps `ALIAS_RESPONSABLES` / `ALIAS_NOMBRES`. `getArrastres` self-heals the stored `ARRASTRES` property; `limpiarResponsable` is case-insensitive.
+- **`reiniciarQuincena` arrastre auto-capture is a no-op**: uses `v.count` (undefined) and writes `ceniza_arrastres`, but `getArrastres` reads `ARRASTRES`. Arrastres are set manually by the owner.
 - **`Tasas` sheet missing**: breaks `dashboard` (unused) and `corregirQuincena`.
 - **No backend auth**: anyone with the script URL can write. PINs are client-side and visible in the public repo.
 - **GAS is GET-only**: all writes via query string; keep params short.

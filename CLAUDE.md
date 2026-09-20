@@ -65,8 +65,11 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 - Tiers (pants per quincena): 1–149→8%, 150–199→9%, 200–299→10%, 300–399→12%, 400+→15%
 - Total = $100 + comisión
 
+## Vendedora names
+`responsable` (col 15) is free text from each phone. Both sides normalize it (trim, collapse spaces, capitalize, alias map): `normalizarResponsable()` in `Ceniza_GAS.js` and `normalizarNombre()` in `index.html`. To merge a new spelling, add it to `ALIAS_RESPONSABLES` (backend) **and** `ALIAS_NOMBRES` (frontend). Currently `angie → Angi`.
+
 ## Known Issues (verified 2026-09-20)
-- Vendedora name typo creates duplicates in arrastres (`Angie` vs `Angi`) — `limpiarResponsable` route exists for cleanup.
+- `reiniciarQuincena` auto-capture of arrastres is a no-op: reads `v.count` (doesn't exist → 0) and writes key `ceniza_arrastres`, while `getArrastres` reads key `ARRASTRES`. Arrastres are effectively manual (owner sets them in Administración).
 - `dashboard` and `corregirQuincena` fail in production because the `Tasas` sheet doesn't exist (frontend never calls `dashboard`).
 - GAS is GET-only; all writes go through query params. Errors come back as `{error}` with HTTP 200.
 

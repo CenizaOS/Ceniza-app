@@ -2262,10 +2262,28 @@ function selectRole(rol) {
 
 let _rolNombrePendiente = null;
 
+// Misma regla que normalizarResponsable() en el backend: el nombre de la
+// vendedora viaja en cada pedido y se usa como clave de comisiones, así que
+// "Angie", "angi " y "Angi" deben ser una sola persona.
+const ALIAS_NOMBRES = { angie: 'Angi' };
+function normalizarNombre(nombre) {
+  const n = (nombre || '').trim().replace(/\s+/g, ' ');
+  if (!n) return '';
+  const alias = ALIAS_NOMBRES[n.toLowerCase()];
+  if (alias) return alias;
+  return n.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 function _getNombreRol(rol) {
   // vendedora uses legacy key for backwards compat
-  if (rol === 'vendedora') return localStorage.getItem('vendedora_nombre') || localStorage.getItem('ceniza_nombre_vendedora');
-  return localStorage.getItem('ceniza_nombre_' + rol);
+  const guardado = rol === 'vendedora'
+    ? (localStorage.getItem('vendedora_nombre') || localStorage.getItem('ceniza_nombre_vendedora'))
+    : localStorage.getItem('ceniza_nombre_' + rol);
+  if (!guardado) return guardado;
+  // Auto-corregir teléfonos que guardaron una variante (p. ej. "Angie")
+  const limpio = normalizarNombre(guardado);
+  if (limpio && limpio !== guardado) _setNombreRol(rol, limpio);
+  return limpio || guardado;
 }
 function _setNombreRol(rol, nombre) {
   localStorage.setItem('ceniza_nombre_' + rol, nombre);
@@ -2324,7 +2342,7 @@ function abrirAppVendedora(nombre) {
 }
 
 function guardarNombreRol() {
-  const nombre = document.getElementById('nombre-input').value.trim();
+  const nombre = normalizarNombre(document.getElementById('nombre-input').value);
   if (!nombre) {
     document.getElementById('nombre-input').style.borderColor = 'var(--red)';
     return;

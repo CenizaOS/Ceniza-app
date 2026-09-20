@@ -29,6 +29,35 @@ function getMesActivo() {
 }
 const MES_ACTIVO = getMesActivo();
 
+// ─── NOMBRE DE VENDEDORA (col 15, "responsable") ─────────────────────────────
+// Es texto libre que viene del teléfono de cada vendedora, así que "Angie",
+// "angi " y "Angi" llegaban como tres personas distintas en comisiones,
+// historial y arrastres. Todo nombre pasa por normalizarResponsable() al
+// escribir y al leer. Para unificar una variante nueva basta agregarla aquí.
+const ALIAS_RESPONSABLES = { "angie": "Angi" };
+
+function normalizarResponsable(nombre) {
+  const n = (nombre || "").toString().trim().replace(/\s+/g, " ");
+  if (!n) return "";
+  const alias = ALIAS_RESPONSABLES[n.toLowerCase()];
+  if (alias) return alias;
+  // Capitalizar cada palabra: "angi" → "Angi", "maria jose" → "Maria Jose"
+  return n.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+}
+
+// Unifica las claves de un mapa {nombre: número} (p. ej. arrastres).
+// Si conviven una clave ya canónica y una variante, gana la canónica.
+function normalizarMapaResponsables(mapa) {
+  const out = {};
+  const claves = Object.keys(mapa || {});
+  claves.filter(k => normalizarResponsable(k) === k).forEach(k => { out[k] = parseInt(mapa[k]) || 0; });
+  claves.forEach(k => {
+    const key = normalizarResponsable(k);
+    if (key && !(key in out)) out[key] = parseInt(mapa[k]) || 0;
+  });
+  return out;
+}
+
 function doGet(e) {
   const accion = e.parameter.accion || "dashboard";
   let data;
@@ -116,7 +145,7 @@ function registrarPedido(p) {
       "En producción",
       fechaEntrega,
       "",
-      (p.responsable || "").trim(),
+      normalizarResponsable(p.responsable),
       p.origen       || "",
       p.metodoPago   || "",
       (p.notas       || "").trim()
@@ -215,7 +244,7 @@ function getProduccion() {
       montoProducto:  row[9]  || "0",
       montoDelivery:  row[10] || "0",
       estado:         estado,
-      responsable:    row[14] || "",
+      responsable:    normalizarResponsable(row[14]),
       origen:         row[15] || "",
       metodoPago:     row[16] || "",
       notas:          row[17] || "",
@@ -448,7 +477,7 @@ function registrarPedidos(p) {
         "En producción",
         fechaEntrega,
         "",
-        (p.responsable || "").trim(),
+        normalizarResponsable(p.responsable),
         p.origen       || "",
         p.metodoPago          || "",
         (p.notas              || "").trim(),
@@ -525,7 +554,7 @@ function editarPedido(p) {
 function getHistorial(responsable) {
   const estadosHistorial = ["Entregado a cliente", "Entregado a delivery"];
   const pedidos = [];
-  const respFiltro = responsable ? responsable.trim().toLowerCase() : null;
+  const respFiltro = responsable ? normalizarResponsable(responsable) : null;
 
   const todasLasHojas = ss.getSheets();
   const hojasP = todasLasHojas.filter(h => h.getName().startsWith("Pedidos "));
@@ -537,7 +566,7 @@ function getHistorial(responsable) {
       if (!row[1] || row[1] === "") continue;
       const estado = row[11] || "";
       if (!estadosHistorial.includes(estado)) continue;
-      if (respFiltro && (row[14] || "").trim().toLowerCase() !== respFiltro) continue;
+      if (respFiltro && normalizarResponsable(row[14]) !== respFiltro) continue;
       pedidos.push({
         fila:          i + 1,
         hoja:          ws.getName(),
@@ -564,8 +593,8 @@ function getHistorial(responsable) {
 
 // ─── LIMPIAR RESPONSABLE (renombrar en toda la data) ─────────────────────────
 function limpiarResponsable(p) {
-  const viejo = (p.viejo || "").trim();
-  const nuevo  = (p.nuevo  || "").trim();
+  const viejo = (p.viejo || "").trim().toLowerCase();
+  const nuevo  = normalizarResponsable(p.nuevo);
   if (!viejo || !nuevo) return { success: false, error: "Faltan parámetros viejo y nuevo" };
 
   const todasLasHojas = ss.getSheets();
@@ -575,31 +604,13 @@ function limpiarResponsable(p) {
   for (const ws of hojasP) {
     const datos = ws.getDataRange().getValues();
     for (let i = 1; i < datos.length; i++) {
-      if ((datos[i][14] || "").trim() === viejo) {
+      if ((datos[i][14] || "").toString().trim().toLowerCase() === viejo) {
         ws.getRange(i + 1, 15).setValue(nuevo);
         total++;
       }
     }
   }
   return { success: true, actualizados: total, viejo, nuevo };
-}
-
-// ─── EJECUTAR DESDE APPS SCRIPT: unifica "Angie" → "Angi" en toda la data ───
-function unificarAngi() {
-  const todasLasHojas = ss.getSheets();
-  const hojasP = todasLasHojas.filter(h => h.getName().startsWith("Pedidos "));
-  let total = 0;
-  for (const ws of hojasP) {
-    const datos = ws.getDataRange().getValues();
-    for (let i = 1; i < datos.length; i++) {
-      const resp = (datos[i][14] || "").trim();
-      if (resp.toLowerCase() === "angie") {
-        ws.getRange(i + 1, 15).setValue("Angi");
-        total++;
-      }
-    }
-  }
-  Logger.log("Pedidos actualizados: " + total);
 }
 
 // ─── SEMANA COSTURERA ────────────────────────────────────────────────────────
@@ -773,7 +784,7 @@ function getComisiones(quincena, arrastresJson) {
     const estado = row[11] || "";
     if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") continue;
     if ((row[21] || "").toString().trim() === "true") continue; // cambio de talla: no cuenta
-    const resp = (row[14] || "").trim();
+    const resp = normalizarResponsable(row[14]);
     if (!resp) continue;
     const rowDate = parseDate(row[0]);
     if (rowDate && rowDate >= mesInicio) {
@@ -787,7 +798,7 @@ function getComisiones(quincena, arrastresJson) {
 
   let arrastres = {};
   if (arrastresJson) {
-    try { arrastres = JSON.parse(arrastresJson); } catch(e) {}
+    try { arrastres = normalizarMapaResponsables(JSON.parse(arrastresJson)); } catch(e) {}
   }
 
   const UTILIDAD_NETA = 13.25;
@@ -919,7 +930,11 @@ function getArrastresData() {
   try {
     const prop = PropertiesService.getScriptProperties();
     const json = prop.getProperty('ARRASTRES') || '{}';
-    return { arrastres: JSON.parse(json) };
+    const arrastres = normalizarMapaResponsables(JSON.parse(json));
+    // Auto-corregir lo guardado si tenía variantes (p. ej. "Angie" y "Angi")
+    const limpio = JSON.stringify(arrastres);
+    if (limpio !== json) prop.setProperty('ARRASTRES', limpio);
+    return { arrastres };
   } catch(err) {
     return { arrastres: {}, error: err.message };
   }
@@ -928,8 +943,9 @@ function getArrastresData() {
 function setArrastresData(p) {
   try {
     const prop = PropertiesService.getScriptProperties();
-    prop.setProperty('ARRASTRES', p.data || '{}');
-    return { success: true };
+    const arrastres = normalizarMapaResponsables(JSON.parse(p.data || '{}'));
+    prop.setProperty('ARRASTRES', JSON.stringify(arrastres));
+    return { success: true, arrastres };
   } catch(err) {
     return { success: false, error: err.message };
   }
