@@ -69,7 +69,6 @@ const FIN = { precio:30, costoTotal:16.75, utilNeta:13.25, fijosQuinc:591, metaV
 | `historialQuincenas` | `getHistorialQuincenas()` | All `Pedidos *` sheets → months (desc) × fixed quincenas × vendedora: pants, base (Q2 = Q1+Q2), pct, totalAPagar; `enCurso` flag |
 | `semana` | `getSemanaCosturera()` | Weekly totals Mon–Sat |
 | `registrarPedidos` | `registrarPedidos(p)` | Multi-item; idempotent via `reqId`; writes col 22 `cambioDeTalla` |
-| `registrar` | `registrarPedido(p)` | Legacy single-item |
 | `cambiarEstado` | `cambiarEstado(p)` | Validates against fixed estado list |
 | `editarPedido` / `eliminarPedido` | | |
 | `reiniciarQuincena` / `setFechaQuincena` / `corregirQuincena` / `setArrastres` | `_quincenaFija()` | Obsolete — return `{success:false, error}` explaining quincenas are fixed |
@@ -81,7 +80,6 @@ const FIN = { precio:30, costoTotal:16.75, utilNeta:13.25, fijosQuinc:591, metaV
 | `leerConfig` / `guardarConfig` | | Key/value in `Config` sheet (`ceniza_costos_v2`, `ceniza_registro_quincenas`, `ceniza_arreglos`…) |
 | `limpiarResponsable` | | Normalize vendedora names |
 | `ping` | | Health check |
-| `dashboard` | `getDashboard()` | **Dead/broken** — frontend never calls it; crashes on missing `Tasas` |
 
 **Estados válidos:** `En producción`, `Pagado`, `Empaquetado`, `Entregado a delivery`, `Entregado a cliente`, `Cambio`, `Arreglo` (+ `Cancelado` is skipped in reads).
 
@@ -137,8 +135,8 @@ const totalAPagar = BASE_FIJA + comision;
 
 - **Vendedora names** (fixed 2026-09-20, pending backend deploy): col 15 is free text, so `Angie`/`Angi` split commissions and arrastres. Now normalized on write and read via `normalizarResponsable()` (GAS) / `normalizarNombre()` (frontend) with alias maps `ALIAS_RESPONSABLES` / `ALIAS_NOMBRES`. `limpiarResponsable` is case-insensitive.
 - **Quincenas are fixed calendar periods** (owner's rule, 2026-09-20, pending backend deploy): Q1 = 1–15, Q2 = 16–end. `_rangosQuincena(hoy)` derives current/previous ranges; arrastre exists only in Q2 and equals Q1 of the same month, computed live. In Q1 (`anterior === null`) it's 0 — each month starts from zero. The owner uses it as a per-quincena count history for commissions. No start date or arrastre is stored anymore; the Reiniciar / Guardar fecha / 1ro buttons and manual arrastre inputs were removed from the dueña UI. Old routes answer with `_quincenaFija()` error.
-- **`loadFinFondos` console error** (pre-existing): targets `#fin-fondos-content`, which isn't in the HTML.
-- **`Tasas` sheet missing**: breaks `dashboard` (unused) and `corregirQuincena`.
+- **Orphan finance modules** (producción, compras, fondos/cuentas, inventario, productos, lote, planificador, entregas-ctrl): code exists but no tab/container in the dueña UI; unreachable. `loadFinFondos` now only renders if the containers exist (it still loads `_fondos` for the Quincena distribution). Removing the modules is pending the owner's decision.
+- **`Tasas` sheet missing**: `finanzas`/`guardarFinanzas` return empty/error (used only by the orphan Fondos/Cuentas UI). `getDashboard` and legacy `registrarPedido` were removed 2026-09-20.
 - **No backend auth**: anyone with the script URL can write. PINs are client-side and visible in the public repo.
 - **GAS is GET-only**: all writes via query string; keep params short.
 - Historical: large Edit-tool calls truncated `index.html` once — verify line count after big edits.

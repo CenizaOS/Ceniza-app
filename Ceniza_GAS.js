@@ -46,14 +46,12 @@ function normalizarResponsable(nombre) {
 }
 
 function doGet(e) {
-  const accion = e.parameter.accion || "dashboard";
+  const accion = e.parameter.accion || "ping";
   let data;
   try {
-    if      (accion === "dashboard")       data = getDashboard();
-    else if (accion === "produccion")      data = getProduccion();
+    if      (accion === "produccion")      data = getProduccion();
     else if (accion === "entregas")        data = getEntregas(e.parameter.fecha);
     else if (accion === "comisiones")      data = getComisiones(e.parameter.quincena, e.parameter.arrastres);
-    else if (accion === "registrar")       data = registrarPedido(e.parameter);
     else if (accion === "registrarPedidos") data = registrarPedidos(e.parameter);
     else if (accion === "cambiarEstado")   data = cambiarEstado(e.parameter);
     else if (accion === "editarPedido")    data = editarPedido(e.parameter);
@@ -100,107 +98,6 @@ function cambiarEstado(p) {
   } catch(err) {
     return { success: false, error: err.message };
   }
-}
-
-// ─── REGISTRAR PEDIDO ────────────────────────────────────────────────────────
-function registrarPedido(p) {
-  try {
-    const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
-    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
-
-    const hoy = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
-
-    let fechaEntrega = "";
-    if (p.fechaEntrega) {
-      const parts = p.fechaEntrega.split("-");
-      if (parts.length === 3) fechaEntrega = `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-
-    const nextRow = ws.getLastRow() + 1;
-
-    const fila = [
-      hoy,
-      (p.nombre      || "").trim(),
-      (p.telefono    || "").trim(),
-      p.producto     || "",
-      p.color        || "",
-      p.ruedo        || "",
-      p.talla        || "",
-      p.tipoEntrega  || "",
-      (p.direccion   || "").trim(),
-      parseFloat(p.montoProducto)  || 0,
-      parseFloat(p.montoDelivery)  || 0,
-      "En producción",
-      fechaEntrega,
-      "",
-      normalizarResponsable(p.responsable),
-      p.origen       || "",
-      p.metodoPago   || "",
-      (p.notas       || "").trim()
-    ];
-
-    ws.getRange(nextRow, 1, 1, fila.length).setValues([fila]);
-
-    return {
-      success:      true,
-      fila:         nextRow,
-      cliente:      p.nombre,
-      fechaPedido:  hoy,
-      fechaEntrega: fechaEntrega
-    };
-  } catch(err) {
-    return { success: false, error: err.message };
-  }
-}
-
-// ─── DASHBOARD ───────────────────────────────────────────────────────────────
-function getDashboard() {
-  const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
-  const datos = ws.getDataRange().getDisplayValues();
-  let totalPedidos = 0, totalVendido = 0, enProduccion = 0;
-  let empaquetados = 0, entregados = 0, cambios = 0, deliveryTotal = 0, entregasHoy = 0;
-  const hoy = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
-  for (let i = 1; i < datos.length; i++) {
-    const row = datos[i];
-    if (!row[1] || row[1] === "") continue;
-    if ((row[11] || "") === "Cancelado") continue;
-    totalPedidos++;
-    const monto    = parseFloat(row[9].replace(/[^0-9.]/g, ""))  || 0;
-    const delivery = parseFloat(row[10].replace(/[^0-9.]/g, "")) || 0;
-    const estado   = row[11] || "";
-    const fechaEnt = row[12] || "";
-    if (estado !== "Cambio" && estado !== "Arreglo") totalVendido += monto;
-    deliveryTotal += delivery;
-    if (estado === "En producción")            enProduccion++;
-    else if (estado === "Empaquetado")         empaquetados++;
-    else if (estado === "Entregado a cliente") entregados++;
-    if (estado === "Cambio" || estado === "Arreglo") cambios++;
-    if (fechaEnt === hoy) entregasHoy++;
-  }
-  const wsTasas  = ss.getSheetByName("Tasas");
-  const tasaBCV  = wsTasas.getRange("B4").getValue() || 560.38;
-  const tasaUSDT = wsTasas.getRange("B5").getValue() || 745.19;
-  const totalUSDT = (totalVendido * tasaBCV / tasaUSDT).toFixed(2);
-  const wsGastos    = ss.getSheetByName("Gastos fijos");
-  const gastosFijos = wsGastos.getRange("B8").getValue() || 945;
-  const wsCostos  = ss.getSheetByName("Costos");
-  const costoPant = wsCostos.getRange("B9").getValue() || 9.24;
-  const UTILIDAD_NETA = 13.25;
-  let pctComision = 0.08;
-  if      (totalPedidos >= 400) pctComision = 0.15;
-  else if (totalPedidos >= 300) pctComision = 0.12;
-  else if (totalPedidos >= 200) pctComision = 0.10;
-  else if (totalPedidos >= 150) pctComision = 0.09;
-  const comision     = (totalPedidos * UTILIDAD_NETA * pctComision).toFixed(2);
-  const costoTotal   = (totalPedidos * costoPant).toFixed(2);
-  const gananciaNeta = (totalVendido * tasaBCV / tasaUSDT - totalPedidos * costoPant - parseFloat(comision) - gastosFijos).toFixed(2);
-  const spread       = ((tasaUSDT - tasaBCV) / tasaBCV * 100).toFixed(1) + "%";
-  return {
-    mes: MES_ACTIVO, tasaBCV, tasaUSDT, spread,
-    ventas:    { totalPedidos, totalVendidoBCV: totalVendido.toFixed(2), totalVendidoUSDT: totalUSDT, ingresoDelivery: deliveryTotal.toFixed(2) },
-    produccion:{ enProduccion, empaquetados, entregados, cambios, entregasHoy },
-    finanzas:  { costoProduccion: costoTotal, comisionVendedora: comision, pctComision: (pctComision*100).toFixed(0)+"%", gastosFijos: gastosFijos.toFixed(2), gananciaNeta }
-  };
 }
 
 // ─── PRODUCCIÓN ──────────────────────────────────────────────────────────────

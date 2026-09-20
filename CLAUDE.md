@@ -76,8 +76,8 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 - Routes `reiniciarQuincena`, `setFechaQuincena`, `corregirQuincena`, `setArrastres` return an explanatory error (`_quincenaFija`) for old clients; the buttons were removed from the dueña UI. `comisiones` returns `quincenaLabel` and `quincenaAnteriorLabel`.
 
 ## Known Issues (verified 2026-09-20)
-- `dashboard` fails in production because the `Tasas` sheet doesn't exist (frontend never calls it — dead code).
-- `loadFinFondos()` throws `Cannot set properties of null` because `#fin-fondos-content` doesn't exist in the HTML (pre-existing; shows as an unhandled promise rejection in the dueña view).
+- **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.
+- Backend `finanzas` / `guardarFinanzas` depend on the missing `Tasas` sheet (they return empty / an error gracefully) — only used by the orphan Fondos/Cuentas UI.
 - GAS is GET-only; all writes go through query params. Errors come back as `{error}` with HTTP 200.
 
 ## Preferences
