@@ -45,6 +45,28 @@ function normalizarResponsable(nombre) {
   return n.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
 }
 
+// ─── BLOQUEO PARA ESCRITURAS ─────────────────────────────────────────────────
+// Toda ruta que "busca la última fila y escribe en la siguiente" (pedidos,
+// clientes, config) corre dentro de _conLock: si dos teléfonos guardan al
+// mismo tiempo, el segundo espera a que termine el primero en vez de calcular
+// la misma fila y pisarla. El frontend espera hasta 20s por respuesta, así
+// que el bloqueo se rinde antes (10s) y devuelve un error legible.
+const LOCK_ESPERA_MS = 10000;
+
+function _conLock(fn) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(LOCK_ESPERA_MS);
+  } catch(e) {
+    return { success: false, error: "El sistema está guardando otro cambio. Intenta de nuevo en unos segundos." };
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function doGet(e) {
   const accion = e.parameter.accion || "ping";
   let data;
@@ -52,7 +74,7 @@ function doGet(e) {
     if      (accion === "produccion")      data = getProduccion();
     else if (accion === "entregas")        data = getEntregas(e.parameter.fecha);
     else if (accion === "comisiones")      data = getComisiones(e.parameter.quincena, e.parameter.arrastres);
-    else if (accion === "registrarPedidos") data = registrarPedidos(e.parameter);
+    else if (accion === "registrarPedidos") data = _conLock(() => registrarPedidos(e.parameter));
     else if (accion === "cambiarEstado")   data = cambiarEstado(e.parameter);
     else if (accion === "editarPedido")    data = editarPedido(e.parameter);
     else if (accion === "eliminarPedido")  data = eliminarPedido(e.parameter);
@@ -61,16 +83,16 @@ function doGet(e) {
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "reiniciarQuincena") data = _quincenaFija();
     else if (accion === "finanzas")        data = getFinanzas();
-    else if (accion === "guardarFinanzas") data = guardarFinanzas(e.parameter);
+    else if (accion === "guardarFinanzas") data = _conLock(() => guardarFinanzas(e.parameter));
     else if (accion === "getClientes")     data = getClientes();
     else if (accion === "getEncargos")     data = getEncargos();
-    else if (accion === "setEncargos")     data = setEncargos(e.parameter);
+    else if (accion === "setEncargos")     data = _conLock(() => setEncargos(e.parameter));
     else if (accion === "getArreglos")     data = getArreglosData();
-    else if (accion === "setArreglos")     data = setArreglosData(e.parameter);
+    else if (accion === "setArreglos")     data = _conLock(() => setArreglosData(e.parameter));
     else if (accion === "getArrastres")    data = getArrastresData();
     else if (accion === "setArrastres")    data = _quincenaFija();
     else if (accion === "leerConfig")      data = leerConfig();
-    else if (accion === "guardarConfig")   { guardarConfig(e.parameter.clave, e.parameter.valor); data = { ok: true }; }
+    else if (accion === "guardarConfig")   data = _conLock(() => guardarConfig(e.parameter.clave, e.parameter.valor));
     else if (accion === "limpiarResponsable") data = limpiarResponsable(e.parameter);
     else if (accion === "ping")            data = { ok: true, ts: Date.now() };
     else if (accion === "corregirQuincena")    data = _quincenaFija();
@@ -273,7 +295,17 @@ function getClientes() {
   return { clientes };
 }
 
+// "María Pérez", "maria perez " y "Maria  Perez" son la misma clienta:
+// sin acentos, sin espacios dobles, en minúsculas.
+function _claveCliente(nombre) {
+  return (nombre || "").toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+// Siempre se llama desde registrarPedidos, que ya corre bajo _conLock.
 function guardarCliente(nombre, telefono, direccion, cedula) {
+  if (!nombre) return;
   let ws = ss.getSheetByName("Clientes");
   if (!ws) {
     ws = ss.insertSheet("Clientes");
@@ -282,8 +314,9 @@ function guardarCliente(nombre, telefono, direccion, cedula) {
   }
   const datos = ws.getDataRange().getDisplayValues();
   const hoy = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
+  const clave = _claveCliente(nombre);
   for (let i = 1; i < datos.length; i++) {
-    if ((datos[i][0] || "").toLowerCase() === nombre.toLowerCase()) {
+    if (_claveCliente(datos[i][0]) === clave) {
       const count = (parseInt(datos[i][3]) || 0) + 1;
       if (telefono && !datos[i][1]) ws.getRange(i + 1, 2).setValue(telefono);
       if (direccion && !datos[i][2]) ws.getRange(i + 1, 3).setValue(direccion);
@@ -865,12 +898,25 @@ function getConfigSheet() {
   return sheet;
 }
 
+// Si una clave aparece repetida (pasó cuando dos teléfonos la crearon a la
+// vez), manda la ÚLTIMA fila: es la que la app siempre mostró. guardarConfig
+// escribe en esa misma fila y borra las repetidas, así lectura y escritura
+// dejan de apuntar a filas distintas.
+function _filasConfig(sheet, clave) {
+  const data = sheet.getDataRange().getValues();
+  const filas = [];
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === clave) filas.push(i + 1);
+  }
+  return filas;
+}
+
 function leerConfig() {
   const sheet = getConfigSheet();
   const data = sheet.getDataRange().getValues();
   const config = {};
   for (let i = 1; i < data.length; i++) {
-    const clave = data[i][0];
+    const clave = String(data[i][0]).trim();
     const valor = data[i][1];
     if (clave) config[clave] = valor;
   }
@@ -878,19 +924,73 @@ function leerConfig() {
 }
 
 function guardarConfig(clave, valor) {
+  clave = String(clave || "").trim();
+  if (!clave) return { ok: false, error: "Falta la clave" };
   const sheet = getConfigSheet();
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === clave) {
-      sheet.getRange(i + 1, 2).setValue(valor);
-      return;
-    }
+  const filas = _filasConfig(sheet, clave);
+  if (!filas.length) {
+    sheet.appendRow([clave, valor]);
+    return { ok: true, creada: true };
   }
-  sheet.appendRow([clave, valor]);
+  const ultima = filas[filas.length - 1];
+  sheet.getRange(ultima, 2).setValue(valor);
+  // Borrar repetidas de abajo hacia arriba para que no se corran los índices
+  const repetidas = filas.slice(0, -1);
+  for (let k = repetidas.length - 1; k >= 0; k--) sheet.deleteRow(repetidas[k]);
+  return { ok: true, duplicadosEliminados: repetidas.length };
 }
 
 // ─── KEEP-ALIVE (trigger cada 4 minutos para evitar cold start) ───────────────
 function keepAlive() {
   getMesActivo();
   Logger.log("keepAlive OK " + new Date());
+}
+
+// ─── RESPALDO DIARIO ─────────────────────────────────────────────────────────
+// Copia la hoja completa a la carpeta "Respaldos Ceniza" de Drive y conserva
+// las últimas RESPALDOS_A_CONSERVAR copias. Se instala UNA vez ejecutando
+// instalarRespaldoDiario() desde el editor de Apps Script (pide permiso de
+// Drive la primera vez); después corre solo todas las noches.
+const RESPALDOS_CARPETA     = "Respaldos Ceniza";
+const RESPALDOS_A_CONSERVAR = 30;
+
+function _carpetaRespaldos() {
+  const it = DriveApp.getFoldersByName(RESPALDOS_CARPETA);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(RESPALDOS_CARPETA);
+}
+
+function respaldoDiario() {
+  const carpeta = _carpetaRespaldos();
+  const fecha   = Utilities.formatDate(new Date(), "America/Caracas", "yyyy-MM-dd HH:mm");
+  const nombre  = "Ceniza respaldo " + fecha;
+  DriveApp.getFileById(SHEET_ID).makeCopy(nombre, carpeta);
+
+  // Borrar las copias más viejas que sobren (van a la papelera de Drive)
+  const copias = [];
+  const it = carpeta.getFiles();
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.getName().startsWith("Ceniza respaldo ")) copias.push(f);
+  }
+  copias.sort((a, b) => b.getDateCreated() - a.getDateCreated());
+  copias.slice(RESPALDOS_A_CONSERVAR).forEach(f => f.setTrashed(true));
+
+  Logger.log("Respaldo creado: " + nombre + " (" + Math.min(copias.length, RESPALDOS_A_CONSERVAR) + " conservados)");
+  return nombre;
+}
+
+function instalarRespaldoDiario() {
+  // Evitar instalar el trigger dos veces
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === "respaldoDiario")
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("respaldoDiario")
+    .timeBased()
+    .everyDays(1)
+    .atHour(3)
+    .inTimezone("America/Caracas")
+    .create();
+  // Primer respaldo inmediato para comprobar que funciona
+  const nombre = respaldoDiario();
+  Logger.log("Trigger instalado. Primer respaldo: " + nombre);
 }
