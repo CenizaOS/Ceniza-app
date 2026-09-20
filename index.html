@@ -3814,18 +3814,26 @@ function _applyQuincenaData(d) {
 
 async function loadFinQuincena() {
   const div = document.getElementById('fin-quincena-content');
-  const CACHE_KEY = 'ceniza_cache_quincena';
+  // _v2: el formato cambió (quincenas fijas + quincenaAnteriorLabel); una caché
+  // vieja mostraría la quincena mal, así que se ignora.
+  const CACHE_KEY = 'ceniza_cache_quincena_v2';
+  localStorage.removeItem('ceniza_cache_quincena');
 
-  // Mostrar caché al instante si existe
+  // Mostrar caché al instante si existe, marcada como "actualizando"
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
-    try { _applyQuincenaData(JSON.parse(cached)); renderFinQuincena(); } catch(_) {}
+    try {
+      _applyQuincenaData(JSON.parse(cached));
+      renderFinQuincena();
+      div.insertAdjacentHTML('afterbegin', '<div id="fin-q-sync" style="font-size:11px;color:var(--text3);text-align:center;padding:4px 0">↻ Actualizando desde Sheets…</div>');
+    } catch(_) {}
   } else {
     div.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Calculando...</div>';
   }
 
   try {
     const d = await fetchData('comisiones');
+    if (!d.vendedoras) throw new Error(d.error || 'Respuesta sin datos');
     localStorage.setItem(CACHE_KEY, JSON.stringify(d));
     _applyQuincenaData(d);
     renderFinQuincena();
@@ -3833,8 +3841,12 @@ async function loadFinQuincena() {
     if (!cached) {
       div.innerHTML = `<div class="err-card">Error: ${e.message}</div>
         <button class="btn" onclick="loadFinQuincena()">↻ Reintentar</button>`;
+    } else {
+      // Se muestran datos guardados: avisar para que no se tomen como actuales
+      const s = document.getElementById('fin-q-sync');
+      if (s) s.innerHTML = '⚠️ No se pudo actualizar — mostrando datos guardados. <a href="#" onclick="loadFinQuincena();return false" style="color:var(--gold-dim)">Reintentar</a>';
+      mostrarToast('✕ No se pudo actualizar la quincena: ' + e.message);
     }
-    // Si hay caché, ya se mostró — no pisarlo con error
   }
 }
 
