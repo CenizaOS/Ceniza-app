@@ -697,7 +697,8 @@ function contarPantsPorVendedora(datos, desde, hasta) {
 // ─── QUINCENAS FIJAS ─────────────────────────────────────────────────────────
 // Q1 = del 1 al 15 · Q2 = del 16 al último día del mes. Todo se deduce de la
 // fecha de hoy en Caracas: no hay fecha de inicio guardada ni reinicio manual.
-// Arrastre = pantalones de la quincena anterior (en Q1 es la Q2 del mes pasado).
+// Arrastre: solo en Q2, y es lo vendido en la Q1 del mismo mes. En Q1 se
+// empieza desde cero (cada mes arranca en 0).
 // Los rangos son [desde, hasta): `hasta` es el primer día de la siguiente.
 function _hoyCaracas() {
   return _parseFechaVE(Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy"));
@@ -706,10 +707,9 @@ function _hoyCaracas() {
 function _rangosQuincena(hoy) {
   const y = hoy.getFullYear(), m = hoy.getMonth();
   const esQ2 = hoy.getDate() >= 16;
-  const actual   = esQ2 ? { desde: new Date(y, m, 16),     hasta: new Date(y, m + 1, 1) }
-                        : { desde: new Date(y, m, 1),      hasta: new Date(y, m, 16) };
-  const anterior = esQ2 ? { desde: new Date(y, m, 1),      hasta: new Date(y, m, 16) }
-                        : { desde: new Date(y, m - 1, 16), hasta: new Date(y, m, 1) };
+  const actual   = esQ2 ? { desde: new Date(y, m, 16), hasta: new Date(y, m + 1, 1) }
+                        : { desde: new Date(y, m, 1),  hasta: new Date(y, m, 16) };
+  const anterior = esQ2 ? { desde: new Date(y, m, 1),  hasta: new Date(y, m, 16) } : null;
   return { esQ2, actual, anterior };
 }
 
@@ -735,12 +735,12 @@ function getComisiones(quincena, arrastresJson) {
   const q   = _rangosQuincena(hoy);
   const mesInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-  const conteo    = contarPantsPorVendedora(datos, q.actual.desde,   q.actual.hasta);
-  const arrastres = contarPantsPorVendedora(datos, q.anterior.desde, q.anterior.hasta);
+  const conteo    = contarPantsPorVendedora(datos, q.actual.desde, q.actual.hasta);
+  const arrastres = q.anterior ? contarPantsPorVendedora(datos, q.anterior.desde, q.anterior.hasta) : {};
   const conteoMes = contarPantsPorVendedora(datos, mesInicio, null);
 
   const quincenaLabel         = (q.esQ2 ? "Q2 · " : "Q1 · ") + _etiquetaRango(q.actual);
-  const quincenaAnteriorLabel = (q.esQ2 ? "Q1 · " : "Q2 · ") + _etiquetaRango(q.anterior);
+  const quincenaAnteriorLabel = q.anterior ? "Q1 · " + _etiquetaRango(q.anterior) : "";
   const d0 = q.actual.desde;
   const fechaInicioStr = String(d0.getDate()).padStart(2, "0") + "/" + String(d0.getMonth() + 1).padStart(2, "0") + "/" + d0.getFullYear();
 
@@ -876,6 +876,7 @@ function getArrastresData() {
     if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
     const datos = ws.getDataRange().getDisplayValues();
     const q = _rangosQuincena(_hoyCaracas());
+    if (!q.anterior) return { arrastres: {}, quincena: "" }; // Q1: se empieza desde cero
     return { arrastres: contarPantsPorVendedora(datos, q.anterior.desde, q.anterior.hasta), quincena: _etiquetaRango(q.anterior) };
   } catch(err) {
     return { arrastres: {}, error: err.message };

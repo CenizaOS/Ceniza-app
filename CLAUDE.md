@@ -70,7 +70,7 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 
 ## Quincena & arrastres (fixed calendar — owner's rule, 2026-09-20)
 - **Q1 = 1–15, Q2 = 16–end of month.** Nothing is stored: `_rangosQuincena(_hoyCaracas())` derives current and previous quincena from today's date (Caracas).
-- **Arrastre = pants sold in the previous quincena** (in Q1 that's the previous month's Q2). Computed live by `getComisiones` / `getArrastres`; `pants` for the tier = current + arrastre.
+- **Arrastre only exists in Q2 = pants sold in Q1 of the same month.** In Q1 it's 0 (every month starts from zero). Computed live by `getComisiones` / `getArrastres`; `pants` for the tier = current + arrastre. `_rangosQuincena().anterior` is `null` in Q1.
 - Single counting rule: `contarPantsPorVendedora(datos, desde, hasta)` — excludes Cancelado/Cambio/Arreglo and `cambioDeTalla`, normalizes names.
 - Routes `reiniciarQuincena`, `setFechaQuincena`, `corregirQuincena`, `setArrastres` return an explanatory error (`_quincenaFija`) for old clients; the buttons were removed from the dueña UI. `comisiones` returns `quincenaLabel` and `quincenaAnteriorLabel`.
 
