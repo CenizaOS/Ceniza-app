@@ -71,8 +71,7 @@ const FIN = { precio:30, costoTotal:16.75, utilNeta:13.25, fijosQuinc:591, metaV
 | `registrar` | `registrarPedido(p)` | Legacy single-item |
 | `cambiarEstado` | `cambiarEstado(p)` | Validates against fixed estado list |
 | `editarPedido` / `eliminarPedido` | | |
-| `reiniciarQuincena` | | Captures arrastres, sets new start date in ScriptProperties |
-| `setFechaQuincena` / `corregirQuincena` | | `corregirQuincena` fails: needs `Tasas` sheet |
+| `reiniciarQuincena` / `setFechaQuincena` / `corregirQuincena` | `_establecerInicioQuincena(fecha)` | Set start date (today / given / 1st of month) and recompute `ARRASTRES`; return `{fecha, arrastres}` |
 | `finanzas` / `guardarFinanzas` | | fondos, cuentas, tasas |
 | `getClientes` | | Autocomplete + cédula lookup |
 | `getEncargos` / `setEncargos` | | Shopping/errand list (JSON blob) |
@@ -136,7 +135,7 @@ const totalAPagar = BASE_FIJA + comision;
 ## Known Issues (2026-09-20)
 
 - **Vendedora names** (fixed 2026-09-20, pending backend deploy): col 15 is free text, so `Angie`/`Angi` split commissions and arrastres. Now normalized on write and read via `normalizarResponsable()` (GAS) / `normalizarNombre()` (frontend) with alias maps `ALIAS_RESPONSABLES` / `ALIAS_NOMBRES`. `getArrastres` self-heals the stored `ARRASTRES` property; `limpiarResponsable` is case-insensitive.
-- **`reiniciarQuincena` arrastre auto-capture is a no-op**: uses `v.count` (undefined) and writes `ceniza_arrastres`, but `getArrastres` reads `ARRASTRES`. Arrastres are set manually by the owner.
+- **Quincena start & arrastres** (fixed 2026-09-20, pending backend deploy): `reiniciarQuincena`, `setFechaQuincena` and `corregirQuincena` all go through `_establecerInicioQuincena(fecha)`, which stores the date in ScriptProperties and computes `ARRASTRES` = pants per vendedora in the month before that date (`contarPantsPorVendedora`). Previously the auto-capture used a nonexistent field and the other two buttons wrote to the missing `Tasas` sheet. `getComisiones` now ignores the client `arrastres` param.
 - **`Tasas` sheet missing**: breaks `dashboard` (unused) and `corregirQuincena`.
 - **No backend auth**: anyone with the script URL can write. PINs are client-side and visible in the public repo.
 - **GAS is GET-only**: all writes via query string; keep params short.

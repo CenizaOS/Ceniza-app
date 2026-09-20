@@ -68,9 +68,14 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 ## Vendedora names
 `responsable` (col 15) is free text from each phone. Both sides normalize it (trim, collapse spaces, capitalize, alias map): `normalizarResponsable()` in `Ceniza_GAS.js` and `normalizarNombre()` in `index.html`. To merge a new spelling, add it to `ALIAS_RESPONSABLES` (backend) **and** `ALIAS_NOMBRES` (frontend). Currently `angie → Angi`.
 
+## Quincena & arrastres
+- Start date lives in ScriptProperties `ceniza_fecha_inicio_quincena`; arrastres in `ARRASTRES`. Both are set only by `_establecerInicioQuincena()` (called by `reiniciarQuincena`, `setFechaQuincena`, `corregirQuincena`).
+- **Rule:** arrastre = pants sold in the month *before* the quincena start date (0 if it starts on the 1st). Computed server-side; the owner can still override per vendedora via `setArrastres`.
+- `getComisiones` ignores the client `arrastres` param and reads the server value; single counting rule is `contarPantsPorVendedora()`.
+- The dueña view caches arrastres in `localStorage.ceniza_arrastres` from the `comisiones` response (`_applyQuincenaData`).
+
 ## Known Issues (verified 2026-09-20)
-- `reiniciarQuincena` auto-capture of arrastres is a no-op: reads `v.count` (doesn't exist → 0) and writes key `ceniza_arrastres`, while `getArrastres` reads key `ARRASTRES`. Arrastres are effectively manual (owner sets them in Administración).
-- `dashboard` and `corregirQuincena` fail in production because the `Tasas` sheet doesn't exist (frontend never calls `dashboard`).
+- `dashboard` fails in production because the `Tasas` sheet doesn't exist (frontend never calls it — dead code).
 - GAS is GET-only; all writes go through query params. Errors come back as `{error}` with HTTP 200.
 
 ## Preferences

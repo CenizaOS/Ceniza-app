@@ -684,61 +684,74 @@ function eliminarPedido(p) {
   }
 }
 
-// ─── REINICIAR QUINCENA ───────────────────────────────────────────────────────
+// ─── CONTEO DE PANTALONES POR VENDEDORA ──────────────────────────────────────
+// Cuenta filas por responsable con fechaRegistro en [desde, hasta).
+// `hasta` null = sin límite. Excluye Cancelado / Cambio / Arreglo y cambios de talla.
+// Es la única regla de conteo: la usan comisiones y el cálculo de arrastres.
+function contarPantsPorVendedora(datos, desde, hasta) {
+  const conteo = {};
+  for (let i = 1; i < datos.length; i++) {
+    const row = datos[i];
+    if (!row[1] || row[1] === "") continue;
+    const estado = row[11] || "";
+    if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") continue;
+    if ((row[21] || "").toString().trim() === "true") continue; // cambio de talla: no cuenta
+    const resp = normalizarResponsable(row[14]);
+    if (!resp) continue;
+    const fecha = _parseFechaVE(row[0]);
+    if (!fecha) continue;
+    if (desde && fecha < desde) continue;
+    if (hasta && fecha >= hasta) continue;
+    conteo[resp] = (conteo[resp] || 0) + 1;
+  }
+  return conteo;
+}
+
+// ─── INICIO DE QUINCENA + ARRASTRES ──────────────────────────────────────────
+// Regla: arrastre = pantalones vendidos en el mes ANTES de la fecha de inicio
+// de la quincena. Si la quincena empieza el día 1, el arrastre es 0.
+// Así la comisión de Q2 se calcula sobre el acumulado del mes (Q1 + Q2)
+// sin que nadie tenga que copiar números a mano.
+function _establecerInicioQuincena(fechaStr) {
+  const inicio = _parseFechaVE(fechaStr);
+  if (!inicio) throw new Error("Fecha inválida: " + fechaStr);
+
+  const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
+  if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
+  const datos = ws.getDataRange().getDisplayValues();
+
+  const mesInicio = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  const arrastres = contarPantsPorVendedora(datos, mesInicio, inicio);
+
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty("ceniza_fecha_inicio_quincena", fechaStr);
+  props.setProperty("ARRASTRES", JSON.stringify(arrastres));
+
+  return { success: true, fecha: fechaStr, arrastres };
+}
+
 function reiniciarQuincena() {
   try {
     const hoy = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
-    const props = PropertiesService.getScriptProperties();
-
-    // 1. Auto-capturar arrastre: contar ventas de quincena actual antes de reiniciar
-    try {
-      const comisionesActuales = getComisiones();
-      if (comisionesActuales && comisionesActuales.vendedoras) {
-        const arrastres = {};
-        comisionesActuales.vendedoras.forEach(v => {
-          arrastres[v.nombre] = v.count || 0;
-        });
-        props.setProperty("ceniza_arrastres", JSON.stringify(arrastres));
-      }
-    } catch(e) {
-      // No bloquear el reinicio si falla la captura de arrastre
-      Logger.log("Error capturando arrastres: " + e.message);
-    }
-
-    // 2. Guardar nueva fecha de inicio en PropertiesService
-    props.setProperty("ceniza_fecha_inicio_quincena", hoy);
-
-    // 3. Intentar también actualizar hoja Tasas si existe (compatibilidad)
-    const wsTasas = ss.getSheetByName("Tasas");
-    if (wsTasas) {
-      wsTasas.getRange("A6").setValue("Inicio quincena");
-      wsTasas.getRange("B6").setValue(hoy);
-    }
-
-    return { success: true, fecha: hoy };
+    return _establecerInicioQuincena(hoy);
   } catch(err) {
     return { success: false, error: err.message };
   }
 }
 
 // ─── COMISIONES ──────────────────────────────────────────────────────────────
+// El parámetro `arrastres` (lo que cada teléfono tenía en memoria) ya no se usa:
+// los arrastres viven en el servidor (ARRASTRES) y los calcula
+// _establecerInicioQuincena(), así que todos los dispositivos ven lo mismo.
 function getComisiones(quincena, arrastresJson) {
   const ws    = ss.getSheetByName("Pedidos " + MES_ACTIVO);
   const datos = ws.getDataRange().getDisplayValues();
 
-  function parseDate(str) {
-    if (!str) return null;
-    const p = str.toString().split('/');
-    if (p.length !== 3) return null;
-    return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
-  }
   let fechaInicio = null, quincenaLabel = "Mes completo", fechaInicioStr = "";
-
-  // 1. Leer fechaInicio desde PropertiesService (fuente principal)
   try {
     const propVal = PropertiesService.getScriptProperties().getProperty("ceniza_fecha_inicio_quincena");
     if (propVal) {
-      fechaInicio = parseDate(propVal);
+      fechaInicio = _parseFechaVE(propVal);
       if (fechaInicio) {
         fechaInicioStr = propVal;
         const parts = propVal.split('/');
@@ -747,26 +760,7 @@ function getComisiones(quincena, arrastresJson) {
     }
   } catch(e) { /* ignorar */ }
 
-  // 2. Fallback: hoja Tasas (compatibilidad con instalaciones antiguas)
-  if (!fechaInicio) {
-    const wsTasas = ss.getSheetByName("Tasas");
-    if (wsTasas) {
-      const raw = wsTasas.getRange("B6").getValue();
-      if (raw) {
-        const fmtStr = raw instanceof Date
-          ? Utilities.formatDate(raw, "America/Caracas", "dd/MM/yyyy")
-          : raw.toString();
-        fechaInicio = parseDate(fmtStr);
-        if (fechaInicio) {
-          fechaInicioStr = fmtStr;
-          const parts = fmtStr.split('/');
-          quincenaLabel = "Desde " + parts[0] + "/" + parts[1];
-        }
-      }
-    }
-  }
-
-  // 3. Fallback final: inicio del mes actual
+  // Sin fecha guardada: la quincena arranca el 1ro del mes actual
   if (!fechaInicio) {
     const hoy = new Date();
     fechaInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -776,30 +770,9 @@ function getComisiones(quincena, arrastresJson) {
   const hoyObj = new Date();
   const mesInicio = new Date(hoyObj.getFullYear(), hoyObj.getMonth(), 1);
 
-  const conteo = {};
-  const conteoMes = {};
-  for (let i = 1; i < datos.length; i++) {
-    const row = datos[i];
-    if (!row[1] || row[1] === "") continue;
-    const estado = row[11] || "";
-    if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") continue;
-    if ((row[21] || "").toString().trim() === "true") continue; // cambio de talla: no cuenta
-    const resp = normalizarResponsable(row[14]);
-    if (!resp) continue;
-    const rowDate = parseDate(row[0]);
-    if (rowDate && rowDate >= mesInicio) {
-      conteoMes[resp] = (conteoMes[resp] || 0) + 1;
-    }
-    if (fechaInicio) {
-      if (!rowDate || rowDate < fechaInicio) continue;
-    }
-    conteo[resp] = (conteo[resp] || 0) + 1;
-  }
-
-  let arrastres = {};
-  if (arrastresJson) {
-    try { arrastres = normalizarMapaResponsables(JSON.parse(arrastresJson)); } catch(e) {}
-  }
+  const conteo    = contarPantsPorVendedora(datos, fechaInicio, null);
+  const conteoMes = contarPantsPorVendedora(datos, mesInicio, null);
+  const arrastres = getArrastresData().arrastres || {};
 
   const UTILIDAD_NETA = 13.25;
   const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes)]);
@@ -994,14 +967,8 @@ function guardarConfig(clave, valor) {
 // ─── CORREGIR QUINCENA AL 1RO DEL MES ────────────────────────────────────────
 function corregirQuincenaInicioMes() {
   try {
-    const wsTasas = ss.getSheetByName("Tasas");
-    if (!wsTasas) throw new Error("Hoja Tasas no encontrada");
-    const hoy = new Date();
-    const primeroDeMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    const fecha = Utilities.formatDate(primeroDeMes, "America/Caracas", "dd/MM/yyyy");
-    wsTasas.getRange("A6").setValue("Inicio quincena");
-    wsTasas.getRange("B6").setValue(fecha);
-    return { success: true, fecha };
+    const fecha = "01/" + Utilities.formatDate(new Date(), "America/Caracas", "MM/yyyy");
+    return _establecerInicioQuincena(fecha);
   } catch(err) {
     return { success: false, error: err.message };
   }
@@ -1010,15 +977,11 @@ function corregirQuincenaInicioMes() {
 // ─── ESTABLECER FECHA DE INICIO DE QUINCENA (manual) ─────────────────────────
 function setFechaQuincena(p) {
   try {
-    const wsTasas = ss.getSheetByName("Tasas");
-    if (!wsTasas) throw new Error("Hoja Tasas no encontrada");
     const fecha = (p.fecha || "").trim();
     if (!fecha || !/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
       throw new Error("Formato de fecha inválido. Usar DD/MM/YYYY");
     }
-    wsTasas.getRange("A6").setValue("Inicio quincena");
-    wsTasas.getRange("B6").setValue(fecha);
-    return { success: true, fecha };
+    return _establecerInicioQuincena(fecha);
   } catch(err) {
     return { success: false, error: err.message };
   }

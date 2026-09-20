@@ -3809,6 +3809,11 @@ function _applyQuincenaData(d) {
   _finLabel    = d.quincenaLabel || '';
   window._finVendedoras     = (d.vendedoras || []).map(v => v.nombre);
   window._finVendedorasData = d.vendedoras || [];
+  // Los arrastres los calcula el servidor al cambiar la fecha de quincena;
+  // se cachean aquí para que la card de arrastre y el total del mes los muestren.
+  const arrastres = {};
+  (d.vendedoras || []).forEach(v => { arrastres[v.nombre] = parseInt(v.arrastre) || 0; });
+  localStorage.setItem('ceniza_arrastres', JSON.stringify(arrastres));
   document.getElementById('fin-mes-label').textContent = getMesActualDisplay();
 }
 
@@ -3825,8 +3830,7 @@ async function loadFinQuincena() {
   }
 
   try {
-    const arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
-    const d = await fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)));
+    const d = await fetchData('comisiones');
     localStorage.setItem(CACHE_KEY, JSON.stringify(d));
     _applyQuincenaData(d);
     renderFinQuincena();
@@ -3997,7 +4001,7 @@ function renderFinQuincena() {
     <!-- Arrastre quincena anterior + resumen total del mes -->
     <div class="fin-card" style="margin-top:4px" id="arrastre-card">
       <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">
-        📦 Arrastre quincena 1 (historial de pago)
+        📦 Arrastre quincena 1 (se calcula solo al cambiar la fecha · editable)
       </div>
       <div id="arrastre-vendedoras-list">${renderArrastreAdmin()}</div>
       ${(() => {
@@ -5760,6 +5764,13 @@ function guardarArrastre(nombre) {
 // ══════════════════════════════════════════════════════════
 // DUEÑA — guardar fecha de inicio de quincena (manual)
 // ══════════════════════════════════════════════════════════
+// Texto para el toast con los arrastres que calculó el servidor
+function _resumenArrastres(arrastres) {
+  const entradas = Object.entries(arrastres || {});
+  if (!entradas.length) return ' · sin arrastre';
+  return ' · arrastre: ' + entradas.map(([n, v]) => `${n} ${v}`).join(', ');
+}
+
 async function guardarFechaQuincena() {
   const input = document.getElementById('fin-fecha-quincena');
   if (!input || !input.value) { showToast('Elige una fecha primero'); return; }
@@ -5770,7 +5781,7 @@ async function guardarFechaQuincena() {
     const r = await fetch(`${API}?accion=setFechaQuincena&fecha=${encodeURIComponent(fecha)}`);
     const data = await r.json();
     if (data.success) {
-      showToast('✅ Quincena actualizada al ' + fecha);
+      showToast('✅ Quincena actualizada al ' + fecha + _resumenArrastres(data.arrastres));
       setTimeout(() => loadFinQuincena(), 800);
     } else {
       showToast('Error: ' + (data.error || 'No se pudo guardar'));
@@ -5788,7 +5799,7 @@ async function corregirFechaQuincena() {
     const r = await fetch(`${API}?accion=corregirQuincena`);
     const data = await r.json();
     if (data.success) {
-      showToast('✅ Quincena corregida al 1ro del mes (' + data.fecha + ')');
+      showToast('✅ Quincena corregida al 1ro del mes (' + data.fecha + ')' + _resumenArrastres(data.arrastres));
       setTimeout(() => loadFinQuincena(), 800);
     } else {
       showToast('Error: ' + (data.error || 'No se pudo corregir'));
@@ -5823,7 +5834,7 @@ async function reiniciarQuincena() {
     const r = await fetch(`${API}?accion=reiniciarQuincena`);
     const data = await r.json();
     if (data.success) {
-      mostrarToast(`✓ Quincena reiniciada desde ${data.fecha}`);
+      mostrarToast(`✓ Quincena reiniciada desde ${data.fecha}` + _resumenArrastres(data.arrastres));
       // Recargar para que la quincena nueva aparezca con 0 pantalones
       setTimeout(() => loadFinQuincena(), 800);
     } else {
@@ -6083,17 +6094,8 @@ async function loadVendedoraComisiones() {
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
     const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
-    // Intentar obtener arrastres del servidor (los configura la dueña desde su dispositivo)
-    let arrastres = JSON.parse(localStorage.getItem('ceniza_arrastres') || '{}');
-    // Llamadas en paralelo: arrastres + comisiones simultáneamente
-    const [ra, d] = await Promise.all([
-      fetchData('getArrastres').catch(() => ({})),
-      fetchData('comisiones&arrastres=' + encodeURIComponent(JSON.stringify(arrastres)))
-    ]);
-    if (ra.arrastres && typeof ra.arrastres === 'object') {
-      arrastres = ra.arrastres;
-      cfgSet('ceniza_arrastres', JSON.stringify(arrastres));
-    }
+    // El servidor ya incluye el arrastre de cada vendedora en `comisiones`
+    const d = await fetchData('comisiones');
     document.getElementById('vend-mes').textContent = getMesActualDisplay();
     if (!d.vendedoras) throw new Error(d.error || 'Error al cargar comisiones');
     const nombreLC = (nombre || '').toLowerCase();
