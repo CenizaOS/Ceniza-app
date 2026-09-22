@@ -460,6 +460,10 @@ function getHistorial(responsable, fecha, desde) {
   const respFiltro = responsable ? normalizarResponsable(responsable) : null;
   const fechaFiltro = (fecha || "").trim();
   const desdeObj    = desde ? _parseFechaVE(desde.trim()) : null;
+  // Contar SIEMPRE el total sin acotar por fecha: recorrer la hoja es barato,
+  // lo caro es serializar miles de pedidos. Así las pantallas pueden pedir solo
+  // los últimos días y seguir mostrando el total de verdad.
+  let totalGeneral = 0;
 
   const todasLasHojas = ss.getSheets();
   const hojasP = todasLasHojas.filter(h => h.getName().startsWith("Pedidos "));
@@ -472,6 +476,7 @@ function getHistorial(responsable, fecha, desde) {
       const estado = row[11] || "";
       if (!estadosHistorial.includes(estado)) continue;
       if (respFiltro && normalizarResponsable(row[14]) !== respFiltro) continue;
+      totalGeneral++;
       // La fecha de referencia es la misma que usa el frontend al agrupar
       const fechaRef = row[12] || row[0] || "";
       if (fechaFiltro && fechaRef !== fechaFiltro) continue;
@@ -500,7 +505,7 @@ function getHistorial(responsable, fecha, desde) {
     const fb = b.fechaRegistro.split("/").reverse().join("");
     return fb.localeCompare(fa);
   });
-  return { pedidos, total: pedidos.length };
+  return { pedidos, total: pedidos.length, totalGeneral };
 }
 
 // ─── LIMPIAR RESPONSABLE (renombrar en toda la data) ─────────────────────────

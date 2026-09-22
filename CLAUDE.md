@@ -97,7 +97,8 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 - **Delivery** pide `&fecha=<día>` y cachea por fecha en `_historialPorFecha` (antes: historial completo una vez por sesión). Se eliminó la consulta a `produccion` que lo complementaba: solo devuelve estados en curso, así que aportaba 0 filas.
 - **Dueña / ventas de la quincena** pide `&desde=<inicio de quincena>`; ya descartaba el resto en el cliente.
 - `_applyHistorialMerge` vuelve a comprobar la fecha aunque el servidor ya filtre: protege a los teléfonos que hablen con un backend viejo que ignore `&fecha` (si no, se colarían todas las entregas históricas en la lista del día).
-- **Siguen sin acotar** (muestran todo a propósito): historial de la vendedora (`&responsable=`) y el de la costurera.
+- **Vendedora y costurera** piden los últimos `HIST_DIAS` (30) con `&desde=`, y ofrecen "Ver todo el historial" (`loadVendedoraHistorial(true)` / `loadCostHistorial(true)`) para traerlo completo. No se pierde nada.
+- `getHistorial` devuelve `totalGeneral`: el conteo respeta `responsable` pero **ignora** la ventana de fechas, así que el total que ve la vendedora sigue siendo el real aunque solo se listen los recientes. Recorrer la hoja es barato; lo caro es serializar. Si el backend es viejo y no lo manda, el frontend cae a `total`.
 
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.

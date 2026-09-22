@@ -1031,6 +1031,15 @@ const checkSVG   = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/>
 function fechaStr(d) {
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 }
+// Fecha de hace N días en dd/MM/yyyy. Las pantallas de historial la usan para
+// pedir solo lo reciente: el historial completo son >1000 pedidos (~270 KB).
+const HIST_DIAS = 30;
+function fechaHaceDias(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return fechaStr(d);
+}
+
 // YYYY-MM-DD de la fecha LOCAL. toISOString() da UTC, que en Venezuela (UTC-4)
 // adelanta al día siguiente a partir de las 20:00.
 function isoLocal(d) {
@@ -5670,8 +5679,8 @@ function renderVendPedidos(misOrdenes) {
   const subtitulo = q
     ? `${ordenes.length} resultado${ordenes.length!==1?'s':''} para "${q}"`
     : _vendVerTodos
-      ? `En producción · ${misOrdenes.length} pantalón${misOrdenes.length!==1?'es':''}`
-      : `Hoy · ${totalHoy} pantalón${totalHoy!==1?'es':''}`;
+      ? `En producción · ${misOrdenes.length} ${misOrdenes.length!==1?'pantalones':'pantalón'}`
+      : `Hoy · ${totalHoy} ${totalHoy!==1?'pantalones':'pantalón'}`;
 
   let html = `
     <button class="vend-nuevo-btn" onclick="abrirFormulario()">
@@ -5782,17 +5791,30 @@ async function loadVendedoraPedidos() {
 // ══════════════════════════════════════════════════════════
 // VENDEDORA — pestaña Historial
 // ══════════════════════════════════════════════════════════
-async function loadVendedoraHistorial() {
+async function loadVendedoraHistorial(verTodo = false) {
   const el = document.getElementById('vend-hist-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
     const nombre = localStorage.getItem('vendedora_nombre') || '';
-    const d = await fetchData('historial', '&responsable=' + encodeURIComponent(nombre));
+    // Por defecto solo los últimos días; "Ver todo" repite sin acotar
+    const ventana = verTodo ? '' : '&desde=' + encodeURIComponent(fechaHaceDias(HIST_DIAS));
+    const d = await fetchData('historial', '&responsable=' + encodeURIComponent(nombre) + ventana);
     if (!d.pedidos || !d.pedidos.length) {
-      el.innerHTML = `<div class="vend-empty-pedidos"><div style="font-size:28px;margin-bottom:8px">📦</div><div style="font-weight:600">Sin entregas registradas aún</div></div>`;
+      // Puede no haber nada reciente pero sí historial más antiguo
+      const hayAntiguas = !verTodo && (d.totalGeneral || 0) > 0;
+      el.innerHTML = `<div class="vend-empty-pedidos"><div style="font-size:28px;margin-bottom:8px">📦</div>
+        <div style="font-weight:600">${hayAntiguas ? `Sin entregas en los últimos ${HIST_DIAS} días` : 'Sin entregas registradas aún'}</div></div>`
+        + (hayAntiguas ? `<button class="btn" onclick="loadVendedoraHistorial(true)" style="margin-top:8px">Ver todo el historial (${d.totalGeneral})</button>` : '');
       return;
     }
-    let html = `<div class="vend-quincena-chip" style="margin-top:8px">✅ ${d.total} pantalón${d.total!==1?'es':''} entregado${d.total!==1?'s':''}</div>`;
+    // El total es siempre el de verdad, aunque solo se listen los recientes
+    const totalReal = (d.totalGeneral != null) ? d.totalGeneral : d.total;
+    const ocultos   = totalReal - d.pedidos.length;
+    let html = `<div class="vend-quincena-chip" style="margin-top:8px">✅ ${totalReal} ${totalReal!==1?'pantalones':'pantalón'} entregado${totalReal!==1?'s':''}</div>`;
+    if (!verTodo && ocultos > 0) {
+      html += `<div style="font-size:12px;color:var(--text3);margin:6px 0 2px">Mostrando los últimos ${HIST_DIAS} días</div>`;
+    }
+
     d.pedidos.forEach(p => {
       const talla = p.talla ? p.talla.replace(/^T/i,'') : '';
       const detalle = [p.color, talla ? `T${talla}` : '', p.ruedo ? `ruedo ${p.ruedo}` : ''].filter(Boolean).join(' · ');
@@ -5811,10 +5833,13 @@ async function loadVendedoraHistorial() {
         </div>
       </div>`;
     });
-    html += `<button class="btn" onclick="loadVendedoraHistorial()" style="margin-top:8px;margin-bottom:8px">${refreshIcon}Actualizar</button>`;
+    if (!verTodo && ocultos > 0) {
+      html += `<button class="btn" onclick="loadVendedoraHistorial(true)" style="margin-top:8px">Ver todo el historial (${ocultos} más)</button>`;
+    }
+    html += `<button class="btn" onclick="loadVendedoraHistorial(${verTodo})" style="margin-top:8px;margin-bottom:8px">${refreshIcon}Actualizar</button>`;
     el.innerHTML = html;
   } catch(e) {
-    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraHistorial()">${refreshIcon}Reintentar</button>`;
+    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadVendedoraHistorial(${verTodo})">${refreshIcon}Reintentar</button>`;
   }
 }
 
@@ -6155,18 +6180,24 @@ function costureraToggleArregloListo(i) {
   mostrarToast(eraListo ? 'Marcado como pendiente' : 'Marcado como listo');
 }
 
-async function loadCostHistorial() {
+async function loadCostHistorial(verTodo = false) {
   const el = document.getElementById('cost-historial-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando historial...</div>';
   try {
-    const d = await fetchData('historial');
+    // Por defecto solo los últimos días; "Ver todo" repite sin acotar
+    const ventana = verTodo ? '' : '&desde=' + encodeURIComponent(fechaHaceDias(HIST_DIAS));
+    const d = await fetchData('historial', ventana);
     const pedidos = d.pedidos || [];
+    const totalReal = (d.totalGeneral != null) ? d.totalGeneral : pedidos.length;
+    const ocultos   = totalReal - pedidos.length;
     if (!pedidos.length) {
+      const hayAntiguas = !verTodo && totalReal > 0;
       el.innerHTML = `<div class="empty-state" style="margin-top:40px">
         <div style="font-size:2.2rem;margin-bottom:12px">📋</div>
-        <div style="font-weight:700;margin-bottom:6px">Sin historial aún</div>
+        <div style="font-weight:700;margin-bottom:6px">${hayAntiguas ? `Sin entregas en los últimos ${HIST_DIAS} días` : 'Sin historial aún'}</div>
         <div style="font-size:13px;color:var(--text3)">Aquí aparecerán los pantalones entregados a delivery.</div>
-      </div>`;
+      </div>`
+      + (hayAntiguas ? `<button class="btn" onclick="loadCostHistorial(true)" style="margin-top:12px">Ver todo el historial (${totalReal})</button>` : '');
       return;
     }
 
@@ -6187,8 +6218,12 @@ async function loadCostHistorial() {
 
     let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">Pantalones entregados a delivery</div>
-      <button onclick="loadCostHistorial()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg3)">${refreshIcon}</button>
+      <button onclick="loadCostHistorial(${verTodo})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:4px 8px;border-radius:6px;background:var(--bg3)">${refreshIcon}</button>
     </div>`;
+    if (!verTodo && ocultos > 0) {
+      html += `<div style="font-size:12px;color:var(--text3);margin:-6px 0 12px">Mostrando los últimos ${HIST_DIAS} días · ${totalReal} en total</div>`;
+    }
+
 
     fechasOrdenadas.forEach(fecha => {
       const items = grupos[fecha];
@@ -6219,9 +6254,12 @@ async function loadCostHistorial() {
       html += `</div>`;
     });
 
+    if (!verTodo && ocultos > 0) {
+      html += `<button class="btn" onclick="loadCostHistorial(true)" style="margin-bottom:8px">Ver todo el historial (${ocultos} más)</button>`;
+    }
     el.innerHTML = html;
   } catch(e) {
-    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadCostHistorial()">${refreshIcon}Reintentar</button>`;
+    el.innerHTML = `<div class="err-card">Error al cargar historial.<br><small>${e.message}</small></div><button class="btn" onclick="loadCostHistorial(${verTodo})">${refreshIcon}Reintentar</button>`;
   }
 }
 
@@ -6986,7 +7024,7 @@ function renderDelivery(d, fecha) {
       html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
         <div class="del-card-info">
           <div class="del-card-name">${cg.cliente}</div>
-          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
+          <div class="del-card-det">${nPants} ${nPants!==1?'pantalones':'pantalón'}:</div>
           ${itemsHtml}
           ${infoHtml}
           ${notasHtml}
@@ -7046,7 +7084,7 @@ function renderDelivery(d, fecha) {
       html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
         <div class="del-card-info">
           <div class="del-card-name">${cg.cliente}</div>
-          <div class="del-card-det">${nPants} pantalón${nPants!==1?'es':''}:</div>
+          <div class="del-card-det">${nPants} ${nPants!==1?'pantalones':'pantalón'}:</div>
           ${itemsHtml}
           ${infoHtml}
           ${notasHtml}
@@ -7393,7 +7431,7 @@ function renderCarrito() {
   if (formModo === 'editar') {
     btn.textContent = `Guardar cambios · $${total.toFixed(2)}`;
   } else {
-    btn.textContent = `Registrar ${carrito.length} pantalón${carrito.length !== 1 ? 'es' : ''} · $${total.toFixed(2)}`;
+    btn.textContent = `Registrar ${carrito.length} ${carrito.length !== 1 ? 'pantalones' : 'pantalón'} · $${total.toFixed(2)}`;
   }
 }
 
