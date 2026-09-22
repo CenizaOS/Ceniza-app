@@ -6676,8 +6676,10 @@ async function loadDelivery(offset, forzar=false) {
   // de la primera carga y los pedidos nuevos no aparecían hasta pulsar Actualizar.
   const cachedData = forzar ? null : _delCacheLoad(fecha);
   if (cachedData) {
+    // Se pinta lo guardado, pero NO se precargan aquí los días vecinos: Apps
+    // Script atiende las peticiones de una en una y saturarlo con 6 a la vez
+    // hacía que la del día se pasara de tiempo. El prefetch va al final.
     renderDelivery(_applyHistorialMerge(cachedData, fecha), fecha);
-    _prefetchDelivery();
   } else {
     document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   }
@@ -6788,10 +6790,10 @@ async function _ensureHistorial() {
   if (_historialCache !== null) return;
   try {
     // ── Fuente 1: endpoint 'historial' (fecha de entrega real por ítem) ──
-    const [dataHist, dataProd] = await Promise.allSettled([
-      fetchData('historial'),
-      fetchData('produccion')
-    ]);
+    // Una detrás de otra, no en paralelo: son las dos respuestas más pesadas
+    // (historial ~270 KB) y juntas saturan la cola de Apps Script.
+    const dataHist = await fetchData('historial').then(v => ({status:'fulfilled', value:v}), e => ({status:'rejected', reason:e}));
+    const dataProd = await fetchData('produccion').then(v => ({status:'fulfilled', value:v}), e => ({status:'rejected', reason:e}));
 
     const entregados = [];
     const filasVistas = new Set();
@@ -6831,17 +6833,28 @@ async function _ensureHistorial() {
   }
 }
 
-function _prefetchDelivery() {
-  [-1, +1, +2].forEach(delta => {
-    const d = new Date(fechaDeliveryActual);
-    d.setDate(d.getDate() + delta);
-    const f = fechaStr(d);
-    if (!_delCache[f]) {
-      fetchData('entregas', `&fecha=${f}`)
-        .then(data => { _delCache[f] = _applyHistorialMerge(data, f); })
-        .catch(() => {});
+// Precarga los días vecinos de UNA EN UNA. Apps Script atiende las peticiones
+// en serie: lanzarlas juntas no las hace más rápidas, solo llena la cola y
+// hace que la consulta del día en curso se pase de tiempo.
+let _prefetchEnCurso = false;
+async function _prefetchDelivery() {
+  if (_prefetchEnCurso) return;
+  _prefetchEnCurso = true;
+  const base = fechaDeliveryActual;
+  try {
+    for (const delta of [+1, -1, +2]) {
+      const d = new Date(base);
+      d.setDate(d.getDate() + delta);
+      const f = fechaStr(d);
+      if (_delCache[f]) continue;
+      // Si el usuario ya se movió a otra fecha, esa precarga ya no sirve
+      if (fechaStr(fechaDeliveryActual) !== fechaStr(base)) break;
+      try {
+        const data = await fetchData('entregas', `&fecha=${f}`);
+        _delCache[f] = _applyHistorialMerge(data, f);
+      } catch(_) { break; }
     }
-  });
+  } finally { _prefetchEnCurso = false; }
 }
 
 function renderDelivery(d, fecha) {
