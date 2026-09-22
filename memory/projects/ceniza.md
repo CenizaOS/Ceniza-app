@@ -65,7 +65,7 @@ const FIN = { precio:30, costoTotal:16.75, utilNeta:13.25, fijosQuinc:591, metaV
 | `produccion` | `getProduccion()` | Returns `{grupos, mes, total}` grouped by fechaEntrega |
 | `entregas` | `getEntregas(fecha)` | Delivery list for a date. Each order shows **only on its scheduled fechaEntrega** — nothing is carried forward (see Delivery note) |
 | `comisiones` | `getComisiones()` | Per-vendedora tiers, live: current fixed quincena + arrastre (previous quincena). Params ignored. |
-| `historial` | `getHistorial(responsable)` | |
+| `historial` | `getHistorial(responsable, fecha, desde)` | Entregados. Filtros opcionales; sin ellos son >1100 pedidos (~270 KB). Delivery usa `fecha`, la dueña `desde` |
 | `historialQuincenas` | `getHistorialQuincenas()` | All `Pedidos *` sheets → months (desc) × fixed quincenas × vendedora: pants, base (Q2 = Q1+Q2), pct, totalAPagar; `enCurso` flag |
 | `semana` | `getSemanaCosturera()` | Weekly totals Mon–Sat |
 | `registrarPedidos` | `registrarPedidos(p)` | Multi-item; idempotent via `reqId`; writes col 22 `cambioDeTalla` |

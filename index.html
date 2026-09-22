@@ -1158,18 +1158,19 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
       }
     } else {
       mostrarToast(yaEntregado ? '↩ Marcado como pendiente' : '✓ Entregado');
-      // Actualizar historialCache para que la nueva entrega aparezca al navegar
-      if (_historialCache !== null && !yaEntregado) {
-        const fechaCache = fechaStr(fechaDeliveryActual);
-        if (_delCache[fechaCache] && _delCache[fechaCache].pedidos) {
-          const nuevos = _delCache[fechaCache].pedidos.filter(p =>
-            filas.includes(p.fila) && !_historialCache.find(h => h.fila === p.fila)
+      // Mantener al día el historial de ESA fecha para que el cambio siga
+      // viéndose al navegar a otro día y volver
+      const fechaCache = fechaStr(fechaDeliveryActual);
+      const histFecha = _historialPorFecha[fechaCache];
+      if (Array.isArray(histFecha)) {
+        if (!yaEntregado) {
+          const nuevos = ((_delCache[fechaCache] || {}).pedidos || []).filter(p =>
+            filas.includes(p.fila) && !histFecha.find(h => h.fila === p.fila)
           );
-          _historialCache = _historialCache.concat(nuevos);
+          _historialPorFecha[fechaCache] = histFecha.concat(nuevos);
+        } else {
+          _historialPorFecha[fechaCache] = histFecha.filter(p => !filas.includes(p.fila));
         }
-      } else if (_historialCache !== null && yaEntregado) {
-        // Si se desmarca, quitar del historialCache
-        _historialCache = _historialCache.filter(p => !filas.includes(p.fila));
       }
     }
   } catch {
@@ -3207,11 +3208,12 @@ async function _cargarProgressProyeccion() {
   try {
     const { inicio, fin } = _rangoQuincenaActual();
 
-    // Pedir producción (activas) e historial (entregadas) en paralelo
-    const [prodData, histData] = await Promise.all([
-      fetchData('produccion'),
-      fetchData('historial').catch(() => ({ pedidos: [] }))
-    ]);
+    // Producción (activas) e historial (entregadas). El historial se pide
+    // desde el inicio de la quincena: esta pantalla descarta el resto, y sin
+    // acotar son más de 1000 pedidos y unos 270 KB en cada carga.
+    const prodData = await fetchData('produccion');
+    const histData = await fetchData('historial', '&desde=' + encodeURIComponent(fechaStr(inicio)))
+      .catch(() => ({ pedidos: [] }));
     localStorage.setItem('ceniza_cache_pedidos', JSON.stringify(prodData));
 
     // Filtrar items de producción a la quincena actual por fechaRegistro
@@ -6647,7 +6649,7 @@ function renderCajaSemanal() {
 }
 
 let _delCache = {};
-let _historialCache = null; // caché de todas las entregas históricas
+let _historialPorFecha = {}; // entregas ya marcadas, por fecha (solo el día que se consulta)
 
 // Persistir y restaurar _delCache desde localStorage
 function _delCacheSave(fecha, data) {
@@ -6670,7 +6672,7 @@ async function loadDelivery(offset, forzar=false) {
   }
   const fecha = fechaStr(fechaDeliveryActual);
   // Hit de cache: renderizar instantaneamente (memoria o localStorage)
-  if (forzar) { delete _delCache[fecha]; _historialCache = null; } // forzar limpia todo
+  if (forzar) { delete _delCache[fecha]; delete _historialPorFecha[fecha]; } // forzar limpia todo
   // Se muestra al instante lo guardado y SIEMPRE se vuelve a consultar en
   // segundo plano: si no, la lista del día se quedaba congelada en la versión
   // de la primera carga y los pedidos nuevos no aparecían hasta pulsar Actualizar.
@@ -6687,8 +6689,8 @@ async function loadDelivery(offset, forzar=false) {
   try {
     // Historial carga en segundo plano; cuando termina re-renderiza si el usuario sigue en la misma fecha
     const _fechaAtLoad = fecha;
-    _ensureHistorial().then(() => {
-      if (fechaStr(fechaDeliveryActual) === _fechaAtLoad && _historialCache && _historialCache.length > 0) {
+    _ensureHistorial(_fechaAtLoad).then(() => {
+      if (fechaStr(fechaDeliveryActual) === _fechaAtLoad && (_historialPorFecha[_fechaAtLoad] || []).length > 0) {
         const _cached = _delCache[_fechaAtLoad];
         if (_cached) {
           const _dMerged2 = _applyHistorialMerge(_cached, _fechaAtLoad);
@@ -6765,9 +6767,13 @@ function _applyHistorialMerge(d, fecha) {
   } catch(e) {}
 
   // ── 3. Merge historial del servidor (complemento para dispositivos que no marcaron localmente) ──
-  if (_historialCache && Array.isArray(_historialCache)) {
+  const histDelDia = _historialPorFecha[fecha];
+  if (Array.isArray(histDelDia)) {
     const filasActuales = new Set(pedidos.map(p => p.fila));
-    const entregadosDelDia = _historialCache.filter(p =>
+    // El servidor ya devuelve solo este día, pero se vuelve a comprobar: si un
+    // teléfono habla con una versión vieja del backend (que ignora &fecha),
+    // sin esta guarda se colarían en la lista todas las entregas históricas.
+    const entregadosDelDia = histDelDia.filter(p =>
       _normFecha(p.fechaEntrega) === fecha &&
       !filasActuales.has(p.fila) &&
       (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery')
@@ -6784,52 +6790,21 @@ function _applyHistorialMerge(d, fecha) {
   return Object.assign({}, d, { pedidos });
 }
 
-// Carga el historial de entregas. Usa 'historial' (tiene fechaEntrega real por item)
-// con fallback a 'produccion' para capturar 'Entregado a cliente' que no estén en historial.
-async function _ensureHistorial() {
-  if (_historialCache !== null) return;
+// Red de seguridad: entregas ya marcadas que la consulta del día no devolviera.
+// Se pide SOLO el día que se está viendo (~15 pedidos): antes se traía el
+// historial completo, más de 1000 pedidos y unos 270 KB en cada sesión.
+// La consulta a 'produccion' que había aquí se eliminó: solo devuelve pedidos
+// en estados "En producción"/"Empaquetado"/"Pagado", ninguno de los cuales
+// cuenta como entregado, así que no aportaba ninguna fila.
+async function _ensureHistorial(fecha) {
+  if (_historialPorFecha[fecha]) return;
   try {
-    // ── Fuente 1: endpoint 'historial' (fecha de entrega real por ítem) ──
-    // Una detrás de otra, no en paralelo: son las dos respuestas más pesadas
-    // (historial ~270 KB) y juntas saturan la cola de Apps Script.
-    const dataHist = await fetchData('historial').then(v => ({status:'fulfilled', value:v}), e => ({status:'rejected', reason:e}));
-    const dataProd = await fetchData('produccion').then(v => ({status:'fulfilled', value:v}), e => ({status:'rejected', reason:e}));
-
-    const entregados = [];
-    const filasVistas = new Set();
-
-    // Procesar historial (d.pedidos con fechaEntrega / fechaRegistro)
-    if (dataHist.status === 'fulfilled') {
-      const pedidos = dataHist.value.pedidos || [];
-      pedidos.forEach(p => {
-        const fe = _normFecha(p.fechaEntrega || p.fechaRegistro || '');
-        if (fe) {
-          entregados.push(Object.assign({}, p, { fechaEntrega: fe }));
-          filasVistas.add(p.fila);
-        }
-      });
-    }
-
-    // Procesar produccion como complemento (captura 'Entregado a cliente' no presentes en historial)
-    if (dataProd.status === 'fulfilled') {
-      (dataProd.value.grupos || []).forEach(g => {
-        const grupoFecha = _normFecha(g.fecha || '');
-        (g.items || []).forEach(p => {
-          if (!filasVistas.has(p.fila) &&
-              (p.estado === 'Entregado a cliente' || p.estado === 'Entregado a delivery')) {
-            const fe = _normFecha(p.fechaEntrega || '') || grupoFecha;
-            if (fe) {
-              entregados.push(Object.assign({}, p, { fechaEntrega: fe }));
-              filasVistas.add(p.fila);
-            }
-          }
-        });
-      });
-    }
-
-    _historialCache = entregados;
+    const d = await fetchData('historial', `&fecha=${fecha}`);
+    _historialPorFecha[fecha] = (d.pedidos || []).map(p =>
+      Object.assign({}, p, { fechaEntrega: _normFecha(p.fechaEntrega || p.fechaRegistro || '') })
+    ).filter(p => p.fechaEntrega);
   } catch(e) {
-    _historialCache = [];
+    _historialPorFecha[fecha] = [];
   }
 }
 

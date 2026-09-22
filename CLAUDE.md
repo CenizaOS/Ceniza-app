@@ -92,6 +92,13 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 - Notas de cliente deduplicadas: con varios pantalones que comparten nota, se repetía una vez por pantalón.
 - **Concurrencia**: Apps Script atiende las peticiones en serie y devuelve una página 404 ("unable to open the file at this time") cuando se le lanzan muchas a la vez. Entrar en Delivery disparaba ~7 simultáneas (entregas + historial + produccion + arreglos + 3 de prefetch) y la del día se pasaba de tiempo. Ahora `_prefetchDelivery` va de una en una (con guarda `_prefetchEnCurso` y corte si se cambia de fecha) y `_ensureHistorial` encadena `historial` y `produccion` en vez de `Promise.allSettled`.
 
+## Historial — consultas acotadas (2026-09-22)
+- `getHistorial(responsable, fecha, desde)`: los tres filtros son opcionales y combinables. Sin ninguno devuelve >1100 pedidos (~270 KB, la respuesta más pesada y lenta del backend). La fecha de referencia para `fecha`/`desde` es `fechaEntrega || fechaRegistro`, la misma que agrupa el frontend.
+- **Delivery** pide `&fecha=<día>` y cachea por fecha en `_historialPorFecha` (antes: historial completo una vez por sesión). Se eliminó la consulta a `produccion` que lo complementaba: solo devuelve estados en curso, así que aportaba 0 filas.
+- **Dueña / ventas de la quincena** pide `&desde=<inicio de quincena>`; ya descartaba el resto en el cliente.
+- `_applyHistorialMerge` vuelve a comprobar la fecha aunque el servidor ya filtre: protege a los teléfonos que hablen con un backend viejo que ignore `&fecha` (si no, se colarían todas las entregas históricas en la lista del día).
+- **Siguen sin acotar** (muestran todo a propósito): historial de la vendedora (`&responsable=`) y el de la costurera.
+
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.
 - Backend `finanzas` / `guardarFinanzas` depend on the missing `Tasas` sheet (they return empty / an error gracefully) — only used by the orphan Fondos/Cuentas UI.

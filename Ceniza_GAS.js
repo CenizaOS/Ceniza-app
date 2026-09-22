@@ -78,7 +78,7 @@ function doGet(e) {
     else if (accion === "cambiarEstado")   data = cambiarEstado(e.parameter);
     else if (accion === "editarPedido")    data = editarPedido(e.parameter);
     else if (accion === "eliminarPedido")  data = eliminarPedido(e.parameter);
-    else if (accion === "historial")       data = getHistorial(e.parameter.responsable);
+    else if (accion === "historial")       data = getHistorial(e.parameter.responsable, e.parameter.fecha, e.parameter.desde);
     else if (accion === "historialQuincenas") data = getHistorialQuincenas();
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "reiniciarQuincena") data = _quincenaFija();
@@ -448,10 +448,18 @@ function editarPedido(p) {
 
 // ─── HISTORIAL ───────────────────────────────────────────────────────────────
 // Lee TODAS las pestañas "Pedidos *" para mostrar historial completo sin importar el mes
-function getHistorial(responsable) {
+// Filtros opcionales, todos combinables:
+//   responsable → solo los de esa vendedora
+//   fecha       → solo ese día (dd/MM/yyyy)
+//   desde       → solo de esa fecha en adelante (dd/MM/yyyy)
+// Sin filtros devuelve el historial completo (>1000 pedidos, ~270 KB): las
+// pantallas que solo usan un día o una quincena deben acotar la consulta.
+function getHistorial(responsable, fecha, desde) {
   const estadosHistorial = ["Entregado a cliente", "Entregado a delivery"];
   const pedidos = [];
   const respFiltro = responsable ? normalizarResponsable(responsable) : null;
+  const fechaFiltro = (fecha || "").trim();
+  const desdeObj    = desde ? _parseFechaVE(desde.trim()) : null;
 
   const todasLasHojas = ss.getSheets();
   const hojasP = todasLasHojas.filter(h => h.getName().startsWith("Pedidos "));
@@ -464,6 +472,13 @@ function getHistorial(responsable) {
       const estado = row[11] || "";
       if (!estadosHistorial.includes(estado)) continue;
       if (respFiltro && normalizarResponsable(row[14]) !== respFiltro) continue;
+      // La fecha de referencia es la misma que usa el frontend al agrupar
+      const fechaRef = row[12] || row[0] || "";
+      if (fechaFiltro && fechaRef !== fechaFiltro) continue;
+      if (desdeObj) {
+        const refObj = _parseFechaVE(fechaRef);
+        if (!refObj || refObj < desdeObj) continue;
+      }
       pedidos.push({
         fila:          i + 1,
         hoja:          ws.getName(),
