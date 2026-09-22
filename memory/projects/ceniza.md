@@ -53,7 +53,7 @@ const FIN = { precio:30, costoTotal:16.75, utilNeta:13.25, fijosQuinc:591, metaV
 **Role views (all built):**
 - **Vendedora** — Mis pedidos (`loadVendedoraPedidos`), Nuevo pedido (carrito), Historial, Comisiones (`loadVendedoraComisiones`), Recogidas.
 - **Costurera** — Cola de producción por fecha (`loadCosturera`), Semana (`loadSemanaCosturera`), Historial, Arreglos, Insumos. Changes `estado`.
-- **Delivery** — Entregas del día (`loadDelivery`), mark "Entregado a cliente".
+- **Delivery** — Entregas del día (`loadDelivery`), mark "Entregado a cliente". An order appears **only on its scheduled fechaEntrega**; if it isn't delivered that day it stays there (navigate with the date arrows). The old "rezagada" rule — carrying undelivered orders forward to today with a ⚠️ badge — was removed on the owner's request (2026-09-22).
 - **Administración (dueña)** — Comisiones de todas las vendedoras, arrastres, encargos, pruebas, and a full **Finanzas** module: quincena, fondos, cuentas, costos, compras, inventario, producción, lote, plan/planificador, proyección, cierre, registro, historial.
 
 ---
@@ -62,8 +62,8 @@ const FIN = { precio:30, costoTotal:16.75, utilNeta:13.25, fijosQuinc:591, metaV
 
 | accion | Function | Notes |
 |---|---|---|
-| `produccion` | `getProduccion()` | Returns `{grupos, mes, total}` grouped by fechaEntrega, plus rezagadas |
-| `entregas` | `getEntregas(fecha)` | Delivery list for a date |
+| `produccion` | `getProduccion()` | Returns `{grupos, mes, total}` grouped by fechaEntrega |
+| `entregas` | `getEntregas(fecha)` | Delivery list for a date. Each order shows **only on its scheduled fechaEntrega** — nothing is carried forward (see Delivery note) |
 | `comisiones` | `getComisiones()` | Per-vendedora tiers, live: current fixed quincena + arrastre (previous quincena). Params ignored. |
 | `historial` | `getHistorial(responsable)` | |
 | `historialQuincenas` | `getHistorialQuincenas()` | All `Pedidos *` sheets → months (desc) × fixed quincenas × vendedora: pants, base (Q2 = Q1+Q2), pct, totalAPagar; `enCurso` flag |

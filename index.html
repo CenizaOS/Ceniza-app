@@ -220,9 +220,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .wa-hint a{color:var(--text3);text-decoration:underline;cursor:pointer}
 
 /* ── DATE NAV ── */
-.rezagada-header{display:flex;align-items:center;gap:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:10px;padding:8px 12px;margin-bottom:4px;font-size:11px;font-weight:700;color:rgb(217,119,6);text-transform:uppercase;letter-spacing:.05em}
-.rezagada-badge{display:inline-block;background:rgb(217,119,6);color:rgb(255,255,255);font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0}
-.card.rezagada{border-left:3px solid rgb(217,119,6)}
 /* ── CIERRE QUINCENA ── */
 .cierre-bloque{background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:10px}
 .cierre-titulo{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
@@ -1095,12 +1092,6 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
       filas.includes(p.fila) ? Object.assign({}, p, { estado: nuevoEstado }) : p
     );
   }
-  // También actualizar rezagadas en caché si aplica
-  if (_delCache[fechaCacheKey] && _delCache[fechaCacheKey].rezagadas) {
-    _delCache[fechaCacheKey].rezagadas = _delCache[fechaCacheKey].rezagadas.map(p =>
-      filas.includes(p.fila) ? Object.assign({}, p, { estado: nuevoEstado }) : p
-    );
-  }
 
   // ── Persistir en localStorage: guardar los pedidos entregados por fecha ──
   // Persistir filas Y objetos completos para que sobrevivan si la API no los devuelve al recargar
@@ -1115,20 +1106,6 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
     }
     localStorage.setItem(lsKey, JSON.stringify(donePedidos));
 
-    // ── Clave persistente para REZAGADAS (independiente de fecha) ──
-    // Necesario porque las rezagadas aparecen en cualquier fecha futura
-    const rezFilasEnCache = (_delCache[fechaCacheKey]?.rezagadas || []).map(r => r.fila);
-    const filasRezagadas = filas.filter(f => rezFilasEnCache.includes(f));
-    if (filasRezagadas.length) {
-      let rezDone = JSON.parse(localStorage.getItem('ceniza_del_rez_done') || '[]');
-      if (!yaEntregado) {
-        filasRezagadas.forEach(f => { if (!rezDone.includes(f)) rezDone.push(f); });
-      } else {
-        rezDone = rezDone.filter(f => !filasRezagadas.includes(f));
-      }
-      localStorage.setItem('ceniza_del_rez_done', JSON.stringify(rezDone));
-    }
-
     // Guardar objetos completos para poder re-agregarlos si la API los omite
     const lsItemsKey = 'ceniza_del_items_' + fechaCacheKey;
     let savedItems = JSON.parse(localStorage.getItem(lsItemsKey) || '[]');
@@ -1136,7 +1113,7 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
       // Guardar los pedidos del caché marcados como entregados
       const cacheData = _delCache[fechaCacheKey];
       if (cacheData) {
-        const toSave = [...(cacheData.pedidos||[]), ...(cacheData.rezagadas||[])]
+        const toSave = (cacheData.pedidos || [])
           .filter(p => filas.includes(p.fila))
           .map(p => Object.assign({}, p, { estado: 'Entregado a cliente' }));
         toSave.forEach(p => {
@@ -1160,21 +1137,19 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
     );
     if (resultados.some(r => !r.success)) {
       mostrarToast('✕ Error al guardar');
-      // Revertir UI y caché (pedidos Y rezagadas)
+      // Revertir UI y caché
       if (yaEntregado) {
         btn.classList.add('checked'); btn.title='Tap para revertir';
         if (card) card.classList.add('done');
         if (stats[0]) stats[0].textContent = Math.max(0,parseInt(stats[0].textContent)-1);
         if (stats[1]) stats[1].textContent = parseInt(stats[1].textContent||0)+1;
         if (_delCache[fechaCacheKey]?.pedidos)   _delCache[fechaCacheKey].pedidos   = _delCache[fechaCacheKey].pedidos.map(p   => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a cliente'}):p);
-        if (_delCache[fechaCacheKey]?.rezagadas) _delCache[fechaCacheKey].rezagadas = _delCache[fechaCacheKey].rezagadas.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a cliente'}):p);
       } else {
         btn.classList.remove('checked'); btn.title='Marcar como entregado';
         if (card) card.classList.remove('done');
         if (stats[0]) stats[0].textContent = parseInt(stats[0].textContent||0)+1;
         if (stats[1]) stats[1].textContent = Math.max(0,parseInt(stats[1].textContent)-1);
         if (_delCache[fechaCacheKey]?.pedidos)   _delCache[fechaCacheKey].pedidos   = _delCache[fechaCacheKey].pedidos.map(p   => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a delivery'}):p);
-        if (_delCache[fechaCacheKey]?.rezagadas) _delCache[fechaCacheKey].rezagadas = _delCache[fechaCacheKey].rezagadas.map(p => filas.includes(p.fila)?Object.assign({},p,{estado:'Entregado a delivery'}):p);
       }
     } else {
       mostrarToast(yaEntregado ? '↩ Marcado como pendiente' : '✓ Entregado');
@@ -6744,32 +6719,18 @@ function _normFecha(s) {
 
 // Combina los pedidos entregados del historial y localStorage con los del día actual
 function _applyHistorialMerge(d, fecha) {
-  let pedidos   = (d.pedidos   || []).slice();
-  let rezagadas = (d.rezagadas || []).slice();
+  let pedidos = (d.pedidos || []).slice();
 
   try {
     // ── 1. Overlay de filas marcadas (para ítems que SÍ devolvió la API) ──
     const lsKey = 'ceniza_del_done_' + fecha;
     const doneFilas = JSON.parse(localStorage.getItem(lsKey) || '[]');
     if (doneFilas.length) {
-      pedidos   = pedidos.map(p =>
-        doneFilas.includes(p.fila) ? Object.assign({}, p, { estado: 'Entregado a cliente' }) : p
-      );
-      rezagadas = rezagadas.map(p =>
+      pedidos = pedidos.map(p =>
         doneFilas.includes(p.fila) ? Object.assign({}, p, { estado: 'Entregado a cliente' }) : p
       );
     }
 
-    // ── 1b. Overlay persistente para REZAGADAS (independiente de fecha) ──
-    // Aplica incluso al día siguiente cuando la clave por-fecha ya no coincide
-    try {
-      const rezDoneFilas = JSON.parse(localStorage.getItem('ceniza_del_rez_done') || '[]');
-      if (rezDoneFilas.length) {
-        rezagadas = rezagadas.map(p =>
-          rezDoneFilas.includes(p.fila) ? Object.assign({}, p, { estado: 'Entregado a cliente' }) : p
-        );
-      }
-    } catch(_) {}
 
     // ── 2. Re-agregar ítems completos guardados (para ítems que la API omite en fechas pasadas) ──
     const lsItemsKey = 'ceniza_del_items_' + fecha;
@@ -6798,21 +6759,11 @@ function _applyHistorialMerge(d, fecha) {
     }
   }
 
-  // ── Limpiar ceniza_del_rez_done de filas que ya no son rezagadas en la API ──
-  // Si GAS ya no las devuelve como rezagadas, el cambiarEstado fue exitoso → limpiar LS
-  try {
-    const rezDoneRaw = localStorage.getItem('ceniza_del_rez_done');
-    if (rezDoneRaw) {
-      let rezDone = JSON.parse(rezDoneRaw);
-      const filasRezActuales = new Set(rezagadas.map(r => r.fila));
-      const rezDoneFiltrado = rezDone.filter(f => filasRezActuales.has(f)); // mantener solo los que siguen siendo rezagadas
-      if (rezDoneFiltrado.length !== rezDone.length) {
-        localStorage.setItem('ceniza_del_rez_done', JSON.stringify(rezDoneFiltrado));
-      }
-    }
-  } catch(_) {}
+  // Los pedidos ya no se arrastran de una fecha a otra: la clave de rezagadas
+  // que quedó en teléfonos viejos ya no se usa.
+  try { localStorage.removeItem('ceniza_del_rez_done'); } catch(_) {}
 
-  return Object.assign({}, d, { pedidos, rezagadas });
+  return Object.assign({}, d, { pedidos });
 }
 
 // Carga el historial de entregas. Usa 'historial' (tiene fechaEntrega real por item)
@@ -6893,8 +6844,7 @@ function renderDelivery(d, fecha) {
 
   // Contar grupos-cliente (no filas individuales)
   const todosGrupos = agruparPorCliente(d.pedidos);
-  const rezCount = (d.rezagadas || []).length;
-  const pendientes = todosGrupos.filter(g => !g.items.every(p => p.estado === 'Entregado a cliente')).length + rezCount;
+  const pendientes = todosGrupos.filter(g => !g.items.every(p => p.estado === 'Entregado a cliente')).length;
   const entregados = todosGrupos.filter(g => g.items.every(p => p.estado === 'Entregado a cliente')).length;
 
   let html = `
@@ -6911,93 +6861,6 @@ function renderDelivery(d, fecha) {
       <div class="del-stat"><div class="del-stat-n" style="color:var(--green)">${entregados}</div><div class="del-stat-l">Entregados</div></div>
     </div>`;
 
-  // ── Rezagadas ──────────────────────────────────────────────
-  const rezagadas = d.rezagadas || [];
-  // Agrupar rezagadas por tipo para mezclarlas con pedidos del día
-  // Agrupar rezagadas por tipo de entrega Y por cliente (para mostrar un pedido por cliente)
-  const _rezTemp = {};
-  rezagadas.forEach(function(p) {
-    const t = p.tipoEntrega || 'Sin tipo';
-    if (!_rezTemp[t]) _rezTemp[t] = {};
-    const key = (p.cliente || '') + '|' + (p.fechaOriginal || '');
-    if (!_rezTemp[t][key]) _rezTemp[t][key] = [];
-    _rezTemp[t][key].push(p);
-  });
-  const rezPorTipo = {};
-  Object.keys(_rezTemp).forEach(function(t) {
-    rezPorTipo[t] = Object.values(_rezTemp[t]); // array de grupos (cada grupo = array de pants)
-  });
-
-  // Helper: renderiza una tarjeta rezagada (se inserta dentro de la sección de su tipo)
-  function _renderRezCard(pants, tipo, idx) {
-    // pants = array de pedidos del mismo cliente agrupados
-    const p = pants[0];
-    const cardId = 'del-rez-' + tipo.replace(/\s/g,'-') + '-' + idx;
-    const filas = pants.map(function(x){ return x.fila; });
-    const tel = (p.telefono || '').replace(/[^0-9]/g,'');
-    const telDisplay = p.telefono || '';
-    const waLink = tel ? 'https://wa.me/58' + (tel.startsWith('0') ? tel.slice(1) : tel) : '';
-    const monto = pants.reduce(function(s,x){ return s + parseFloat(x.montoProducto||0) + parseFloat(x.montoDelivery||0); }, 0);
-    const metodoPago = (p.metodoPago || '').toLowerCase();
-    const esCobrar = metodoPago.includes('efectivo') && monto > 0;
-    const montoEfectivo = parseFloat(p.montoEfectivo || 0);
-    const vueltoGuardado = parseFloat(p.vuelto || 0);
-    const cedula = p.cedula || '';
-    const esEnvio = tipo.indexOf('MRW') >= 0 || tipo.indexOf('ZOOM') >= 0;
-
-    let vueltoHtml = '';
-    if (esCobrar) {
-      vueltoHtml += '<div class="del-card-monto">Cobrar ' + fmt$(monto) + '</div>';
-      if (montoEfectivo > 0) vueltoHtml += '<div style="font-size:12px;color:var(--text3);margin-top:3px">Paga con ' + fmt$(montoEfectivo) + '</div>';
-      if (vueltoGuardado > 0) vueltoHtml += '<div style="font-size:13px;font-weight:700;color:var(--green);margin-top:3px">Vuelto: ' + fmt$(vueltoGuardado) + '</div>';
-    }
-
-    let infoHtml = '';
-    if (esEnvio) {
-      const safeNombre = p.cliente.replace(/"/g,'&quot;');
-      const safeCed = cedula.replace(/"/g,'&quot;');
-      const safeDir = (p.direccion||'').replace(/"/g,'&quot;');
-      infoHtml += '<div class="del-envio-block" data-nombre="' + safeNombre + '" data-cedula="' + safeCed + '" data-tel="' + telDisplay + '" data-dir="' + safeDir + '">';
-      if (cedula) infoHtml += '<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">🪲</span><span class="del-envio-cedula">' + cedula + '</span></div>';
-      if (telDisplay) {
-        infoHtml += '<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📞</span><a href="tel:' + telDisplay + '">' + telDisplay + '</a>';
-        if (waLink) infoHtml += ' <a class="del-wa-mini" href="' + waLink + '" target="_blank">WA</a>';
-        infoHtml += '</div>';
-      }
-      if (p.direccion) infoHtml += '<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>' + p.direccion + '</span></div>';
-      infoHtml += '<button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>';
-      infoHtml += '</div>';
-    } else {
-      if (cedula) infoHtml += '<div class="del-envio-row" style="margin-bottom:4px"><span style="font-size:11px;color:var(--text3)">🪲</span><span class="del-envio-cedula">' + cedula + '</span></div>';
-      if (telDisplay) {
-        infoHtml += '<div class="del-phone-row"><a class="del-phone-link" href="tel:' + telDisplay + '">📞 ' + telDisplay + '</a>';
-        if (waLink) infoHtml += '<a class="del-wa-mini" href="' + waLink + '" target="_blank">WA</a>';
-        infoHtml += '</div>';
-      }
-      if (p.direccion) infoHtml += '<div class="del-card-dir">📍 ' + p.direccion + '</div>';
-    }
-
-    const doneRez = pants.every(function(x){ return x.estado === 'Entregado a cliente'; });
-    let cardHtml = '<div class="del-card rezagada' + (doneRez ? ' done' : '') + '" id="' + cardId + '" style="border-left:3px solid #d97706">';
-    cardHtml += '<div class="del-card-info">';
-    cardHtml += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">';
-    cardHtml += '<div class="del-card-name">' + p.cliente + '</div>';
-    cardHtml += '<span class="rezagada-badge">⚠️ Rezagada · ' + (p.fechaOriginal||'?') + '</span>';
-    cardHtml += '</div>';
-    const nPants = pants.length;
-    cardHtml += '<div class="del-card-det">' + nPants + ' pantalón' + (nPants > 1 ? 'es:' : ':') + '</div>';
-    pants.forEach(function(x) {
-      const partes = [x.color, x.talla||''].filter(Boolean).join(' · ');
-      cardHtml += '<div style="font-size:12px;color:var(--text3);margin-top:2px;padding-left:8px">· ' + partes + '</div>';
-    });
-    cardHtml += infoHtml;
-    const todasNotas = [...new Set(pants.map(function(x){ return x.notas; }).filter(Boolean))].join(' / '); if (todasNotas) cardHtml += '<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:2px solid var(--amber);border-radius:4px;font-size:11px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 </span>' + todasNotas + '</div>';
-    cardHtml += vueltoHtml;
-    cardHtml += '</div>';
-    cardHtml += '<button class="del-check' + (doneRez ? ' checked' : '') + '" onclick="marcarGrupoEntregado(\'' + cardId + '\',[' + filas.join(',') + '],this)" title="' + (doneRez ? 'Tap para revertir' : 'Marcar como entregado') + '"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>';
-    cardHtml += '</div>';
-    return cardHtml;
-  }
 
 
   // ── Pre-calcular arreglos del día ──────────────────────
@@ -7052,7 +6915,7 @@ function renderDelivery(d, fecha) {
   ];
   // Agregar dinámicamente cualquier tipo de entrega que exista en los datos pero no en la lista
   const _tiposVistos = new Set(tiposEntrega.map(function(t){ return t.tipo; }));
-  [...(d.pedidos || []), ...(rezagadas || [])].forEach(function(p) {
+  (d.pedidos || []).forEach(function(p) {
     if (p.tipoEntrega && !_tiposVistos.has(p.tipoEntrega)) {
       _tiposVistos.add(p.tipoEntrega);
       tiposEntrega.push({ tipo: p.tipoEntrega, icono: '📦', label: p.tipoEntrega });
@@ -7060,7 +6923,7 @@ function renderDelivery(d, fecha) {
   });
   const mostrados = new Set();
 
-  if (!d.pedidos.length && !rezagadas.length && !aEntregar.length) {
+  if (!d.pedidos.length && !aEntregar.length) {
     html += '<div class="empty-state">Sin entregas para este día</div>';
   }
 
@@ -7068,12 +6931,11 @@ function renderDelivery(d, fecha) {
   tiposEntrega.forEach(t => {
     const rawItems        = d.pedidos.filter(p => p.tipoEntrega === t.tipo);
     const arreglosDelTipo = arreglosPorTipo[t.tipo] || [];
-    const rezDelTipo      = rezPorTipo[t.tipo] || [];
-    if (!rawItems.length && !arreglosDelTipo.length && !rezDelTipo.length) return;
+    if (!rawItems.length && !arreglosDelTipo.length) return;
 
     rawItems.forEach(p => mostrados.add(p.fila));
     const clienteGrupos = agruparPorCliente(rawItems);
-    const totalCount = clienteGrupos.length + arreglosDelTipo.length + rezDelTipo.length;
+    const totalCount = clienteGrupos.length + arreglosDelTipo.length;
     html += `<div class="del-section">
       <div class="del-section-title">${t.icono} ${t.label} <span style="margin-left:4px;font-weight:400;color:var(--text3)">(${totalCount})</span></div>`;
 
@@ -7134,9 +6996,6 @@ function renderDelivery(d, fecha) {
 
     // Arreglos del día en este mismo grupo de tipo de entrega
     arreglosDelTipo.forEach(a => { html += _renderArregloCard(a); });
-
-    // Rezagadas de este mismo tipo (mezcladas en la misma sección)
-    rezDelTipo.forEach((grupo, idx) => { html += _renderRezCard(grupo, t.tipo, idx); });
 
     html += `</div>`;
   });

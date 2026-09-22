@@ -188,9 +188,6 @@ function getEntregas(fechaParam) {
   const datos = ws.getDataRange().getDisplayValues();
   const fechaBuscar = fechaParam || Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
   const estadosEntrega    = ["Entregado a delivery", "Entregado a cliente"];
-  const estadosTerminales = ["Entregado a cliente", "Cancelado", "Cambio", "Arreglo"];
-  const fechaHoy    = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
-  const fechaHoyObj = _parseFechaVE(fechaHoy);
 
   const cedulaMap = {};
   const wsClientes = ss.getSheetByName("Clientes");
@@ -226,8 +223,9 @@ function getEntregas(fechaParam) {
     }, extras || {});
   };
 
-  const pedidos   = [];
-  const rezagadas = [];
+  // Cada pedido aparece SOLO en su fecha de entrega pautada. Si no se entregó
+  // ese día, sigue ahí: se consulta con las flechas de fecha, no se arrastra.
+  const pedidos = [];
 
   for (let i = 1; i < datos.length; i++) {
     const row = datos[i];
@@ -235,23 +233,6 @@ function getEntregas(fechaParam) {
     const fechaEntrega = row[12] || "";
     const estado       = row[11] || "";
     if (estado === "Cancelado") continue;
-
-    const fechaEntregaObj = _parseFechaVE(fechaEntrega);
-    const fechaPedidoObj  = _parseFechaVE(row[0]);
-
-    const esRezagadaPorFechaEntrega =
-      fechaEntregaObj && fechaHoyObj && fechaEntregaObj < fechaHoyObj &&
-      !estadosTerminales.includes(estado);
-
-    const esRezagadaSinFecha =
-      !fechaEntregaObj &&
-      estado === "Entregado a delivery" &&
-      fechaPedidoObj && fechaHoyObj && fechaPedidoObj < fechaHoyObj;
-
-    if (esRezagadaPorFechaEntrega || esRezagadaSinFecha) {
-      rezagadas.push(buildRow(row, i, { fechaOriginal: fechaEntrega || row[0] || "?" }));
-      continue;
-    }
 
     const coincideFecha = (fechaEntrega === fechaBuscar) ||
                           (fechaEntrega === "" && estadosEntrega.includes(estado) && row[0] === fechaBuscar);
@@ -261,7 +242,6 @@ function getEntregas(fechaParam) {
 
   const orden = { "Delivery": 0, "Envío MRW": 1, "Envío ZOOM": 2, "Retiro personal": 3 };
   pedidos.sort((a, b) => (orden[a.tipoEntrega] || 9) - (orden[b.tipoEntrega] || 9));
-  rezagadas.sort((a, b) => (_parseFechaVE(a.fechaOriginal) || 0) - (_parseFechaVE(b.fechaOriginal) || 0));
 
   return {
     fecha:     fechaBuscar,
@@ -269,8 +249,7 @@ function getEntregas(fechaParam) {
     delivery:  pedidos.filter(p => p.tipoEntrega === "Delivery").length,
     envios:    pedidos.filter(p => p.tipoEntrega && p.tipoEntrega.includes("Env")).length,
     retiros:   pedidos.filter(p => p.tipoEntrega === "Retiro personal").length,
-    pedidos,
-    rezagadas
+    pedidos
   };
 }
 
