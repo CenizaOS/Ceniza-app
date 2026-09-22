@@ -1031,6 +1031,11 @@ const checkSVG   = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/>
 function fechaStr(d) {
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 }
+// YYYY-MM-DD de la fecha LOCAL. toISOString() da UTC, que en Venezuela (UTC-4)
+// adelanta al día siguiente a partir de las 20:00.
+function isoLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function fechaLabel(d) {
   const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
   const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
@@ -1197,7 +1202,7 @@ const CONFIG_KEYS = [
   'ceniza_colores_tela','ceniza_fin','ceniza_inventario','ceniza_insumos',
   'ceniza_encargos','ceniza_arreglos','ceniza_lote_pants',
   'ceniza_lote_producto','ceniza_compras_efectivo_log','ceniza_produccion_lotes',
-  'ceniza_historial_cierres','ceniza_cierre_ultimo','delivery_wa_number',
+  'ceniza_historial_cierres','ceniza_cierre_ultimo',
   'ceniza_pruebas',
   'ceniza_costos_productos',
   'ceniza_registro_quincenas',
@@ -6605,14 +6610,14 @@ function registrarCierreDelDia(fechaStr) {
 function renderCajaSemanal() {
   const lunes = _getLunesSemana();
   const DIAS_ES = ['Lun','Mar','Mie','Jue','Vie','Sab'];
-  const hoyISO = new Date().toISOString().slice(0,10);
+  const hoyISO = isoLocal(new Date());
   let totalSemana = 0;
   let rowsHtml = '';
 
   for (let i = 0; i < 6; i++) {
     const d = new Date(lunes);
     d.setDate(lunes.getDate() + i);
-    const iso = d.toISOString().slice(0,10);
+    const iso = isoLocal(d);
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
     const label = DIAS_ES[i]+' '+dd+'/'+mm;
@@ -6666,13 +6671,16 @@ async function loadDelivery(offset, forzar=false) {
   const fecha = fechaStr(fechaDeliveryActual);
   // Hit de cache: renderizar instantaneamente (memoria o localStorage)
   if (forzar) { delete _delCache[fecha]; _historialCache = null; } // forzar limpia todo
+  // Se muestra al instante lo guardado y SIEMPRE se vuelve a consultar en
+  // segundo plano: si no, la lista del día se quedaba congelada en la versión
+  // de la primera carga y los pedidos nuevos no aparecían hasta pulsar Actualizar.
   const cachedData = forzar ? null : _delCacheLoad(fecha);
   if (cachedData) {
     renderDelivery(_applyHistorialMerge(cachedData, fecha), fecha);
     _prefetchDelivery();
-    if (!forzar) return; // ya está fresco, no re-fetch
+  } else {
+    document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   }
-  if (!cachedData) document.getElementById('del-content').innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   syncArreglos().catch(() => {}); // en segundo plano, no bloquear
   try {
     // Historial carga en segundo plano; cuando termina re-renderiza si el usuario sigue en la misma fecha
@@ -6691,11 +6699,19 @@ async function loadDelivery(offset, forzar=false) {
 
     const dMerged = _applyHistorialMerge(d, fecha);
     _delCacheSave(fecha, dMerged);
+    // Si mientras cargaba se cambió de fecha, no pisar la pantalla que se está viendo
+    if (fechaStr(fechaDeliveryActual) !== fecha) return;
     document.getElementById('del-mes').textContent = dMerged.fecha || '';
     renderDelivery(dMerged, fecha);
     _prefetchDelivery();
   } catch(e) {
-    document.getElementById('del-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadDelivery(0,true)">${refreshIcon}Reintentar</button>`;
+    if (fechaStr(fechaDeliveryActual) !== fecha) return;
+    if (cachedData) {
+      // Ya hay una lista en pantalla: avisar en vez de borrarla
+      mostrarToast('✕ No se pudo actualizar: ' + e.message);
+    } else {
+      document.getElementById('del-content').innerHTML = `<div class="err-card">${e.message}</div><button class="btn" onclick="loadDelivery(0,true)">${refreshIcon}Reintentar</button>`;
+    }
   }
 }
 
@@ -6976,8 +6992,8 @@ function renderDelivery(d, fecha) {
           ${cg.direccion ? `<div class="del-envio-row"><span style="font-size:11px;color:var(--text3)">📍</span><span>${cg.direccion}</span></div>` : ''}
           <button class="del-copy-btn" onclick="copiarDatosEnvio(this)">📋 Copiar datos</button>
         </div>` : `${phoneHtml}${!esEnvio && cg.direccion && tipo!=='Retiro personal' ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-      const notasHtml = cg.items.filter(p => p.notas).map(p =>
-        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      const notasHtml = [...new Set(cg.items.map(p => p.notas).filter(Boolean))].map(nota =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${nota}</div>`
       ).join('');
       html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
         <div class="del-card-info">
@@ -7036,8 +7052,8 @@ function renderDelivery(d, fecha) {
           ${waLink ? `<a class="del-wa-mini" href="${waLink}" target="_blank">WA</a>` : ''}
         </div>` : '';
       const infoHtml = `${phoneHtml}${cg.direccion ? `<div class="del-card-dir">📍 ${cg.direccion}</div>` : ''}`;
-      const notasHtml = cg.items.filter(p => p.notas).map(p =>
-        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${p.notas}</div>`
+      const notasHtml = [...new Set(cg.items.map(p => p.notas).filter(Boolean))].map(nota =>
+        `<div style="margin-top:6px;padding:6px 8px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:12px;color:var(--text)"><span style="font-weight:700;color:#d97706">📋 Nota: </span>${nota}</div>`
       ).join('');
       html += `<div class="del-card ${done ? 'done' : ''}" id="${cardId}">
         <div class="del-card-info">
@@ -7108,34 +7124,6 @@ function renderDelivery(d, fecha) {
   document.getElementById('del-content').innerHTML = html;
 }
 
-// ══════════════════════════════════════════════════════════
-// WHATSAPP
-// ══════════════════════════════════════════════════════════
-function generarMensajeDelivery(pedidos, fecha){
-  const del=pedidos.filter(p=>p.tipoEntrega==='Delivery');
-  const mrw=pedidos.filter(p=>p.tipoEntrega==='Envío MRW');
-  const zoom=pedidos.filter(p=>p.tipoEntrega==='Envío ZOOM');
-  const tot=del.length+mrw.length+zoom.length;
-  let msg=`🚚 *Entregas del ${fecha}*\n_${tot} pedido${tot!==1?'s':''} en total_\n`;
-  const bloque=(titulo,arr)=>{
-    if(!arr.length) return;
-    msg+=`\n*${titulo} (${arr.length}):*\n`;
-    arr.forEach((p,i)=>{
-      msg+=`${i+1}. *${p.cliente}*\n   ${p.color} · ${p.talla}\n`;
-      if(p.direccion) msg+=`   📍 ${p.direccion}\n`;
-      const t=parseFloat(p.montoProducto||0)+parseFloat(p.montoDelivery||0);
-      if(t>0) msg+=`   💵 ${fmt$(t)}\n`;
-    });
-  };
-  bloque('📦 Delivery',del); bloque('📮 MRW',mrw); bloque('📮 ZOOM',zoom);
-  return msg.trim();
-}
-function enviarADelivery(){
-  let num=localStorage.getItem('delivery_wa_number');
-  if(!num){ num=prompt('Número WhatsApp del delivery\n(con código de país, sin espacios)\nEj: 584141234567'); if(!num) return; num=num.replace(/\D/g,''); cfgSet('delivery_wa_number',num); }
-  window.open(`https://wa.me/${num}?text=${encodeURIComponent(generarMensajeDelivery(_entPedidos,_entFecha))}`, '_blank');
-}
-function cambiarNumeroDelivery(){ localStorage.removeItem('delivery_wa_number'); enviarADelivery(); }
 
 // ══════════════════════════════════════════════════════════
 // COMISIONES

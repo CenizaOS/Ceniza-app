@@ -85,6 +85,12 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 - Un pedido aparece **solo en su fecha de entrega pautada**. Si no se entrega ese día, sigue ahí: se consulta con las flechas de fecha, no se arrastra al día siguiente.
 - Se eliminó la regla de "rezagadas" (backend `getEntregas` ya no devuelve `rezagadas`; frontend sin badge ⚠️, sin sección aparte, sin `ceniza_del_rez_done`).
 
+## Delivery — arreglos (2026-09-22)
+- `loadDelivery` ahora es *stale-while-revalidate*: pinta la caché al instante pero **siempre** vuelve a consultar. Antes, con caché la función salía temprano y la lista del día quedaba congelada. Un fallo al refrescar avisa con toast en vez de borrar la lista visible.
+- Guardas de carrera: si se cambia de fecha mientras carga, la respuesta vieja ya no pisa la pantalla.
+- `isoLocal(d)` reemplaza a `toISOString()` en la pestaña Caja (UTC adelantaba el día desde las 20:00 en Venezuela). **Quedan 3 usos del mismo patrón fuera de Delivery**: `agregarEfectivoEntry`, `arregloAgendarEntrega` y el `value` del input `#efec-fecha`.
+- Notas de cliente deduplicadas: con varios pantalones que comparten nota, se repetía una vez por pantalón.
+
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.
 - Backend `finanzas` / `guardarFinanzas` depend on the missing `Tasas` sheet (they return empty / an error gracefully) — only used by the orphan Fondos/Cuentas UI.
