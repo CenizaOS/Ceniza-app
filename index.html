@@ -1003,14 +1003,39 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQFyA8DWjRDWOnUlvCRKv_fiqLQ87aosAHoNBX9S_b/exec";
 
+// Token de sesión: se recibe al entrar con el PIN y acompaña a cada consulta.
+// Sin él, el servidor no devuelve datos.
+let _token = '';
+try { _token = localStorage.getItem('ceniza_token') || ''; } catch(_) {}
+
+function setToken(t) {
+  _token = t || '';
+  try { t ? localStorage.setItem('ceniza_token', t) : localStorage.removeItem('ceniza_token'); } catch(_) {}
+}
+
+// Única forma de armar una URL del servidor: así ninguna llamada se queda sin token
+function apiUrl(qs) {
+  return `${API}?${qs}` + (_token ? `&token=${encodeURIComponent(_token)}` : '');
+}
+
+// El token caducó o no vale: volver a pedir el PIN
+function sesionCaducada() {
+  setToken('');
+  try { localStorage.removeItem('ceniza_rol'); } catch(_) {}
+  mostrarToast('Tu sesión expiró. Vuelve a entrar con tu PIN.');
+  showScreen('screen-rol');
+}
+
 async function fetchData(accion, extra = '', _intento = 0) {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), 15000); // 15s timeout por intento
   try {
-    const res = await fetch(`${API}?accion=${accion}${extra}`, { signal: ctrl.signal });
+    const res = await fetch(apiUrl(`accion=${accion}${extra}`), { signal: ctrl.signal });
     clearTimeout(tid);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    const json = await res.json();
+    if (json && json.error === 'NO_AUTORIZADO') { sesionCaducada(); throw new Error('Sesión expirada'); }
+    return json;
   } catch(e) {
     clearTimeout(tid);
     // Reintentar hasta 2 veces automáticamente (cold start de Apps Script)
@@ -1146,7 +1171,7 @@ async function marcarGrupoEntregado(cardId, filas, btn) {
   try {
     const resultados = await Promise.all(
       filas.map(fila =>
-        fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(nuevoEstado)}`).then(r => r.json())
+        fetch(apiUrl(`accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(nuevoEstado)}`)).then(r => r.json())
       )
     );
     if (resultados.some(r => !r.success)) {
@@ -1293,13 +1318,9 @@ function cfgSet(clave, valor) {
   pushConfig(clave, str);
 }
 
-const PINES = {
-  vendedora: '1818',
-  costurera: '5690',
-  delivery:  '5420',
-  compras:   '3030',
-  duena:     '5439'
-};
+// Los PIN ya no están aquí: viven en el servidor, que es quien los comprueba.
+// Este archivo es público (GitHub Pages), así que cualquier PIN escrito en él
+// lo puede leer cualquiera.
 const ROL_NOMBRES = {
   vendedora: 'Vendedora',
   costurera: 'Taller de costura',
@@ -1325,7 +1346,7 @@ function saveEncargos(list) {
   cfgSet('ceniza_encargos', JSON.stringify(list));
   // Sincronizar al servidor (fire & forget — no bloquea la UI)
   const encoded = encodeURIComponent(JSON.stringify(list));
-  fetch(`${API}?accion=setEncargos&data=${encoded}`).catch(() => {});
+  fetch(apiUrl(`accion=setEncargos&data=${encoded}`)).catch(() => {});
 }
 
 // ── Colores de tela ────────────────────────────────────────
@@ -1809,7 +1830,7 @@ function saveArreglos(list) {
   cfgSet('ceniza_arreglos', JSON.stringify(list));
   // Sincronizar al servidor para compartir entre dispositivos
   const encoded = encodeURIComponent(JSON.stringify(list));
-  fetch(`${API}?accion=setArreglos&data=${encoded}`).catch(() => {});
+  fetch(apiUrl(`accion=setArreglos&data=${encoded}`)).catch(() => {});
 }
 
 // Carga arreglos desde el servidor y actualiza localStorage
@@ -2202,12 +2223,15 @@ function initApp() {
     if (!localStorage.getItem('ceniza_nombre_' + rol)) localStorage.setItem('ceniza_nombre_' + rol, nombre);
   }
   // Show initial screen immediately — never wait on network for navigation
+  // Con rol guardado pero sin token (app recién actualizada o sesión caducada)
+  // hay que volver a pedir el PIN: sin token el servidor no devuelve datos.
   const rol = localStorage.getItem('ceniza_rol');
-  if (!rol) {
+  if (!rol || !_token) {
     showScreen('screen-rol');
   } else {
     showApp(rol);
   }
+
   // Sync config in background (fire & forget — must NOT affect navigation)
   syncConfigDesdeSheets();
 }
@@ -2357,6 +2381,7 @@ function cambiarNombreVendedora() { cambiarNombreRol('vendedora'); }
 
 function logoutRol() {
   localStorage.removeItem('ceniza_rol');
+  setToken('');   // cerrar sesión de verdad, no solo cambiar de pantalla
   showScreen('screen-rol');
 }
 
@@ -2384,16 +2409,29 @@ function actualizarDots() {
   }
 }
 
-function verifyPin() {
-  if (pinActual === PINES[rolPendiente]) {
+async function verifyPin() {
+  const errEl = document.getElementById('pin-error');
+  errEl.textContent = 'Comprobando…';
+  let ok = false, msg = 'PIN incorrecto';
+  try {
+    const r = await fetchData('login', `&rol=${encodeURIComponent(rolPendiente)}&pin=${encodeURIComponent(pinActual)}`);
+    ok = !!(r && r.ok && r.token);
+    if (ok) setToken(r.token);
+    else if (r && r.error) msg = r.error;
+  } catch(e) {
+    msg = 'Sin conexión. Intenta de nuevo.';
+  }
+  if (ok) {
+    errEl.textContent = '';
     localStorage.setItem('ceniza_rol', rolPendiente);
     showApp(rolPendiente);
   } else {
+
     for (let i = 0; i < 4; i++) document.getElementById('pd' + i).classList.add('error');
     const dotsEl = document.getElementById('pin-dots');
     dotsEl.classList.add('shake');
     setTimeout(() => dotsEl.classList.remove('shake'), 500);
-    document.getElementById('pin-error').textContent = 'PIN incorrecto';
+    errEl.textContent = msg;
     pinActual = '';
     setTimeout(actualizarDots, 600);
   }
@@ -4027,7 +4065,57 @@ function renderFinQuincena() {
       </div>
       <div id="fin-hist-quincenas">${window._histQuincenasHTML || ''}</div>
     </div>
+
+    <!-- Seguridad: cambiar los PIN de acceso -->
+    <div class="fin-card" style="margin-top:4px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔒 Seguridad</div>
+      <div id="seguridad-content">
+        <button onclick="renderSeguridad()" style="width:100%;background:var(--bg3);border:1px solid var(--bg4);color:var(--text);border-radius:9px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">Cambiar PIN de acceso</button>
+      </div>
+    </div>
   `;
+}
+
+// ── Cambiar el PIN de un rol (solo Administración) ──────────
+// Los PIN viven en el servidor; aquí solo se manda el nuevo.
+function renderSeguridad() {
+  const roles = [['vendedora','Vendedora'],['costurera','Taller de costura'],
+                 ['delivery','Delivery de entregas'],['compras','Delivery de compras'],
+                 ['duena','Administración']];
+  document.getElementById('seguridad-content').innerHTML = `
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Elige el rol y escribe su PIN nuevo de 4 números.</div>
+    <select id="seg-rol" style="width:100%;box-sizing:border-box;padding:10px;border-radius:9px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text);font-size:14px;margin-bottom:8px">
+      ${roles.map(r => `<option value="${r[0]}">${r[1]}</option>`).join('')}
+    </select>
+    <input id="seg-pin" type="tel" inputmode="numeric" maxlength="4" placeholder="PIN nuevo"
+      style="width:100%;box-sizing:border-box;padding:10px;border-radius:9px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text);font-size:16px;font-weight:700;letter-spacing:.3em;text-align:center;margin-bottom:8px">
+    <input id="seg-pin2" type="tel" inputmode="numeric" maxlength="4" placeholder="Repite el PIN"
+      style="width:100%;box-sizing:border-box;padding:10px;border-radius:9px;border:1px solid var(--bg4);background:var(--bg2);color:var(--text);font-size:16px;font-weight:700;letter-spacing:.3em;text-align:center;margin-bottom:10px">
+    <button onclick="guardarPinRol()" class="btn" style="width:100%;background:var(--green);color:#fff;border-color:var(--green)">Guardar PIN</button>
+    <div id="seg-status" style="font-size:12px;color:var(--text3);margin-top:8px"></div>`;
+}
+
+async function guardarPinRol() {
+  const rol  = document.getElementById('seg-rol').value;
+  const pin  = (document.getElementById('seg-pin').value || '').trim();
+  const pin2 = (document.getElementById('seg-pin2').value || '').trim();
+  const st   = document.getElementById('seg-status');
+  if (!/^\d{4}$/.test(pin)) { st.textContent = 'El PIN debe tener 4 números.'; return; }
+  if (pin !== pin2)         { st.textContent = 'Los dos PIN no coinciden.';     return; }
+  st.textContent = 'Guardando…';
+  try {
+    const r = await fetchData('cambiarPin', `&rol=${encodeURIComponent(rol)}&pin=${encodeURIComponent(pin)}`);
+    if (r && r.ok) {
+      st.innerHTML = '<span style="color:var(--green);font-weight:600">✓ PIN actualizado</span>';
+      document.getElementById('seg-pin').value = '';
+      document.getElementById('seg-pin2').value = '';
+      mostrarToast('✓ PIN actualizado');
+    } else {
+      st.textContent = '✕ ' + ((r && r.error) || 'No se pudo guardar');
+    }
+  } catch(e) {
+    st.textContent = '✕ ' + e.message;
+  }
 }
 
 // ── Historial de quincenas: ventas y comisión de cada quincena de cada mes ──
@@ -4228,7 +4316,7 @@ async function guardarFondo(tipo, inputId) {
   _fondos[tipo] = valor;
   _guardarFinLocal();
   try {
-    await fetch(`${API}?accion=guardarFinanzas&tipo=${tipo}&valor=${valor}`);
+    await fetch(apiUrl(`accion=guardarFinanzas&tipo=${tipo}&valor=${valor}`));
   } catch(e) {}
   mostrarToast('✓ Saldo actualizado');
   renderFinFondos();
@@ -4405,7 +4493,7 @@ async function guardarCuentas() {
     const p = new URLSearchParams({ accion:'guardarFinanzas',
       c_binance:_cuentas.binance, c_bolivares:_cuentas.bolivares,
       c_usdEfectivo:_cuentas.usdEfectivo, c_paypal:_cuentas.paypal });
-    await fetch(`${API}?${p}`);
+    await fetch(apiUrl(String(p)));
   } catch(e) {}
   mostrarToast('✓ Cuentas guardadas');
 }
@@ -4419,7 +4507,7 @@ async function guardarTasas() {
   _guardarFinLocal();
   try {
     const p = new URLSearchParams({ accion:'guardarFinanzas', tipo:'tasas', t_bcv:bcv, t_usdt:usdt });
-    await fetch(`${API}?${p}`);
+    await fetch(apiUrl(String(p)));
   } catch(e) {}
   mostrarToast('💱 Tasas actualizadas');
   renderFinCuentas();
@@ -4715,7 +4803,7 @@ async function guardarCierre() {
       crecimiento: _fondos.crecimiento,
       empresa:     _fondos.empresa || 0
     });
-    await fetch(`${API}?${p}`);
+    await fetch(apiUrl(String(p)));
   } catch(e) {}
 
   // Guardar último cierre para tab Plan
@@ -6266,7 +6354,7 @@ async function loadCostHistorial(verTodo = false) {
 async function historialMarcarEntregado(fila) {
   const card = document.getElementById('hcost-card-' + fila);
   if (card) card.style.opacity = '0.38';
-  fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent('Entregado a cliente')}`)
+  fetch(apiUrl(`accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent('Entregado a cliente')}`))
     .then(r => r.json())
     .then(data => {
       if (!data.success) {
@@ -6382,7 +6470,7 @@ async function refreshInsumos() {
   const el = document.getElementById('cost-insumos-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Actualizando inventario...</div>';
   try {
-    const res = await fetch(`${API}?accion=leerConfig`);
+    const res = await fetch(apiUrl(`accion=leerConfig`));
     const data = await res.json();
     // Forzar sobreescritura de insumos y colores desde Sheets
     if (data['ceniza_insumos'] && data['ceniza_insumos'] !== '') {
@@ -6564,7 +6652,7 @@ async function cambiarEstadoPedido(fila, estado, sel) {
   }
 
   // 3. API en el fondo — sin bloquear
-  fetch(`${API}?accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(estado)}`)
+  fetch(apiUrl(`accion=cambiarEstado&fila=${fila}&estado=${encodeURIComponent(estado)}`))
     .then(r => r.json())
     .then(data => {
       if (data.success) {
@@ -7533,7 +7621,7 @@ function confirmarEliminar(fila, cliente) {
   _eliminarConfirm[fila] = false;
   btn.textContent = '⏳';
   btn.disabled = true;
-  fetch(`${API}?accion=eliminarPedido&fila=${encodeURIComponent(fila)}`)
+  fetch(apiUrl(`accion=eliminarPedido&fila=${encodeURIComponent(fila)}`))
     .then(r => r.json())
     .then(data => {
       if (data.success) {

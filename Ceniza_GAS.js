@@ -67,11 +67,161 @@ function _conLock(fn) {
   }
 }
 
+// ─── AUTENTICACIÓN ───────────────────────────────────────────────────────────
+// Los PIN NO viven en el código: se guardan en las Propiedades del script, que
+// solo ve la dueña del proyecto. El código de la app es público (GitHub Pages),
+// así que cualquier cosa escrita aquí o en index.html es visible para todos.
+//
+// Al entrar con el PIN, la app recibe un "token" firmado que manda en cada
+// consulta. Sin token válido el servidor no devuelve datos. El token es
+// autoverificable (no se guarda nada por sesión): rol.caducidad.firma
+const AUTH_TTL_DIAS  = 30;
+const RUTAS_PUBLICAS = ["ping", "login"];
+// Tras este número de PIN fallidos seguidos, el login se bloquea un rato.
+const LOGIN_MAX_FALLOS = 8;
+const LOGIN_BLOQUEO_MS = 5 * 60 * 1000;
+
+function _props() { return PropertiesService.getScriptProperties(); }
+
+// Secreto de firma: se genera solo la primera vez.
+function _authSecret() {
+  const p = _props();
+  let s = p.getProperty("AUTH_SECRET");
+  if (!s) {
+    s = Utilities.getUuid() + Utilities.getUuid();
+    p.setProperty("AUTH_SECRET", s);
+  }
+  return s;
+}
+
+function _firmar(texto) {
+  return Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(texto, _authSecret()));
+}
+
+function _crearToken(rol) {
+  const cuerpo = rol + "." + (Date.now() + AUTH_TTL_DIAS * 86400000);
+  return cuerpo + "." + _firmar(cuerpo);
+}
+
+// Devuelve el rol si el token es válido y no ha caducado; si no, null.
+function _rolDelToken(token) {
+  if (!token) return null;
+  const p = String(token).split(".");
+  if (p.length !== 3) return null;
+  const cuerpo = p[0] + "." + p[1];
+  if (_firmar(cuerpo) !== p[2]) return null;
+  if (Date.now() > parseInt(p[1], 10)) return null;
+  return p[0];
+}
+
+function _leerPines() {
+  try { return JSON.parse(_props().getProperty("PINES") || "{}"); }
+  catch(e) { return {}; }
+}
+
+// ── Instalar los PIN (ejecutar UNA vez desde el editor) ──
+// Escribe los PIN NUEVOS entre las comillas, ejecuta la función, y después
+// borra los números de aquí: ya quedan guardados en las Propiedades del script.
+// Este archivo se publica en GitHub, así que nunca debe llevar PIN escritos.
+// Los que estaban antes en la app (visibles en el código público) hay que
+// cambiarlos: dalos por conocidos.
+// Después, para cambiarlos se usa la app: Administración → Seguridad.
+function instalarPines() {
+  _guardarPines({
+    vendedora: "",
+    costurera: "",
+    delivery:  "",
+    compras:   "",
+    duena:     ""
+  });
+}
+
+function _guardarPines(nuevos) {
+  const p = _props();
+  const actuales = _leerPines();
+  let puestos = 0, ignorados = [];
+  for (const rol in nuevos) {
+    const pin = String(nuevos[rol] || "").trim();
+    if (!pin) continue;                       // vacío = no tocar el que ya hubiera
+    if (!/^\d{4}$/.test(pin)) { ignorados.push(rol); continue; }
+    actuales[rol] = pin;
+    puestos++;
+  }
+  if (puestos) p.setProperty("PINES", JSON.stringify(actuales));
+  _authSecret();
+  Logger.log("PIN guardados: " + puestos +
+             (ignorados.length ? " · ignorados (no son 4 números): " + ignorados.join(", ") : "") +
+             " · roles con PIN: " + Object.keys(_leerPines()).join(", ") +
+             " · modo estricto: " + (p.getProperty("AUTH_ESTRICTA") === "true" ? "ACTIVADO" : "desactivado"));
+  if (!puestos) Logger.log("No se guardó ninguno: escribe los PIN dentro de instalarPines() antes de ejecutarla.");
+}
+
+// Interruptores para el despliegue: primero se sube el backend en modo
+// permisivo (nadie se queda fuera), y cuando todos los teléfonos tienen la app
+// nueva se activa el estricto.
+function activarModoEstricto()    { _props().setProperty("AUTH_ESTRICTA", "true");  Logger.log("Modo estricto ACTIVADO"); }
+function desactivarModoEstricto() { _props().setProperty("AUTH_ESTRICTA", "false"); Logger.log("Modo estricto desactivado"); }
+
+function _estadoFallos() {
+  try { return JSON.parse(_props().getProperty("LOGIN_FALLOS") || '{"n":0,"hasta":0}'); }
+  catch(e) { return { n: 0, hasta: 0 }; }
+}
+
+function login(p) {
+  const est = _estadoFallos();
+  if (est.hasta && Date.now() < est.hasta) {
+    const seg = Math.ceil((est.hasta - Date.now()) / 1000);
+    return { ok: false, error: "Demasiados intentos. Espera " + seg + " segundos." };
+  }
+  const rol = (p.rol || "").toString().trim();
+  const pin = (p.pin || "").toString().trim();
+  const pines = _leerPines();
+  if (rol && pin && pines[rol] && pines[rol] === pin) {
+    _props().deleteProperty("LOGIN_FALLOS");
+    return { ok: true, rol: rol, token: _crearToken(rol) };
+  }
+  const n = (est.n || 0) + 1;
+  _props().setProperty("LOGIN_FALLOS", JSON.stringify({
+    n: n >= LOGIN_MAX_FALLOS ? 0 : n,
+    hasta: n >= LOGIN_MAX_FALLOS ? Date.now() + LOGIN_BLOQUEO_MS : 0
+  }));
+  return { ok: false, error: "PIN incorrecto" };
+}
+
+// Cambiar un PIN. Solo la dueña, y solo con token válido.
+function cambiarPin(p, rolSolicitante) {
+  if (rolSolicitante !== "duena") return { ok: false, error: "Solo Administración puede cambiar los PIN" };
+  const rol = (p.rol || "").toString().trim();
+  const pin = (p.pin || "").toString().trim();
+  if (!/^\d{4}$/.test(pin)) return { ok: false, error: "El PIN debe tener 4 números" };
+  const pines = _leerPines();
+  if (!pines.hasOwnProperty(rol)) return { ok: false, error: "Rol desconocido" };
+  pines[rol] = pin;
+  _props().setProperty("PINES", JSON.stringify(pines));
+  return { ok: true, rol: rol };
+}
+
 function doGet(e) {
   const accion = e.parameter.accion || "ping";
   let data;
+
+  // ── Puerta de entrada ──
+  const rolToken = _rolDelToken(e.parameter.token);
+  if (RUTAS_PUBLICAS.indexOf(accion) === -1 && !rolToken) {
+    // En modo permisivo se deja pasar para no cortar a los teléfonos que aún
+    // tengan la app vieja; en estricto, sin token no hay datos.
+    if (_props().getProperty("AUTH_ESTRICTA") === "true") {
+      return ContentService
+        .createTextOutput(JSON.stringify({ error: "NO_AUTORIZADO" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
   try {
-    if      (accion === "produccion")      data = getProduccion();
+    if      (accion === "login")          data = login(e.parameter);
+    else if (accion === "cambiarPin")     data = cambiarPin(e.parameter, rolToken);
+    else if (accion === "produccion")      data = getProduccion();
     else if (accion === "entregas")        data = getEntregas(e.parameter.fecha);
     else if (accion === "comisiones")      data = getComisiones(e.parameter.quincena, e.parameter.arrastres);
     else if (accion === "registrarPedidos") data = _conLock(() => registrarPedidos(e.parameter));

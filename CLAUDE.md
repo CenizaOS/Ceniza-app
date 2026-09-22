@@ -31,7 +31,7 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 | delivery | Delivery | Entregas del día · marcar entregado |
 | duena | Administración | Acceso completo + módulo de finanzas |
 
-PINs live in `const PINES` in `index.html` (client-side only; the backend does not authenticate). Don't copy them into docs — the repo is public.
+**PINs no longer live in the code.** They're stored in the Apps Script Properties (`PINES`) and only the backend checks them — see *Autenticación*. Never write a PIN in `index.html` or `Ceniza_GAS.js`: both are public on GitHub.
 
 ## Key Terms
 | Term | Meaning |
@@ -99,6 +99,15 @@ PINs live in `const PINES` in `index.html` (client-side only; the backend does n
 - `_applyHistorialMerge` vuelve a comprobar la fecha aunque el servidor ya filtre: protege a los teléfonos que hablen con un backend viejo que ignore `&fecha` (si no, se colarían todas las entregas históricas en la lista del día).
 - **Vendedora y costurera** piden los últimos `HIST_DIAS` (30) con `&desde=`, y ofrecen "Ver todo el historial" (`loadVendedoraHistorial(true)` / `loadCostHistorial(true)`) para traerlo completo. No se pierde nada.
 - `getHistorial` devuelve `totalGeneral`: el conteo respeta `responsable` pero **ignora** la ventana de fechas, así que el total que ve la vendedora sigue siendo el real aunque solo se listen los recientes. Recorrer la hoja es barato; lo caro es serializar. Si el backend es viejo y no lo manda, el frontend cae a `total`.
+
+## Autenticación (2026-09-22)
+- **PINs**: en ScriptProperties `PINES` (JSON por rol). Se instalan una vez escribiéndolos dentro de `instalarPines()` en el editor y ejecutándola; después se cambian desde la app (Administración → Resumen → 🔒 Seguridad → `cambiarPin`, solo rol `duena`). `_guardarPines` ignora vacíos y no-4-dígitos, así que re-ejecutar la función con los huecos vacíos nunca borra nada.
+- **Token**: `?accion=login&rol&pin` devuelve `rol.caducidad.firma` (HMAC-SHA256 con `AUTH_SECRET`, autogenerado; TTL `AUTH_TTL_DIAS` = 30). Es autoverificable, no se guarda sesión en el servidor. El frontend lo guarda en `localStorage.ceniza_token` y lo añade a TODA llamada mediante `apiUrl(qs)` — no debe quedar ningún `fetch(`${API}?…`)` suelto.
+- **Puerta**: `doGet` exige token para todo salvo `RUTAS_PUBLICAS` (`ping`, `login`). Con `AUTH_ESTRICTA` != 'true' solo avisa (modo permisivo, para desplegar sin cortar a los teléfonos viejos); con `'true'` responde `{error:'NO_AUTORIZADO'}`. Interruptores: `activarModoEstricto()` / `desactivarModoEstricto()`.
+- **Fuerza bruta**: `LOGIN_MAX_FALLOS` (8) fallos seguidos → `LOGIN_BLOQUEO_MS` (5 min) sin poder entrar. Se reinicia al acertar.
+- **Frontend**: `NO_AUTORIZADO` en cualquier respuesta → `sesionCaducada()` borra token y rol y vuelve a la pantalla de PIN. `initApp` exige token; `logoutRol` lo borra.
+- **Orden de despliegue** (importante): 1) subir backend + ejecutar `instalarPines()` con los PIN nuevos; 2) publicar `index.html`; 3) que los 4 entren con su PIN; 4) `activarModoEstricto()`.
+- **Pendiente**: el token solo dice *que* hay sesión, no restringe por rol salvo en `cambiarPin`. Una vendedora con su token podría llamar a `finanzas`. Falta permisos por rol ruta a ruta.
 
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.
