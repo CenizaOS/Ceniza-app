@@ -1026,9 +1026,14 @@ function sesionCaducada() {
   showScreen('screen-rol');
 }
 
+// Espera de cada intento. Si Apps Script llevaba rato dormido, la primera
+// consulta puede tardar ~20s solo en despertarlo; por eso el reintento espera
+// más, no menos.
+const ESPERA_INTENTO = [20000, 30000, 20000];
+
 async function fetchData(accion, extra = '', _intento = 0) {
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 15000); // 15s timeout por intento
+  const tid = setTimeout(() => ctrl.abort(), ESPERA_INTENTO[_intento] || 20000);
   try {
     const res = await fetch(apiUrl(`accion=${accion}${extra}`), { signal: ctrl.signal });
     clearTimeout(tid);
@@ -1038,12 +1043,18 @@ async function fetchData(accion, extra = '', _intento = 0) {
     return json;
   } catch(e) {
     clearTimeout(tid);
-    // Reintentar hasta 2 veces automáticamente (cold start de Apps Script)
-    if (_intento < 2 && e.name !== 'AbortError') {
-      await new Promise(r => setTimeout(r, 700 * (_intento + 1))); // esperar 0.7s, 1.4s
+    if (e.message === 'Sesión expirada') throw e;     // reintentar no arregla esto
+    // Antes se reintentaba en todo MENOS al agotarse el tiempo, que es justo el
+    // síntoma del script dormido: el usuario veía error y tenía que pulsar
+    // Actualizar a mano, y para entonces ya se había despertado. Ahora también
+    // se reintenta al agotarse el tiempo; el propio intento fallido lo despierta.
+    const esTiempoAgotado = e.name === 'AbortError';
+    const maxIntentos = esTiempoAgotado ? 1 : 2;   // ya esperó 20s, con un reintento basta
+    if (_intento < maxIntentos) {
+      await new Promise(r => setTimeout(r, 700 * (_intento + 1)));
       return fetchData(accion, extra, _intento + 1);
     }
-    if (e.name === 'AbortError') throw new Error('Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.');
+    if (esTiempoAgotado) throw new Error('Tiempo de espera agotado. Verifica tu conexión e intenta de nuevo.');
     throw e;
   }
 }

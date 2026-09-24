@@ -1104,10 +1104,24 @@ function guardarConfig(clave, valor) {
   return { ok: true, duplicadosEliminados: repetidas.length };
 }
 
-// ─── KEEP-ALIVE (trigger cada 4 minutos para evitar cold start) ───────────────
+// ─── MANTENER EL SCRIPT DESPIERTO ────────────────────────────────────────────
+// Apps Script "duerme" tras un rato sin uso: la primera consulta tarda entre 7
+// y 20 segundos en vez de 2, y el teléfono se pasa de tiempo y muestra error.
+// Un disparador cada 5 minutos lo mantiene despierto en horario de trabajo.
+// Se instala UNA vez ejecutando instalarKeepAlive() desde el editor.
 function keepAlive() {
-  getMesActivo();
-  Logger.log("keepAlive OK " + new Date());
+  // De madrugada no hace falta: así no se gasta cuota de disparadores
+  const h = parseInt(Utilities.formatDate(new Date(), "America/Caracas", "H"), 10);
+  if (h < 7 || h >= 21) return;
+  ss.getName();   // tocar la hoja calienta también esa conexión
+}
+
+function instalarKeepAlive() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === "keepAlive")
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger("keepAlive").timeBased().everyMinutes(5).create();
+  Logger.log("Listo. El script se mantendrá despierto de 7:00 a 21:00 (hora de Caracas).");
 }
 
 // ─── RESPALDO DIARIO ─────────────────────────────────────────────────────────
