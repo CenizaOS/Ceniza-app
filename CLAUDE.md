@@ -109,6 +109,13 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Orden de despliegue** (importante): 1) subir backend + ejecutar `instalarPines()` con los PIN nuevos; 2) publicar `index.html`; 3) que los 4 entren con su PIN; 4) `activarModoEstricto()`.
 - **Pendiente**: el token solo dice *que* hay sesión, no restringe por rol salvo en `cambiarPin`. Una vendedora con su token podría llamar a `finanzas`. Falta permisos por rol ruta a ruta.
 
+## Fecha de entrega (2026-09-23)
+- **Propuesta**: `prepararFechaEntrega()` rellena el campo con hoy + 2 días **hábiles** (`sumarDiasHabiles`, salta sábado y domingo). Antes sumaba 2 días de calendario, así que registrar un jueves proponía el sábado. Regla de la dueña: jueves 17 → lunes 21.
+- **Mínimo**: el input lleva `min` = hoy, y `submitPedidos` rebota una fecha anterior a hoy **solo en pedidos nuevos**; editando se respeta la fecha original (si no, no se podría corregir un pedido viejo).
+- **Backend**: `registrarPedidos` repite la comprobación por si un teléfono tiene la app vieja. Va **antes** de `_yaFueProcesado`: si consumiera el `reqId`, al corregir la fecha y reintentar el pedido se daría por registrado sin escribirse.
+- **Por qué importa**: la costurera trabaja por fecha de entrega; una fecha pasada descoloca el pedido en su cola.
+- **Ojo**: `getSemanaCosturera` y `renderCajaSemanal` agrupan Lun–**Sáb**, o sea que asumen que el sábado sí se trabaja. Conviene confirmarlo con la dueña.
+
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.
 - Backend `finanzas` / `guardarFinanzas` depend on the missing `Tasas` sheet (they return empty / an error gracefully) — only used by the orphan Fondos/Cuentas UI.

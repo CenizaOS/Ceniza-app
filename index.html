@@ -1065,6 +1065,29 @@ function fechaHaceDias(n) {
   return fechaStr(d);
 }
 
+// Suma n días HÁBILES a una fecha: sábado y domingo no se trabaja. Registrar
+// un jueves da el lunes, no el sábado.
+function sumarDiasHabiles(desde, n) {
+  const d = new Date(desde);
+  let quedan = n;
+  while (quedan > 0) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();            // 0 domingo · 6 sábado
+    if (dow !== 0 && dow !== 6) quedan--;
+  }
+  return d;
+}
+
+// Deja el campo de fecha de entrega listo para un pedido NUEVO: propone la
+// fecha según el proceso (2 días hábiles) e impide elegir una fecha ya pasada.
+function prepararFechaEntrega() {
+  const inp = document.getElementById('f-fecha-entrega');
+  if (!inp) return;
+  const hoy = new Date();
+  inp.min   = isoLocal(hoy);
+  inp.value = isoLocal(sumarDiasHabiles(hoy, 2));
+}
+
 // YYYY-MM-DD de la fecha LOCAL. toISOString() da UTC, que en Venezuela (UTC-4)
 // adelanta al día siguiente a partir de las 20:00.
 function isoLocal(d) {
@@ -7535,9 +7558,7 @@ function abrirFormulario(){
   document.querySelector('.form-title').textContent = 'Nuevo pedido';
   const v = localStorage.getItem('vendedora_nombre') || 'Angi';
   document.getElementById('form-vendedora-nombre').textContent = v;
-  const man=new Date(); man.setDate(man.getDate()+2);
-  const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
-  document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
+  prepararFechaEntrega();
   carrito = [];
   renderCarrito();
   ocultarAddItem();
@@ -7600,9 +7621,7 @@ function resetForm(){
   carrito = [];
   renderCarrito();
   ocultarAddItem();
-  const man=new Date(); man.setDate(man.getDate()+2);
-  const yy=man.getFullYear(), mm=String(man.getMonth()+1).padStart(2,'0'), dd=String(man.getDate()).padStart(2,'0');
-  document.getElementById('f-fecha-entrega').value=`${yy}-${mm}-${dd}`;
+  prepararFechaEntrega();
 }
 let _eliminarConfirm = {};
 function confirmarEliminar(fila, cliente) {
@@ -7663,6 +7682,9 @@ function abrirEdicion(fila) {
   set('f-notas',         p.notas        || '');
   set('f-monto-efectivo', p.montoEfectivo || '0');
   set('f-vuelto',        p.vuelto       || '0');
+  // Editando un pedido viejo su fecha ya pasó: no se bloquea, se respeta
+  const inpFecha = document.getElementById('f-fecha-entrega');
+  if (inpFecha) inpFecha.min = '';
   if (p.fechaEntrega) {
     const parts = p.fechaEntrega.split('/');
     if (parts.length === 3) set('f-fecha-entrega', parts[2]+'-'+parts[1]+'-'+parts[0]);
@@ -7699,6 +7721,12 @@ async function submitPedidos() {
   if (!tipoEntrega)  { mostrarToast('Selecciona el tipo de entrega'); return; }
   if (!fechaEntrega) { mostrarToast('Selecciona la fecha de entrega'); return; }
   if (!metodoPago)   { mostrarToast('Selecciona el método de pago'); return; }
+  // Un pedido nuevo no puede entregarse en una fecha que ya pasó: dejaba el
+  // pedido descolocado en la cola de la costurera, que trabaja por esa fecha.
+  if (!esEdicion && fechaEntrega < isoLocal(new Date())) {
+    mostrarToast('⚠ La fecha de entrega ya pasó. Elige hoy o una fecha posterior.');
+    return;
+  }
   if (!origen && !esEdicion) { mostrarToast('Selecciona el origen'); return; }
 
   _submitting = true;

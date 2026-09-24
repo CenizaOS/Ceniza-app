@@ -483,6 +483,26 @@ function registrarPedidos(p) {
     const items = JSON.parse(p.items || "[]");
     if (!items.length) return { success: false, error: "Sin ítems" };
 
+    let fechaEntrega = "";
+    if (p.fechaEntrega) {
+      const parts = p.fechaEntrega.split("-");
+      if (parts.length === 3) fechaEntrega = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    // La fecha de entrega de un pedido nuevo no puede haber pasado ya: dejaba
+    // el pedido descolocado en la cola de la costurera, que trabaja por esa
+    // fecha. Se comprueba también aquí por si el teléfono tiene la app vieja.
+    // Va ANTES del anti-duplicado a propósito: si consumiera el reqId, al
+    // corregir la fecha y reintentar el pedido se daría por hecho sin escribirlo.
+    if (fechaEntrega) {
+      const feObj  = _parseFechaVE(fechaEntrega);
+      const hoyObj = _hoyCaracas();
+      if (feObj && hoyObj && feObj < hoyObj) {
+        return { success: false,
+                 error: "La fecha de entrega (" + fechaEntrega + ") ya pasó. Corrígela antes de registrar." };
+      }
+    }
+
     // Anti-duplicado: si este reqId ya fue procesado, devolver éxito silencioso
     if (_yaFueProcesado((p.reqId || "").trim())) {
       return { success: true, deduped: true };
@@ -501,11 +521,6 @@ function registrarPedidos(p) {
     let nextRowNum = ultimaFila + 1;
 
     const hoy = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
-    let fechaEntrega = "";
-    if (p.fechaEntrega) {
-      const parts = p.fechaEntrega.split("-");
-      if (parts.length === 3) fechaEntrega = `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
 
     const filas = [];
     for (const item of items) {
