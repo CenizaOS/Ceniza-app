@@ -124,6 +124,10 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Carga perezosa** (2026-09-25): `SpreadsheetApp.openById` y `getMesActivo()` estaban en el nivel superior, así que se ejecutaban al cargar el script, o sea en CADA petición — incluidas `ping` y `login`, que no tocan datos. Meter el PIN abría la hoja de 1.240 filas antes de responder. Ahora son `hoja()` y `mesActivo()`, con caché en variable. Verificado con Apps Script simulado: `ping` y `login` abren la hoja 0 veces; `entregas` la abre 1.
 - **Si vuelve la lentitud**, lo siguiente a mirar: `getClientes` manda 148 KB para un autocompletado. Medir antes de tocar.
 
+## Historial de la costurera — solo consulta (2026-09-25)
+- Las tarjetas del historial ya no llevan botón: marcar "Entregado a cliente" se hace **desde el perfil de Delivery** (`marcarGrupoEntregado`), no aquí. Tener las dos vías confundía sobre dónde se hace cada cosa.
+- **Consecuencia a tener presente**: la pantalla principal de la costurera solo ofrece `En producción` → `Empaquetado` → `Entregado a delivery`; **no** incluye `Entregado a cliente`. Ese último paso queda ahora exclusivamente en Delivery, que es donde corresponde. Se eliminó `historialMarcarEntregado`, ya sin usos.
+
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.
 - Backend `finanzas` / `guardarFinanzas` depend on the missing `Tasas` sheet (they return empty / an error gracefully) — only used by the orphan Fondos/Cuentas UI.
