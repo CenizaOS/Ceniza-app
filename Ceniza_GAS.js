@@ -1112,7 +1112,7 @@ function guardarConfig(clave, valor) {
 function keepAlive() {
   // De madrugada no hace falta: así no se gasta cuota de disparadores
   const h = parseInt(Utilities.formatDate(new Date(), "America/Caracas", "H"), 10);
-  if (h < 7 || h >= 21) return;
+  if (h < 7 || h >= 23) return;
   ss.getName();   // tocar la hoja calienta también esa conexión
 }
 
@@ -1121,7 +1121,7 @@ function instalarKeepAlive() {
     .filter(t => t.getHandlerFunction() === "keepAlive")
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("keepAlive").timeBased().everyMinutes(5).create();
-  Logger.log("Listo. El script se mantendrá despierto de 7:00 a 21:00 (hora de Caracas).");
+  Logger.log("Listo. El script se mantendrá despierto de 7:00 a 23:00 (hora de Caracas).");
 }
 
 // ─── RESPALDO DIARIO ─────────────────────────────────────────────────────────

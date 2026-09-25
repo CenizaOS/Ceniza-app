@@ -120,7 +120,7 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 ## Lentitud y errores de carga (2026-09-24)
 - **Medido**: con el script dormido `ping` (que no consulta nada) tarda **7,3 s** y `entregas` **19,5 s**; despiertos, 1,5 s y 2,2 s. O sea, el grueso del tiempo es el *cold start* de Apps Script, no el tamaño de la hoja (1.240 filas). Cuerpos: getClientes 148 KB, produccion 27 KB, entregas 7 KB.
 - **Causa del error visible**: `fetchData` reintentaba en todo MENOS al agotarse el tiempo (`e.name !== 'AbortError'`), que es justo el síntoma del script dormido. El usuario veía "Tiempo de espera agotado" y tenía que pulsar Actualizar; para entonces ya estaba despierto y funcionaba. Ahora reintenta también en ese caso, con esperas `ESPERA_INTENTO` = [20s, 30s] (1 reintento en timeouts, 2 en otros errores; nunca reintenta `Sesión expirada`).
-- **Causa de fondo**: `keepAlive()` existía pero **sin disparador**: era código muerto. Ahora hay `instalarKeepAlive()` (cada 5 min) y `keepAlive` solo trabaja entre las 7:00 y las 21:00 de Caracas para no gastar cuota.
+- **Causa de fondo**: `keepAlive()` existía pero **sin disparador**: era código muerto. Ahora hay `instalarKeepAlive()` (cada 5 min) y `keepAlive` solo trabaja entre las 7:00 y las 23:00 de Caracas para no gastar cuota de madrugada (la dueña trabaja hasta tarde: se la vio desplegando a las 21:14).
 - **Si vuelve la lentitud** con el keepAlive puesto, lo siguiente a mirar: `MES_ACTIVO` se recalcula en cada petición (hasta 14 `getSheetByName`) y `getClientes` manda 148 KB para un autocompletado. Medir antes de tocar.
 
 ## Known Issues (verified 2026-09-20)
