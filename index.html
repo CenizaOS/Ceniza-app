@@ -7770,7 +7770,7 @@ async function submitPedidos() {
       });
       const _ctrl1 = new AbortController();
       const _tid1 = setTimeout(() => _ctrl1.abort(), 20000);
-      const r = await fetch(API+'?accion=editarPedido&'+params, { signal: _ctrl1.signal });
+      const r = await fetch(apiUrl('accion=editarPedido&' + params), { signal: _ctrl1.signal });
       clearTimeout(_tid1);
       const data = await r.json();
       if (data.success) {
@@ -7806,7 +7806,7 @@ async function submitPedidos() {
       });
       const _ctrl2 = new AbortController();
       const _tid2 = setTimeout(() => _ctrl2.abort(), 20000);
-      const r = await fetch(API+'?accion=registrarPedidos&'+params, { signal: _ctrl2.signal });
+      const r = await fetch(apiUrl('accion=registrarPedidos&' + params), { signal: _ctrl2.signal });
       clearTimeout(_tid2);
       const data = await r.json();
       if (data.success) {
