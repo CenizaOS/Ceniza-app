@@ -1,5 +1,18 @@
 const SHEET_ID = "1xWtQo2E4supdMs0vpHMvMQNXxEsiCI53j399qJzV8RE";
-const ss = SpreadsheetApp.openById(SHEET_ID);
+// La hoja y el mes activo se abren SOLO cuando una consulta los necesita.
+// Antes se abrían al cargar el script, es decir en CADA petición, incluidas
+// "ping" y "login", que no tocan datos: por eso meter el PIN tardaba segundos.
+let _hoja = null;
+function hoja() {
+  if (!_hoja) _hoja = SpreadsheetApp.openById(SHEET_ID);
+  return _hoja;
+}
+
+let _mesActivo = null;
+function mesActivo() {
+  if (_mesActivo === null) _mesActivo = getMesActivo();
+  return _mesActivo;
+}
 
 // Mes activo: se detecta automáticamente según la fecha actual en Venezuela.
 // Escanea hacia atrás hasta 12 meses para encontrar la hoja más reciente que exista.
@@ -18,16 +31,15 @@ function getMesActivo() {
     let a = anio;
     if (m < 0) { m += 12; a -= 1; }
     const nombre = MESES[m] + " " + a;
-    if (ss.getSheetByName("Pedidos " + nombre)) return nombre;
+    if (hoja().getSheetByName("Pedidos " + nombre)) return nombre;
   }
 
   // Fallback: hoja anual "Pedidos 2026"
-  if (ss.getSheetByName("Pedidos " + anio)) return String(anio);
+  if (hoja().getSheetByName("Pedidos " + anio)) return String(anio);
 
   // Fallback final (no debería llegar aquí)
   return MESES[mes] + " " + anio;
 }
-const MES_ACTIVO = getMesActivo();
 
 // ─── NOMBRE DE VENDEDORA (col 15, "responsable") ─────────────────────────────
 // Es texto libre que viene del teléfono de cada vendedora, así que "Angie",
@@ -259,7 +271,7 @@ function doGet(e) {
 // ─── CAMBIAR ESTADO ───────────────────────────────────────────────────────────
 function cambiarEstado(p) {
   try {
-    const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
+    const ws = hoja().getSheetByName("Pedidos " + mesActivo());
     if (!ws) throw new Error("Hoja no encontrada");
     const fila = parseInt(p.fila);
     if (!fila || fila < 2) return { success: false, error: "Fila inválida" };
@@ -274,7 +286,7 @@ function cambiarEstado(p) {
 
 // ─── PRODUCCIÓN ──────────────────────────────────────────────────────────────
 function getProduccion() {
-  const ws    = ss.getSheetByName("Pedidos " + MES_ACTIVO);
+  const ws    = hoja().getSheetByName("Pedidos " + mesActivo());
   const datos = ws.getDataRange().getDisplayValues();
   const estadosProduccion = ["Pagado", "En producción", "Empaquetado", "Entregado a delivery"];
   const pedidos = [];
@@ -319,7 +331,7 @@ function getProduccion() {
     grupos[key].push(p);
   });
   return {
-    mes:    MES_ACTIVO,
+    mes:    mesActivo(),
     total:  pedidos.length,
     grupos: Object.entries(grupos).map(([fecha, items]) => ({ fecha, items }))
   };
@@ -334,13 +346,13 @@ function _parseFechaVE(str) {
 }
 
 function getEntregas(fechaParam) {
-  const ws    = ss.getSheetByName("Pedidos " + MES_ACTIVO);
+  const ws    = hoja().getSheetByName("Pedidos " + mesActivo());
   const datos = ws.getDataRange().getDisplayValues();
   const fechaBuscar = fechaParam || Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
   const estadosEntrega    = ["Entregado a delivery", "Entregado a cliente"];
 
   const cedulaMap = {};
-  const wsClientes = ss.getSheetByName("Clientes");
+  const wsClientes = hoja().getSheetByName("Clientes");
   if (wsClientes) {
     const cd = wsClientes.getDataRange().getDisplayValues();
     for (let i = 1; i < cd.length; i++) {
@@ -405,7 +417,7 @@ function getEntregas(fechaParam) {
 
 // ─── CLIENTES ────────────────────────────────────────────────────────────────
 function getClientes() {
-  let ws = ss.getSheetByName("Clientes");
+  let ws = hoja().getSheetByName("Clientes");
   if (!ws) return { clientes: [] };
   const datos = ws.getDataRange().getDisplayValues();
   const clientes = [];
@@ -435,9 +447,9 @@ function _claveCliente(nombre) {
 // Siempre se llama desde registrarPedidos, que ya corre bajo _conLock.
 function guardarCliente(nombre, telefono, direccion, cedula) {
   if (!nombre) return;
-  let ws = ss.getSheetByName("Clientes");
+  let ws = hoja().getSheetByName("Clientes");
   if (!ws) {
-    ws = ss.insertSheet("Clientes");
+    ws = hoja().insertSheet("Clientes");
     ws.getRange(1, 1, 1, 6).setValues([["Nombre","Teléfono","Dirección habitual","Total pedidos","Último pedido","Cédula"]]);
     ws.setFrozenRows(1);
   }
@@ -477,8 +489,8 @@ function _yaFueProcesado(reqId) {
 // ─── REGISTRAR PEDIDOS (multi-ítem) ──────────────────────────────────────────
 function registrarPedidos(p) {
   try {
-    const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
-    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
+    const ws = hoja().getSheetByName("Pedidos " + mesActivo());
+    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + mesActivo());
 
     const items = JSON.parse(p.items || "[]");
     if (!items.length) return { success: false, error: "Sin ítems" };
@@ -576,8 +588,8 @@ function registrarPedidos(p) {
 // ─── EDITAR PEDIDO ───────────────────────────────────────────────────────────
 function editarPedido(p) {
   try {
-    const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
-    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
+    const ws = hoja().getSheetByName("Pedidos " + mesActivo());
+    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + mesActivo());
     const fila = parseInt(p.fila);
     if (!fila || fila < 2) return { success: false, error: "Fila inválida" };
 
@@ -630,7 +642,7 @@ function getHistorial(responsable, fecha, desde) {
   // los últimos días y seguir mostrando el total de verdad.
   let totalGeneral = 0;
 
-  const todasLasHojas = ss.getSheets();
+  const todasLasHojas = hoja().getSheets();
   const hojasP = todasLasHojas.filter(h => h.getName().startsWith("Pedidos "));
 
   for (const ws of hojasP) {
@@ -679,7 +691,7 @@ function limpiarResponsable(p) {
   const nuevo  = normalizarResponsable(p.nuevo);
   if (!viejo || !nuevo) return { success: false, error: "Faltan parámetros viejo y nuevo" };
 
-  const todasLasHojas = ss.getSheets();
+  const todasLasHojas = hoja().getSheets();
   const hojasP = todasLasHojas.filter(h => h.getName().startsWith("Pedidos "));
   let total = 0;
 
@@ -697,8 +709,8 @@ function limpiarResponsable(p) {
 
 // ─── SEMANA COSTURERA ────────────────────────────────────────────────────────
 function getSemanaCosturera() {
-  const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
-  if (!ws) return { semanas: [], mesActivo: MES_ACTIVO };
+  const ws = hoja().getSheetByName("Pedidos " + mesActivo());
+  if (!ws) return { semanas: [], mesActivo: mesActivo() };
   const datos = ws.getDataRange().getDisplayValues();
   const semanas = {};
 
@@ -749,13 +761,13 @@ function getSemanaCosturera() {
       };
     });
 
-  return { semanas: sorted, mesActivo: MES_ACTIVO };
+  return { semanas: sorted, mesActivo: mesActivo() };
 }
 
 // ─── ELIMINAR PEDIDO ─────────────────────────────────────────────────────────
 function eliminarPedido(p) {
   try {
-    const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
+    const ws = hoja().getSheetByName("Pedidos " + mesActivo());
     if (!ws) throw new Error("Hoja no encontrada");
     const fila = parseInt(p.fila);
     if (!fila || fila < 2) return { success: false, error: "Fila inválida" };
@@ -844,7 +856,7 @@ function _quincenaFija() {
 // Se calcula en vivo desde la hoja; el parámetro `arrastres` (memoria de cada
 // teléfono) se ignora para que todos los dispositivos vean lo mismo.
 function getComisiones(quincena, arrastresJson) {
-  const ws    = ss.getSheetByName("Pedidos " + MES_ACTIVO);
+  const ws    = hoja().getSheetByName("Pedidos " + mesActivo());
   const datos = ws.getDataRange().getDisplayValues();
 
   const hoy = _hoyCaracas();
@@ -869,7 +881,7 @@ function getComisiones(quincena, arrastresJson) {
     return Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants));
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
-  return { mes: MES_ACTIVO, quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes };
+  return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes };
 }
 
 // ─── HISTORIAL DE QUINCENAS ──────────────────────────────────────────────────
@@ -880,7 +892,7 @@ const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
                   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 function getHistorialQuincenas() {
-  const hojasP = ss.getSheets().filter(h => h.getName().startsWith("Pedidos "));
+  const hojasP = hoja().getSheets().filter(h => h.getName().startsWith("Pedidos "));
   const meses = {}; // "2026-08" → { anio, mes, q: { 1: {Angi: n}, 2: {...} } }
 
   for (const ws of hojasP) {
@@ -930,7 +942,7 @@ function getHistorialQuincenas() {
 
 // ─── FINANZAS DUEÑA ───────────────────────────────────────────────────────────
 function getFinanzas() {
-  const wsTasas = ss.getSheetByName("Tasas");
+  const wsTasas = hoja().getSheetByName("Tasas");
   if (!wsTasas) return { fondos:{}, cuentas:{}, tasas:{} };
   const labels = ["Fondo emergencia","Fondo crecimiento","Capital empresa","Binance USDT","Bolivares USD","USD efectivo","PayPal"];
   for (let i = 0; i < labels.length; i++) {
@@ -964,7 +976,7 @@ function getFinanzas() {
 }
 
 function guardarFinanzas(p) {
-  const wsTasas = ss.getSheetByName("Tasas");
+  const wsTasas = hoja().getSheetByName("Tasas");
   if (!wsTasas) return { success: false, error: "Hoja Tasas no encontrada" };
   const mapaFondos = { emergencia:"B7", crecimiento:"B8", empresa:"B9" };
   const mapaCuentas = { c_binance:"B10", c_bolivares:"B11", c_usdEfectivo:"B12", c_paypal:"B13" };
@@ -1035,8 +1047,8 @@ function setArreglosData(p) {
 // Arrastre en vivo = pantalones por vendedora en la quincena anterior.
 function getArrastresData() {
   try {
-    const ws = ss.getSheetByName("Pedidos " + MES_ACTIVO);
-    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + MES_ACTIVO);
+    const ws = hoja().getSheetByName("Pedidos " + mesActivo());
+    if (!ws) throw new Error("Hoja no encontrada: Pedidos " + mesActivo());
     const datos = ws.getDataRange().getDisplayValues();
     const q = _rangosQuincena(_hoyCaracas());
     if (!q.anterior) return { arrastres: {}, quincena: "" }; // Q1: se empieza desde cero
@@ -1050,10 +1062,9 @@ function getArrastresData() {
 const CONFIG_SHEET_NAME = 'Config';
 
 function getConfigSheet() {
-  const ss2 = SpreadsheetApp.openById(SHEET_ID);
-  let sheet = ss2.getSheetByName(CONFIG_SHEET_NAME);
+  let sheet = hoja().getSheetByName(CONFIG_SHEET_NAME);
   if (!sheet) {
-    sheet = ss2.insertSheet(CONFIG_SHEET_NAME);
+    sheet = hoja().insertSheet(CONFIG_SHEET_NAME);
     sheet.getRange('A1:B1').setValues([['Clave', 'Valor']]);
     sheet.getRange('A1:B1').setFontWeight('bold');
     sheet.setColumnWidth(1, 220);
@@ -1113,7 +1124,7 @@ function keepAlive() {
   // De madrugada no hace falta: así no se gasta cuota de disparadores
   const h = parseInt(Utilities.formatDate(new Date(), "America/Caracas", "H"), 10);
   if (h < 7 || h >= 23) return;
-  ss.getName();   // tocar la hoja calienta también esa conexión
+  hoja().getName();   // tocar la hoja calienta también esa conexión
 }
 
 function instalarKeepAlive() {
