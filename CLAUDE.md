@@ -129,9 +129,15 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Consecuencia a tener presente**: la pantalla principal de la costurera solo ofrece `En producción` → `Empaquetado` → `Entregado a delivery`; **no** incluye `Entregado a cliente`. Ese último paso queda ahora exclusivamente en Delivery, que es donde corresponde. Se eliminó `historialMarcarEntregado`, ya sin usos.
 
 ## Colores del catálogo (2026-09-25)
-- `COLORES_PRODUCTO` es la lista fija que llena el desplegable de color. Clásico: 17 colores (se añadió `Rosado`, se retiraron `Puntos negros fondo blanco` y `Puntos blancos fondo negro`). Pareo: 7.
+- `COLORES_PRODUCTO` es la lista fija que llena el desplegable de color. Clásico: 19 (se añadió `Rosado`). Pareo: 7.
+- **Retirar `Puntos negros fondo blanco` y `Puntos blancos fondo negro` queda aplazado** a petición de la dueña: se hará al empezar una quincena nueva, para no alterar el conteo en curso.
 - **Retirar un color no borra el pasado**: quedan 26 pedidos con "Puntos negros fondo blanco", 5 con "Puntos blancos fondo negro" y 14 con "Rayas" (este último nunca estuvo en el catálogo). Al editar uno de esos pedidos, `ponerColorAunqueSeaViejo()` guarda el color en `_colorHeredado` y `actualizarColoresProducto()` lo añade al final de la lista; sin eso el desplegable quedaba vacío y guardar **borraba el color sin avisar**.
 - `_colorHeredado` se limpia al cerrar el cuadro de agregar (`ocultarAddItem`) y al cambiar de producto a mano (`actualizarColoresProducto(true)` desde el `onchange`), para que no se cuele en un pantalón nuevo.
+
+## Cambio de talla (2026-09-25)
+- **La casilla se quedaba pegada entre pedidos**: solo la limpiaba `resetForm()`, que corre tras un registro CORRECTO. Si el registro fallaba (sin conexión, fecha rechazada…), el siguiente pedido la heredaba marcada. Doble daño: una venta real no se contaba, o la vendedora la pulsaba creyendo activarla y en realidad la apagaba, con lo que el cambio de talla SÍ sumaba. Ahora `abrirFormulario()` la limpia siempre.
+- `abrirEdicion()` refleja el valor real del pedido y la edición manda `cambioDeTalla`, así que un pedido mal marcado se corrige desde la app. El backend `editarPedido` ya escribe la columna 22 (antes la ignoraba).
+- Ruta `auditarCambiosTalla&desde=dd/MM/yyyy`: solo lee; devuelve `sospechosos` (las notas mencionan "cambio", sin marcar y con estado que sí cuenta) y `marcados`. Pensada para revisar una quincena.
 
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.

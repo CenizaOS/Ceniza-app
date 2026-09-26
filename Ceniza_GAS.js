@@ -242,6 +242,7 @@ function doGet(e) {
     else if (accion === "eliminarPedido")  data = eliminarPedido(e.parameter);
     else if (accion === "historial")       data = getHistorial(e.parameter.responsable, e.parameter.fecha, e.parameter.desde);
     else if (accion === "historialQuincenas") data = getHistorialQuincenas();
+    else if (accion === "auditarCambiosTalla") data = auditarCambiosTalla(e.parameter.desde);
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "reiniciarQuincena") data = _quincenaFija();
     else if (accion === "finanzas")        data = getFinanzas();
@@ -616,6 +617,8 @@ function editarPedido(p) {
     if (p.cedula      !== undefined) ws.getRange(fila, 19).setValue((p.cedula      || "").trim());
     if (p.montoEfectivo !== undefined) ws.getRange(fila, 20).setValue(parseFloat(p.montoEfectivo) || 0);
     if (p.vuelto        !== undefined) ws.getRange(fila, 21).setValue(parseFloat(p.vuelto)        || 0);
+    // Columna 22: permite corregir un pedido que se registró mal marcado
+    if (p.cambioDeTalla !== undefined) ws.getRange(fila, 22).setValue(p.cambioDeTalla === 'true' ? 'true' : '');
 
     return { success: true, fila };
   } catch(err) {
@@ -884,7 +887,38 @@ function getComisiones(quincena, arrastresJson) {
   return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes };
 }
 
+// ─── AUDITORÍA DE CAMBIOS DE TALLA ───────────────────────────────────────────
+// Busca pedidos que parezcan un cambio de talla (lo dicen las notas) pero que
+// NO tengan marcada la casilla, así que están contando como venta nueva.
+// Solo lee; no corrige nada.
+function auditarCambiosTalla(desde) {
+  const ws = hoja().getSheetByName("Pedidos " + mesActivo());
+  if (!ws) return { error: "Hoja no encontrada" };
+  const datos = ws.getDataRange().getDisplayValues();
+  const desdeObj = desde ? _parseFechaVE(desde.trim()) : null;
+  const sospechosos = [], marcados = [];
+  for (let i = 1; i < datos.length; i++) {
+    const row = datos[i];
+    if (!row[1] || row[1] === "") continue;
+    const fechaObj = _parseFechaVE(row[0] || "");
+    if (desdeObj && (!fechaObj || fechaObj < desdeObj)) continue;
+    const notas    = (row[17] || "").toString();
+    const marcado  = (row[21] || "").toString().trim() === "true";
+    const estado   = (row[11] || "").toString();
+    const info = { fila: i + 1, fechaRegistro: row[0] || "", cliente: row[1],
+                   color: row[4] || "", talla: row[6] || "", estado: estado,
+                   responsable: normalizarResponsable(row[14]), notas: notas };
+    if (marcado) { marcados.push(info); continue; }
+    // Cuenta como venta si no está marcado y su estado no lo excluye ya
+    const cuentaComoVenta = !["Cancelado", "Cambio", "Arreglo"].includes(estado);
+    if (/cambio/i.test(notas) && cuentaComoVenta) sospechosos.push(info);
+  }
+  return { desde: desde || "(todo)", sospechosos, marcados,
+           totalSospechosos: sospechosos.length, totalMarcados: marcados.length };
+}
+
 // ─── HISTORIAL DE QUINCENAS ──────────────────────────────────────────────────
+
 // Recorre TODAS las hojas "Pedidos *" y agrupa por mes y quincena fija.
 // Para cada quincena calcula, por vendedora, los pantalones y la comisión con
 // la misma regla que la quincena en curso (Q2 usa como base Q1 + Q2).

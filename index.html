@@ -7397,7 +7397,7 @@ let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdi
 const SUBLIMADO_COLORS_SET = new Set(['Rayas blanco y negro','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos']);
 
 const COLORES_PRODUCTO = {
-  'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rosado','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Puntos blancos'],
+  'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rosado','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos'],
   'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige','Rayas blanco y negro','Puntos blancos']
 };
 const PRECIO_PRODUCTO = {
@@ -7556,6 +7556,11 @@ function abrirFormulario(){
   _reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   formModo = 'nuevo';
   filaEdicion = null;
+  // La casilla solo se limpiaba tras un registro CORRECTO. Si el registro
+  // fallaba, el siguiente pedido la heredaba marcada: o no contaba una venta
+  // real, o la vendedora la pulsaba creyendo activarla y la desactivaba.
+  const _cbNuevo = document.getElementById('f-cambio-talla');
+  if (_cbNuevo) _cbNuevo.checked = false;
   document.querySelector('.form-title').textContent = 'Nuevo pedido';
   const v = localStorage.getItem('vendedora_nombre') || 'Angi';
   document.getElementById('form-vendedora-nombre').textContent = v;
@@ -7683,6 +7688,8 @@ function abrirEdicion(fila) {
   set('f-notas',         p.notas        || '');
   set('f-monto-efectivo', p.montoEfectivo || '0');
   set('f-vuelto',        p.vuelto       || '0');
+  const _cbEdit = document.getElementById('f-cambio-talla');
+  if (_cbEdit) _cbEdit.checked = (p.cambioDeTalla === 'true' || p.cambioDeTalla === true);
   // Editando un pedido viejo su fecha ya pasó: no se bloquea, se respeta
   const inpFecha = document.getElementById('f-fecha-entrega');
   if (inpFecha) inpFecha.min = '';
@@ -7755,6 +7762,7 @@ async function submitPedidos() {
         metodoPago,
         origen,
         notas:         g('f-notas'),
+        cambioDeTalla: document.getElementById('f-cambio-talla')?.checked ? 'true' : 'false',
         montoEfectivo: g('f-monto-efectivo') || '0',
         vuelto:        g('f-vuelto') || '0'
       });
