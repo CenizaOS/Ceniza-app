@@ -128,6 +128,11 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Las tarjetas del historial ya no llevan botón: marcar "Entregado a cliente" se hace **desde el perfil de Delivery** (`marcarGrupoEntregado`), no aquí. Tener las dos vías confundía sobre dónde se hace cada cosa.
 - **Consecuencia a tener presente**: la pantalla principal de la costurera solo ofrece `En producción` → `Empaquetado` → `Entregado a delivery`; **no** incluye `Entregado a cliente`. Ese último paso queda ahora exclusivamente en Delivery, que es donde corresponde. Se eliminó `historialMarcarEntregado`, ya sin usos.
 
+## Colores del catálogo (2026-09-25)
+- `COLORES_PRODUCTO` es la lista fija que llena el desplegable de color. Clásico: 17 colores (se añadió `Rosado`, se retiraron `Puntos negros fondo blanco` y `Puntos blancos fondo negro`). Pareo: 7.
+- **Retirar un color no borra el pasado**: quedan 26 pedidos con "Puntos negros fondo blanco", 5 con "Puntos blancos fondo negro" y 14 con "Rayas" (este último nunca estuvo en el catálogo). Al editar uno de esos pedidos, `ponerColorAunqueSeaViejo()` guarda el color en `_colorHeredado` y `actualizarColoresProducto()` lo añade al final de la lista; sin eso el desplegable quedaba vacío y guardar **borraba el color sin avisar**.
+- `_colorHeredado` se limpia al cerrar el cuadro de agregar (`ocultarAddItem`) y al cambiar de producto a mano (`actualizarColoresProducto(true)` desde el `onchange`), para que no se cuele en un pantalón nuevo.
+
 ## Known Issues (verified 2026-09-20)
 - **Orphan finance modules in `index.html`**: `renderFinProduccion`, `renderFinCompras`, `renderFinFondos`/`renderFinCuentas`, `renderFinInventario`, `renderFinProductos`, `renderFinLote`, `renderFinPlanificador`, `renderFinEntregasCtrl` (and helpers) target `#fin-*-content` containers that no longer exist — the dueña UI only has tabs quincena/costos/historial/cierre/proyeccion/registro. They're unreachable but still call each other; removing them is a deliberate decision, not done yet. `_fondos` (from `loadFinFondos`) is still used by the Quincena distribution.
 - Backend `finanzas` / `guardarFinanzas` depend on the missing `Tasas` sheet (they return empty / an error gracefully) — only used by the orphan Fondos/Cuentas UI.

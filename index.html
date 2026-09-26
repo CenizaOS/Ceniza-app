@@ -922,7 +922,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
             <div class="add-item-grid">
               <div class="form-group" style="grid-column:1/-1">
                 <label>Producto *</label>
-                <select id="ai-producto" onchange="actualizarColoresProducto()">
+                <select id="ai-producto" onchange="actualizarColoresProducto(true)">
                   <option value="Pantalón Clásico">Pantalón Clásico</option>
                   <option value="Pantalón Pareo">Pantalón Pareo</option>
                 </select>
@@ -7397,7 +7397,7 @@ let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdi
 const SUBLIMADO_COLORS_SET = new Set(['Rayas blanco y negro','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos']);
 
 const COLORES_PRODUCTO = {
-  'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rosado','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos'],
+  'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rosado','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Puntos blancos'],
   'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige','Rayas blanco y negro','Puntos blancos']
 };
 const PRECIO_PRODUCTO = {
@@ -7405,13 +7405,17 @@ const PRECIO_PRODUCTO = {
   'Pantalón Pareo':  () => FIN_PAREO.precio
 };
 
-function actualizarColoresProducto() {
+function actualizarColoresProducto(cambioDeProducto) {
   const prod = document.getElementById('ai-producto')?.value || 'Pantalón Clásico';
   const colSel = document.getElementById('ai-color');
   if (!colSel) return;
-  const current = colSel.value;
+  // Si la persona cambia de producto a mano, el color del pedido viejo ya no aplica
+  if (cambioDeProducto) _colorHeredado = '';
+  const current = colSel.value || _colorHeredado;
   const colores = COLORES_PRODUCTO[prod] || COLORES_PRODUCTO['Pantalón Clásico'];
-  colSel.innerHTML = '<option value="">Color...</option>' + colores.map(c => `<option${c===current?' selected':''}>${c}</option>`).join('');
+  // El color heredado se añade al final para que siga seleccionable
+  const lista = (_colorHeredado && !colores.includes(_colorHeredado)) ? colores.concat([_colorHeredado]) : colores;
+  colSel.innerHTML = '<option value="">Color...</option>' + lista.map(c => `<option${c===current?' selected':''}>${c}</option>`).join('');
   // Auto-fill monto según producto (siempre al cambiar producto)
   const montoEl = document.getElementById('ai-monto');
   if (montoEl) {
@@ -7434,6 +7438,7 @@ function ocultarAddItem() {
   ['ai-color','ai-talla','ai-ruedo'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('ai-monto').value = '';
   const _rm = document.getElementById('ai-ruedo-manual'); if (_rm) { _rm.value=''; _rm.style.display='none'; }
+  _colorHeredado = '';   // el siguiente pantalón parte del catálogo actual
   actualizarColoresProducto();
   const lbl = document.querySelector('#add-item-form div');
   if (lbl) lbl.textContent = 'Nuevo pantalón';
@@ -7468,14 +7473,28 @@ function eliminarItem(idx) {
   renderCarrito();
 }
 
+// Un pedido viejo puede tener un color que ya se retiró del catálogo (o que
+// nunca estuvo, como "Rayas"). Si no se añade como opción, el desplegable se
+// queda vacío y al guardar el pedido perdería el color sin avisar.
+let _colorHeredado = '';   // color de un pedido viejo que ya no está en el catálogo
+
+function ponerColorAunqueSeaViejo(color) {
+  const prod = document.getElementById('ai-producto')?.value || 'Pantalón Clásico';
+  const colores = COLORES_PRODUCTO[prod] || COLORES_PRODUCTO['Pantalón Clásico'];
+  _colorHeredado = (color && !colores.includes(color)) ? color : '';
+  actualizarColoresProducto();
+  const sel = document.getElementById('ai-color');
+  if (sel) sel.value = color || '';
+}
+
 function editarItem(idx) {
+
   const item = carrito[idx];
   if (!item) return;
   // Pre-llenar el formulario de agregar pantalón
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
   set('ai-producto', item.producto || 'Pantalón Clásico');
-  actualizarColoresProducto();
-  set('ai-color', item.color);
+  ponerColorAunqueSeaViejo(item.color);   // ya reconstruye la lista
   set('ai-talla', item.talla);
   const _stdRuedos = ['93','97','100','103','105','108','110','113'];
   const _rv = String(item.ruedo || '');
