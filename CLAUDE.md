@@ -150,3 +150,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Mobile-first, card-based design
 - Toast notifications for user feedback
 - No page reloads — all data fetched via API calls
+
+## PIN lento — "Comprobando…" eterno (2026-09-25)
+- **Medido con desglose de `curl`**: DNS+conexión+TLS = 0,32 s constante; el resto es espera al servidor. `ping` (que no abre la hoja ni lee nada) tardó 3,98 s en frío y 1,67 s / 2,78 s a los 6 s. O sea **calentar funciona**: el arranque lo paga la primera petición y las siguientes van rápido.
+- **Causa 1 — petición basura antes del PIN**: `initApp` llamaba `syncConfigDesdeSheets()` sin token. Con modo estricto el servidor responde `NO_AUTORIZADO`, así que nunca podía servir para nada, y encima **Apps Script atiende de una en una**: si a esa consulta le tocaba el arranque, el `login` esperaba su turno detrás. Ahora `initApp` solo sincroniza si hay token; si no, llama a `calentarServidor()`.
+- **Causa 2 — la app se reiniciaba sola**: ese `NO_AUTORIZADO` llegaba a `fetchData` → `sesionCaducada()` → toast "Tu sesión expiró" + vuelta a la pantalla de roles, **mientras la persona escribía el PIN**. `sesionCaducada()` ahora sale de inmediato si no hay token: sin token no había sesión que caducar.
+- **`calentarServidor()`** (junto a `apiUrl`): `fetch` crudo de `accion=ping`, sin `fetchData` a propósito (sin reintentos, sin tocar la sesión, sin errores en pantalla). Límite `CALENTAR_MIN_MS` = 45 s. Se llama en `initApp` (sin token), en `selectRole` (hay ~5 s de tecleo por delante) y en `visibilitychange` cuando no hay token.
+- **`verifyPin`** avisa a los 4 s ("despertando el servidor") y a los 12 s ("llevaba rato sin usarse, no cierres la app"), en vez de dejar "Comprobando…" quieto y parecer colgada.
+- **`getClientes` fuera del arranque**: `abrirAppVendedora` pedía en paralelo sus pedidos y `getClientes` (148 KB, la respuesta más pesada). Al atender en serie, el autocompletado le robaba el turno a la lista que ella sí necesita ver. Se quitó; `abrirFormulario()` y `verificarContactoDuplicado` ya lo piden si falta.
+- **`keepAlive` no sirvió para esto**: con el disparador cada 5 min instalado, cuatro `ping` separados 60 s dieron 1,8 / 21,5 / 7,2 / 11,6 s. Los disparadores corren en un contexto aparte del de la web app, así que no la mantienen caliente — gasta cuota (288 ejecuciones/día abriendo la hoja) sin beneficio medible. Candidato a eliminar.

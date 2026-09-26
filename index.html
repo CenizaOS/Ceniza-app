@@ -1018,8 +1018,29 @@ function apiUrl(qs) {
   return `${API}?${qs}` + (_token ? `&token=${encodeURIComponent(_token)}` : '');
 }
 
+// ── Despertar el script antes de que haga falta ───────────────────────────
+// Apps Script se duerme. La PRIMERA consulta paga el arranque (medido: 4 s en
+// el mejor caso, 21 s en el peor) y las siguientes van en 1,5–3 s. Además
+// atiende de una en una, así que si el arranque le toca justo al `login`, la
+// persona se queda mirando "Comprobando…". Por eso al abrir la app se manda un
+// `ping` —la ruta más barata que hay: no abre la hoja ni necesita token— y ese
+// arranque se lo come el ping mientras se elige perfil y se teclean 4 dígitos.
+let _ultimoCalentado = 0;
+const CALENTAR_MIN_MS = 45000;
+function calentarServidor() {
+  if (Date.now() - _ultimoCalentado < CALENTAR_MIN_MS) return;
+  _ultimoCalentado = Date.now();
+  // A propósito sin fetchData: no queremos reintentos, ni que toque la sesión,
+  // ni que un fallo salga en pantalla. Si no despierta, el login lo hará.
+  try { fetch(apiUrl('accion=ping'), { cache: 'no-store' }).catch(() => {}); } catch(_) {}
+}
+
 // El token caducó o no vale: volver a pedir el PIN
 function sesionCaducada() {
+  // Sin token no había sesión que caducar: ese NO_AUTORIZADO viene de una
+  // consulta que salió antes del login. Avisar y volver a la pantalla de roles
+  // sacaría a la persona del teclado del PIN mientras lo está escribiendo.
+  if (!_token) return;
   setToken('');
   try { localStorage.removeItem('ceniza_rol'); } catch(_) {}
   mostrarToast('Tu sesión expiró. Vuelve a entrar con tu PIN.');
@@ -1324,6 +1345,9 @@ async function syncConfigDesdeSheets() {
 // la config si la última lectura tiene más de 30s.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
+  // En la pantalla del PIN no hay token: en vez de una consulta que va a
+  // rebotar, despertar el script para que el login no pague el arranque.
+  if (!_token) { calentarServidor(); return; }
   if (Date.now() - _ultimaSyncConfig < SYNC_CONFIG_MIN_MS) return;
   syncConfigDesdeSheets();
 });
@@ -2266,8 +2290,11 @@ function initApp() {
     showApp(rol);
   }
 
-  // Sync config in background (fire & forget — must NOT affect navigation)
-  syncConfigDesdeSheets();
+  // Sync config in background (fire & forget — must NOT affect navigation).
+  // Sin token el servidor responde NO_AUTORIZADO, así que antes del PIN esta
+  // consulta era basura que encima le robaba el turno al login.
+  if (_token) syncConfigDesdeSheets();
+  else calentarServidor();
 }
 
 function showScreen(id) {
@@ -2303,6 +2330,7 @@ function showScreen(id) {
 }
 
 function selectRole(rol) {
+  calentarServidor();   // hay ~5 s de tecleo por delante: aprovecharlos
   rolPendiente = rol;
   pinActual = '';
   actualizarDots();
@@ -2389,7 +2417,10 @@ function abrirAppVendedora(nombre) {
   document.getElementById('vend-saludo').textContent = 'Hola, ' + nombre + ' 👋';
   showVendTab('pedidos');
   loadVendedoraPedidos();
-  cargarClientes();
+  // getClientes son 148 KB (la respuesta más pesada) y solo alimentan el
+  // autocompletado del formulario. Pedirlos aquí competía con la lista de
+  // pedidos —el servidor atiende de una en una— y retrasaba justo lo que ella
+  // necesita ver al entrar. `abrirFormulario()` ya los pide si faltan.
 }
 
 function guardarNombreRol() {
@@ -2446,6 +2477,13 @@ function actualizarDots() {
 async function verifyPin() {
   const errEl = document.getElementById('pin-error');
   errEl.textContent = 'Comprobando…';
+  // Si el script estaba dormido esto puede tardar. Decirlo, en vez de dejar
+  // "Comprobando…" quieto y que parezca que la app se colgó.
+  const avisos = [
+    [4000,  'Comprobando… despertando el servidor'],
+    [12000, 'Comprobando… tarda porque llevaba rato sin usarse, no cierres la app']
+  ].map(([ms, txt]) => setTimeout(() => { errEl.textContent = txt; }, ms));
+  const limpiarAvisos = () => avisos.forEach(clearTimeout);
   let ok = false, msg = 'PIN incorrecto';
   try {
     const r = await fetchData('login', `&rol=${encodeURIComponent(rolPendiente)}&pin=${encodeURIComponent(pinActual)}`);
@@ -2455,6 +2493,7 @@ async function verifyPin() {
   } catch(e) {
     msg = 'Sin conexión. Intenta de nuevo.';
   }
+  limpiarAvisos();
   if (ok) {
     errEl.textContent = '';
     localStorage.setItem('ceniza_rol', rolPendiente);
