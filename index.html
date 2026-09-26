@@ -929,14 +929,13 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
               </div>
               <div class="form-group">
                 <label>Color *</label>
+                <!-- Los colores los pone actualizarColoresProducto() según el
+                     producto elegido; el catálogo está en COLORES_PRODUCTO, que
+                     es el único sitio donde se añaden o quitan. Aquí había una
+                     copia escrita a mano que ya no coincidía (sin Rosado, con un
+                     "Rayas" que nunca existió y sin ningún color de Pareo). -->
                 <select id="ai-color">
                   <option value="">Color...</option>
-                  <option>Negro</option><option>Vinotinto</option><option>Verde</option>
-                  <option>Marrón</option><option>Beige</option><option>Azul rey</option>
-                  <option>Terracota</option><option>Fucsia</option><option>Rojo</option>
-                  <option>Blanco</option><option>Amarillo</option><option>Morado</option>
-                  <option>Gris</option><option>Neón</option><option>Rayas</option>
-                  <option>Puntos negros fondo blanco</option><option>Puntos blancos fondo negro</option>
                 </select>
               </div>
               <div class="form-group">
@@ -7437,7 +7436,7 @@ const SUBLIMADO_COLORS_SET = new Set(['Rayas blanco y negro','Rayas','Puntos neg
 
 const COLORES_PRODUCTO = {
   'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rosado','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos'],
-  'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige','Rayas blanco y negro','Puntos blancos']
+  'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige','Verde oscuro','Rojo','Lila','Rayas blanco y negro','Puntos blancos']
 };
 const PRECIO_PRODUCTO = {
   'Pantalón Clásico': () => FIN.precio,
