@@ -1149,24 +1149,30 @@ function guardarConfig(clave, valor) {
   return { ok: true, duplicadosEliminados: repetidas.length };
 }
 
-// ─── MANTENER EL SCRIPT DESPIERTO ────────────────────────────────────────────
-// Apps Script "duerme" tras un rato sin uso: la primera consulta tarda entre 7
-// y 20 segundos en vez de 2, y el teléfono se pasa de tiempo y muestra error.
-// Un disparador cada 5 minutos lo mantiene despierto en horario de trabajo.
-// Se instala UNA vez ejecutando instalarKeepAlive() desde el editor.
-function keepAlive() {
-  // De madrugada no hace falta: así no se gasta cuota de disparadores
-  const h = parseInt(Utilities.formatDate(new Date(), "America/Caracas", "H"), 10);
-  if (h < 7 || h >= 23) return;
-  hoja().getName();   // tocar la hoja calienta también esa conexión
-}
-
-function instalarKeepAlive() {
-  ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === "keepAlive")
-    .forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger("keepAlive").timeBased().everyMinutes(5).create();
-  Logger.log("Listo. El script se mantendrá despierto de 7:00 a 23:00 (hora de Caracas).");
+// ─── keepAlive: RETIRADO (2026-09-25) ────────────────────────────────────────
+// Hubo un disparador cada 5 minutos para que el script no se durmiera. No
+// funcionó: con él activo, cuatro `ping` separados 60 s dieron 1,8 / 21,5 /
+// 7,2 / 11,6 s. Los disparadores corren en un contexto distinto al de la web
+// app, así que calentaban el contexto equivocado — y cada ejecución abría la
+// hoja de 1.240 filas, 288 veces al día, sin beneficio medible.
+// Lo que sí funciona es `calentarServidor()` en index.html: la propia app manda
+// un `ping` al abrirse, o sea calienta el contexto correcto justo cuando hace
+// falta. Medido: 3,98 s en frío, 1,67 s seis segundos después.
+//
+// `quitarKeepAlive()` borra el disparador viejo. Se ejecuta UNA vez desde el
+// editor; después esta función puede quedarse aquí sin hacer nada (es
+// idempotente: si no hay disparador, lo dice y ya).
+function quitarKeepAlive() {
+  const viejos = ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === "keepAlive");
+  viejos.forEach(t => ScriptApp.deleteTrigger(t));
+  // Ojo: solo toca los de keepAlive. El de respaldoDiario se queda como está.
+  const respaldo = ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === "respaldoDiario").length;
+  Logger.log(viejos.length
+    ? "Listo: " + viejos.length + " disparador(es) de keepAlive eliminado(s)."
+    : "No había ningún disparador de keepAlive. Nada que hacer.");
+  Logger.log("El respaldo diario sigue instalado: " + respaldo + " disparador(es).");
 }
 
 // ─── RESPALDO DIARIO ─────────────────────────────────────────────────────────
