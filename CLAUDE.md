@@ -129,7 +129,7 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Consecuencia a tener presente**: la pantalla principal de la costurera solo ofrece `En producción` → `Empaquetado` → `Entregado a delivery`; **no** incluye `Entregado a cliente`. Ese último paso queda ahora exclusivamente en Delivery, que es donde corresponde. Se eliminó `historialMarcarEntregado`, ya sin usos.
 
 ## Colores del catálogo (2026-09-25)
-- `COLORES_PRODUCTO` es la lista fija que llena el desplegable de color. Clásico: 19 (se añadió `Rosado`). Pareo: 10 (se añadieron `Verde oscuro`, `Rojo` y `Lila` el 2026-09-26).
+- `COLORES_PRODUCTO` es la lista fija que llena el desplegable de color. Clásico: 20 (`Rosado`; `Rayas rojas y rosadas` el 2026-09-27). Pareo: 10 (`Verde oscuro`, `Rojo` y `Lila` el 2026-09-26).
 - **Es el ÚNICO sitio donde se añade o quita un color.** El `<select id="ai-color">` del HTML va vacío a propósito: `actualizarColoresProducto()` lo rellena según el producto. Tenía una copia escrita a mano que ya no coincidía (sin `Rosado`, con un `Rayas` que nunca existió y sin ningún color de Pareo); se vació el 2026-09-26 para que no haya dos listas que se contradigan. Nunca llegó a verse porque el formulario arranca oculto y se rellena al abrirlo.
 - El backend **no valida colores**: `registrarPedidos`/`editarPedido` escriben la columna 5 tal cual. Añadir un color es solo frontend.
 - **Retirar `Puntos negros fondo blanco` y `Puntos blancos fondo negro` queda aplazado** a petición de la dueña: se hará al empezar una quincena nueva, para no alterar el conteo en curso.
