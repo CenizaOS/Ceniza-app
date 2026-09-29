@@ -244,6 +244,7 @@ function doGet(e) {
     else if (accion === "historialQuincenas") data = getHistorialQuincenas();
     else if (accion === "auditarCambiosTalla") data = auditarCambiosTalla(e.parameter.desde);
     else if (accion === "semana")          data = getSemanaCosturera();
+    else if (accion === "inventarioTelas") data = getInventarioTelas();
     else if (accion === "reiniciarQuincena") data = _quincenaFija();
     else if (accion === "finanzas")        data = getFinanzas();
     else if (accion === "guardarFinanzas") data = _conLock(() => guardarFinanzas(e.parameter));
@@ -307,6 +308,7 @@ function getProduccion() {
       telefono:       row[2]  || "",
       producto:       row[3]  || "",
       color:          row[4]  || "",
+      tipoTela:       row[22] || "",
       ruedo:          row[5]  || "",
       talla:          row[6]  || "",
       tipoEntrega:    row[7]  || "",
@@ -371,6 +373,7 @@ function getEntregas(fechaParam) {
       telefono:      row[2]  || "",
       producto:      row[3]  || "",
       color:         row[4]  || "",
+      tipoTela:      row[22] || "",
       talla:         row[6]  || "",
       tipoEntrega:   row[7]  || "",
       direccion:     row[8]  || "",
@@ -525,6 +528,7 @@ function registrarPedidos(p) {
     if (!ws.getRange(1, 20).getValue()) ws.getRange(1, 20).setValue("Monto efectivo");
     if (!ws.getRange(1, 21).getValue()) ws.getRange(1, 21).setValue("Vuelto");
     if (!ws.getRange(1, 22).getValue()) ws.getRange(1, 22).setValue("Cambio de talla");
+    if (!ws.getRange(1, 23).getValue()) ws.getRange(1, 23).setValue("Tipo de tela");
 
     const colB = ws.getRange(1, 2, ws.getLastRow() || 1, 1).getValues();
     let ultimaFila = 1;
@@ -559,7 +563,9 @@ function registrarPedidos(p) {
         (p.cedula             || "").trim(),
         parseFloat(p.montoEfectivo) || 0,
         parseFloat(p.vuelto)        || 0,
-        (p.cambioDeTalla === 'true') ? 'true' : ''
+        (p.cambioDeTalla === 'true') ? 'true' : '',
+        // Col 23. Va por ítem, no por pedido: cada pantalón puede llevar su tela.
+        (item.tipoTela || "").trim()
       ];
       ws.getRange(nextRowNum, 1, 1, fila.length).setValues([fila]);
       filas.push(nextRowNum);
@@ -619,6 +625,7 @@ function editarPedido(p) {
     if (p.vuelto        !== undefined) ws.getRange(fila, 21).setValue(parseFloat(p.vuelto)        || 0);
     // Columna 22: permite corregir un pedido que se registró mal marcado
     if (p.cambioDeTalla !== undefined) ws.getRange(fila, 22).setValue(p.cambioDeTalla === 'true' ? 'true' : '');
+    if (p.tipoTela      !== undefined) ws.getRange(fila, 23).setValue((p.tipoTela     || "").trim());
 
     return { success: true, fila };
   } catch(err) {
@@ -672,6 +679,7 @@ function getHistorial(responsable, fecha, desde) {
         cliente:       row[1],
         producto:      row[3]  || "",
         color:         row[4]  || "",
+        tipoTela:      row[22] || "",
         talla:         row[6]  || "",
         ruedo:         row[5]  || "",
         montoProducto: row[9]  || "0",
@@ -1147,6 +1155,114 @@ function guardarConfig(clave, valor) {
   const repetidas = filas.slice(0, -1);
   for (let k = repetidas.length - 1; k >= 0; k--) sheet.deleteRow(repetidas[k]);
   return { ok: true, duplicadosEliminados: repetidas.length };
+}
+
+// ─── INVENTARIO DE TELAS ─────────────────────────────────────────────────────
+// No se guarda ningún saldo. El disponible se CALCULA cada vez, igual que las
+// quincenas:  disponible = metros cargados − 2,7 × pantalones vendidos.
+// Un saldo guardado que se va restando se desincroniza en cuanto una petición
+// se repite, se pierde o se corrige un pedido; calculado no puede pasar.
+const METROS_POR_PANT = 2.7;
+
+// Clave de una tela: tipo + color. Un mismo color puede existir en varias telas
+// (regla de la dueña, 2026-09-29), por eso el tipo forma parte de la clave.
+function _claveTela(tipo, color) {
+  const t = String(tipo  || "").trim().toLowerCase();
+  const c = String(color || "").trim().toLowerCase();
+  if (!c) return "";
+  return t + "||" + c;
+}
+
+function _leerConfigJSON(config, clave, porDefecto) {
+  const bruto = config[clave];
+  if (bruto === undefined || bruto === null || bruto === "") return porDefecto;
+  if (typeof bruto === "object") return bruto;
+  try {
+    const v = JSON.parse(bruto);
+    return (v === null || v === undefined) ? porDefecto : v;
+  } catch (_) {
+    return porDefecto;
+  }
+}
+
+// Una fila consume tela si es un pantalón de verdad que se va a cortar.
+// OJO, se aparta de _filaComisionable a propósito:
+//  · "Cambio de talla" SÍ consume: no cuenta para comisión, pero se corta tela.
+//  · "Cancelado" no consume. "Arreglo" tampoco: se arregla lo ya cosido.
+function _filaConsumeTela(row) {
+  if (!row[1] || row[1] === "") return null;
+  const estado = String(row[11] || "").trim();
+  if (estado === "Cancelado" || estado === "Arreglo") return null;
+  const fecha = _parseFechaVE(row[0]);
+  if (!fecha) return null;
+  return { fecha: fecha, clave: _claveTela(row[22], row[4]) };
+}
+
+function getInventarioTelas() {
+  const config  = leerConfig();
+  const telas   = _leerConfigJSON(config, "ceniza_telas",        []);
+  const cargas  = _leerConfigJSON(config, "ceniza_tela_cargas",  []);
+  const inicioS = String(config["ceniza_tela_inicio"] || "").trim();
+
+  // Sin fecha de inicio no se descuenta nada: si no, el primer día se restarían
+  // los 1.240 pantalones del histórico y el inventario saldría en negativo.
+  const inicio = inicioS ? _parseFechaVE(inicioS) : null;
+
+  const cargado = {};
+  for (let i = 0; i < cargas.length; i++) {
+    const c = cargas[i] || {};
+    const k = _claveTela(c.tipo, c.color);
+    if (!k) continue;
+    const m = parseFloat(c.metros);
+    if (isNaN(m)) continue;
+    cargado[k] = (cargado[k] || 0) + m;
+  }
+
+  const pants = {};
+  let sinTipo = 0;
+  if (inicio) {
+    const ws = hoja().getSheetByName("Pedidos " + mesActivo());
+    if (ws) {
+      const datos = ws.getDataRange().getValues();
+      for (let i = 1; i < datos.length; i++) {
+        const f = _filaConsumeTela(datos[i]);
+        if (!f || !f.clave) continue;
+        if (f.fecha < inicio) continue;
+        // Pedidos anteriores al campo "tipo de tela" no traen tipo: se cuentan
+        // aparte para avisar, no se reparten a ciegas entre las telas.
+        if (!String(datos[i][22] || "").trim()) { sinTipo++; continue; }
+        pants[f.clave] = (pants[f.clave] || 0) + 1;
+      }
+    }
+  }
+
+  const filas = [];
+  for (let i = 0; i < telas.length; i++) {
+    const t = telas[i] || {};
+    const k = _claveTela(t.tipo, t.color);
+    if (!k) continue;
+    const m   = Math.round((cargado[k] || 0) * 100) / 100;
+    const n   = pants[k] || 0;
+    const con = Math.round(n * METROS_POR_PANT * 100) / 100;
+    filas.push({
+      tipo:       t.tipo  || "",
+      color:      t.color || "",
+      hex:        t.hex   || "",
+      cargado:    m,
+      pantalones: n,
+      consumido:  con,
+      disponible: Math.round((m - con) * 100) / 100,
+      alcanza:    Math.floor(Math.max(0, m - con) / METROS_POR_PANT)
+    });
+  }
+
+  return {
+    telas:           filas,
+    metrosPorPant:   METROS_POR_PANT,
+    inicio:          inicioS,
+    sinFechaInicio:  !inicio,
+    pantsSinTipo:    sinTipo
+  };
 }
 
 // ─── keepAlive: RETIRADO (2026-09-25) ────────────────────────────────────────

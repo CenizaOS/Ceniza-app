@@ -934,8 +934,17 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
                      es el único sitio donde se añaden o quitan. Aquí había una
                      copia escrita a mano que ya no coincidía (sin Rosado, con un
                      "Rayas" que nunca existió y sin ningún color de Pareo). -->
-                <select id="ai-color">
+                <select id="ai-color" onchange="actualizarTelaDeColor()">
                   <option value="">Color...</option>
+                </select>
+              </div>
+              <!-- Solo se muestra cuando ese color existe en más de una tela.
+                   Si hay una sola, actualizarTelaDeColor() la elige y esto
+                   queda oculto: la vendedora no ve ningún campo nuevo. -->
+              <div class="form-group" id="ai-tela-wrap" style="grid-column:1/-1;display:none">
+                <label>Tela *</label>
+                <select id="ai-tela">
+                  <option value="">Tela...</option>
                 </select>
               </div>
               <div class="form-group">
@@ -1288,6 +1297,7 @@ function copiarDatosEnvio(btn) {
 // CONFIG SYNC — persiste en Google Sheets, usa localStorage como caché
 // ══════════════════════════════════════════════════════════
 const CONFIG_KEYS = [
+  'ceniza_telas','ceniza_tela_cargas','ceniza_tela_inicio',
   'ceniza_colores_tela','ceniza_fin','ceniza_inventario','ceniza_insumos',
   'ceniza_encargos','ceniza_arreglos','ceniza_lote_pants',
   'ceniza_lote_producto','ceniza_compras_efectivo_log','ceniza_produccion_lotes',
@@ -6420,6 +6430,37 @@ async function loadCostHistorial(verTodo = false) {
   }
 }
 
+// ══════════════════════════════════════════════════════════
+// INVENTARIO DE TELAS (por metros)
+// ══════════════════════════════════════════════════════════
+// Tres piezas, todas guardadas en la hoja Config:
+//   ceniza_telas        catálogo: [{tipo, color, hex}]  — tipo+color es la clave,
+//                       porque un mismo color existe en varias telas.
+//   ceniza_tela_cargas  entradas: [{fecha, tipo, color, metros, nota}]
+//   ceniza_tela_inicio  fecha (dd/MM/yyyy) desde la que se descuenta
+// El DISPONIBLE no se guarda: lo calcula el backend (`inventarioTelas`) como
+// cargado − 2,7 × pantalones vendidos. Un saldo guardado que se va restando se
+// desincroniza en cuanto una petición se repite o se corrige un pedido.
+const METROS_POR_PANT = 2.7;
+
+function getTelas()        { try { return JSON.parse(localStorage.getItem('ceniza_telas') || '[]'); } catch(_) { return []; } }
+function saveTelas(list)   { cfgSet('ceniza_telas', list); }
+function getTelaCargas()   { try { return JSON.parse(localStorage.getItem('ceniza_tela_cargas') || '[]'); } catch(_) { return []; } }
+function saveTelaCargas(l) { cfgSet('ceniza_tela_cargas', l); }
+function getTelaInicio()   { return localStorage.getItem('ceniza_tela_inicio') || ''; }
+
+function telaEtiqueta(t) {
+  return (t.tipo ? t.tipo + ' · ' : '') + (t.color || '');
+}
+
+// Telas disponibles para un color de pantalón. Si devuelve una sola, la app la
+// elige sola y no molesta a la vendedora; si devuelve varias, hay que preguntar.
+function telasDeColor(color) {
+  const c = String(color || '').trim().toLowerCase();
+  if (!c) return [];
+  return getTelas().filter(t => String(t.color || '').trim().toLowerCase() === c);
+}
+
 // ── Insumos del taller ──────────────────────────────────────
 function getInsumos() { return JSON.parse(localStorage.getItem('ceniza_insumos') || '{}'); }
 function saveInsumos(data) { cfgSet('ceniza_insumos', JSON.stringify(data)); }
@@ -6539,43 +6580,10 @@ function renderCostInsumos() {
     <button onclick="refreshInsumos()" style="background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:5px">${refreshIcon} Actualizar</button>
   </div>`;
 
-  // ── Sección telas ──
-  html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
-    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">🧵 Telas</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Rollos disponibles por color</div>`;
-
-  if (!colores.length) {
-    html += `<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin colores registrados. Agrégalos desde el panel de administración.</div>`;
-  } else {
-    colores.forEach(c => {
-      const key = 'tela__' + c.nombre.replace(/\s+/g,'_');
-      const metros = tela[c.nombre] ?? 0;
-      const tipoLbl = _swatchTipoLabel(c);
-      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bg4)">
-        <div style="width:28px;height:28px;border-radius:8px;border:1.5px solid var(--bg4);flex-shrink:0;${_swatchStyle(c)}"></div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:5px">
-            <div style="font-size:13px;font-weight:600;color:var(--text)">${c.nombre}</div>
-            ${tipoLbl ? `<span style="font-size:10px;color:var(--text3);background:var(--bg4);border-radius:4px;padding:1px 4px">${tipoLbl}</span>` : ''}
-          </div>
-          <div style="font-size:11px;color:var(--text3)">${c.codigo ? 'Cód: ' + c.codigo : ''}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0">
-          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">rollos</div>
-          <div style="display:flex;align-items:center;gap:5px">
-            <button onclick="telaAjustar('${c.nombre}',-0.5)"
-              style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
-            <input id="ins-val-${key}" type="number" min="0" step="0.5" value="${metros}"
-              onchange="telaSetValor('${c.nombre}',this.value)"
-              style="width:58px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:16px;font-weight:700;color:var(--text);-moz-appearance:textfield">
-            <button onclick="telaAjustar('${c.nombre}',0.5)"
-              style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--bg4);font-size:20px;font-weight:700;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
-          </div>
-        </div>
-      </div>`;
-    });
-  }
-  html += `</div>`;
+  // ── Sección telas (metros, calculado) ──
+  // El contenido lo pinta renderTelasBox() con lo que devuelve el backend; aquí
+  // solo va el hueco, para que el resto de Insumos aparezca sin esperar la red.
+  html += `<div id="cost-telas-box" style="margin-bottom:16px"></div>`;
 
   // ── Sección insumos generales ──
   html += `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px;margin-bottom:16px">
@@ -6646,6 +6654,181 @@ function renderCostInsumos() {
   html += `<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0">Los cambios se guardan automáticamente en este dispositivo.</div>`;
 
   el.innerHTML = html;
+  renderTelasBox();          // pinta al instante lo último que se sabe
+  loadInventarioTelas();     // y lo refresca con las cuentas del servidor
+}
+
+// ══════════════════════════════════════════════════════════
+// TELAS — pantalla
+// ══════════════════════════════════════════════════════════
+let _invTelas   = null;   // última respuesta del backend
+let _invTelasErr = '';
+
+async function loadInventarioTelas() {
+  try {
+    const d = await fetchData('inventarioTelas');
+    if (!d || d.error) throw new Error((d && d.error) || 'sin datos');
+    _invTelas = d; _invTelasErr = '';
+  } catch(e) {
+    // Sin red se sigue viendo el catálogo y lo cargado; lo que falta son las
+    // cuentas de consumo, así que se dice en vez de mostrar un cero engañoso.
+    _invTelasErr = e.message || 'No se pudo calcular';
+  }
+  renderTelasBox();
+}
+
+function _mts(n) {
+  const v = Math.round((parseFloat(n) || 0) * 10) / 10;
+  return (Number.isInteger(v) ? v : v.toFixed(1)) + ' m';
+}
+
+function renderTelasBox() {
+  const box = document.getElementById('cost-telas-box');
+  if (!box) return;
+
+  const telas  = getTelas();
+  const inicio = getTelaInicio();
+  const calc   = {};
+  if (_invTelas && _invTelas.telas) {
+    _invTelas.telas.forEach(t => { calc[(t.tipo || '') + '||' + (t.color || '')] = t; });
+  }
+
+  let h = `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">🧵 Telas</div>
+        <div style="font-size:12px;color:var(--text3)">Metros disponibles · ${METROS_POR_PANT} m por pantalón</div>
+      </div>
+      <button onclick="abrirCargarTela()" style="background:var(--gold-bg);border:1px solid var(--gold-dim);color:var(--gold);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">➕ Cargar</button>
+    </div>`;
+
+  if (!inicio) {
+    h += `<div style="background:var(--gold-bg);border:1px solid var(--gold-dim);border-radius:10px;padding:10px 12px;margin:10px 0">
+      <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:3px">Falta la fecha de arranque</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.45">Hasta que la pongas no se descuenta nada, para no restar de golpe todos los pantalones que ya están en la hoja.</div>
+      <button onclick="abrirInicioTela()" style="margin-top:8px;background:var(--gold);border:none;color:#000;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">Poner fecha</button>
+    </div>`;
+  }
+
+  if (_invTelasErr) {
+    h += `<div style="font-size:11px;color:var(--text3);background:var(--bg3);border-radius:8px;padding:8px 10px;margin:8px 0">No se pudo calcular el consumo (${_invTelasErr}). Lo que ves es lo cargado, sin descontar.</div>`;
+  }
+
+  if (_invTelas && _invTelas.pantsSinTipo > 0) {
+    h += `<div style="font-size:11px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 10px;margin:8px 0;line-height:1.45">
+      <b>${_invTelas.pantsSinTipo}</b> pantal${_invTelas.pantsSinTipo === 1 ? 'ón' : 'ones'} sin tela anotada no se descontaron de ninguna. Son pedidos registrados antes de que existiera este campo.</div>`;
+  }
+
+  if (!telas.length) {
+    h += `<div style="text-align:center;padding:22px 10px">
+      <div style="font-size:34px;margin-bottom:8px">🧵</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text2)">Todavía no hay telas</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px;line-height:1.45">Crea cada tela con su tipo y su color. Un mismo color puede existir en varios tipos.</div>
+    </div>`;
+  } else {
+    telas.forEach((t, i) => {
+      const c     = calc[(t.tipo || '') + '||' + (t.color || '')];
+      const disp  = c ? c.disponible : null;
+      const bajo  = disp !== null && disp < METROS_POR_PANT * 3;   // menos de 3 pantalones
+      const negat = disp !== null && disp < 0;
+      h += `<div style="display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--bg4)">
+        <div style="width:30px;height:30px;border-radius:8px;border:1.5px solid var(--bg4);flex-shrink:0;background:${t.hex || 'var(--bg3)'}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${t.color || '—'}</div>
+          <div style="font-size:11px;color:var(--text3)">${t.tipo || 'sin tipo'}${c ? ` · cargado ${_mts(c.cargado)} · ${c.pantalones} pant.` : ''}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:17px;font-weight:800;color:${negat ? 'var(--red)' : (bajo ? 'var(--gold)' : 'var(--text)')};line-height:1.1">${disp === null ? '—' : _mts(disp)}</div>
+          <div style="font-size:10px;color:var(--text3)">${c ? `alcanza ${c.alcanza}` : 'sin calcular'}</div>
+        </div>
+        <button onclick="eliminarTela(${i})" title="Eliminar tela"
+          style="background:none;border:none;color:var(--text3);font-size:17px;cursor:pointer;padding:2px 0 2px 4px;flex-shrink:0">×</button>
+      </div>`;
+    });
+  }
+
+  h += `<div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="abrirNuevaTela()" style="flex:1;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer">➕ Nueva tela</button>
+      <button onclick="verCargasTela()" style="flex:1;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer">📜 Cargas</button>
+    </div>`;
+
+  if (inicio) {
+    h += `<div style="font-size:10px;color:var(--text3);text-align:center;padding-top:9px">Descontando desde el ${inicio} · <span onclick="abrirInicioTela()" style="color:var(--gold);cursor:pointer;text-decoration:underline">cambiar</span></div>`;
+  }
+
+  h += `</div>`;
+  box.innerHTML = h;
+}
+
+// ── Crear una tela del catálogo ────────────────────────────
+function abrirNuevaTela() {
+  const tipo = (prompt('Tipo de tela (ej: Lino, Algodón, Licra):') || '').trim();
+  if (!tipo) return;
+  const color = (prompt('Color de esa tela (escríbelo igual que en el pedido, ej: Negro):') || '').trim();
+  if (!color) return;
+  const telas = getTelas();
+  const rep = telas.some(t =>
+    String(t.tipo  || '').trim().toLowerCase() === tipo.toLowerCase() &&
+    String(t.color || '').trim().toLowerCase() === color.toLowerCase());
+  if (rep) { mostrarToast('Esa tela ya existe'); return; }
+  telas.push({ tipo, color });
+  saveTelas(telas);
+  mostrarToast(`${tipo} · ${color} creada`);
+  renderTelasBox();
+  loadInventarioTelas();
+}
+
+function eliminarTela(i) {
+  const telas = getTelas();
+  const t = telas[i];
+  if (!t) return;
+  if (!confirm(`¿Quitar "${telaEtiqueta(t)}" del inventario?\n\nLas cargas y los pedidos NO se borran: si la vuelves a crear igual, reaparecen sus metros.`)) return;
+  telas.splice(i, 1);
+  saveTelas(telas);
+  renderTelasBox();
+  loadInventarioTelas();
+}
+
+// ── Cargar metros ──────────────────────────────────────────
+function abrirCargarTela() {
+  const telas = getTelas();
+  if (!telas.length) { mostrarToast('Primero crea una tela'); return; }
+  const lista = telas.map((t, i) => `${i + 1}. ${telaEtiqueta(t)}`).join('\n');
+  const sel = prompt(`¿A qué tela le entran metros?\n\n${lista}\n\nEscribe el número:`);
+  if (sel === null) return;
+  const idx = parseInt(sel, 10) - 1;
+  const t = telas[idx];
+  if (!t) { mostrarToast('Número no válido'); return; }
+  const m = parseFloat((prompt(`Metros que entran de ${telaEtiqueta(t)}:`) || '').replace(',', '.'));
+  if (isNaN(m) || m === 0) { mostrarToast('Cantidad no válida'); return; }
+  const cargas = getTelaCargas();
+  cargas.push({ fecha: fechaStr(new Date()), tipo: t.tipo || '', color: t.color || '', metros: m });
+  saveTelaCargas(cargas);
+  mostrarToast(`${_mts(m)} de ${telaEtiqueta(t)}`);
+  loadInventarioTelas();
+}
+
+function verCargasTela() {
+  const cargas = getTelaCargas().slice().reverse();
+  if (!cargas.length) { mostrarToast('Todavía no hay cargas'); return; }
+  const lineas = cargas.slice(0, 25).map(c =>
+    `${c.fecha}  ${_mts(c.metros)}  ${(c.tipo ? c.tipo + ' · ' : '') + c.color}`).join('\n');
+  alert(`Últimas cargas de tela\n\n${lineas}${cargas.length > 25 ? `\n\n… y ${cargas.length - 25} más` : ''}`);
+}
+
+// ── Fecha desde la que se descuenta ────────────────────────
+function abrirInicioTela() {
+  const actual = getTelaInicio();
+  const v = (prompt(
+    'Fecha desde la que se descuenta la tela (dd/mm/aaaa).\n\n' +
+    'Los pantalones vendidos ANTES de esa fecha no restan metros. ' +
+    'Lo normal es poner el día en que cargas el inventario por primera vez.',
+    actual || fechaStr(new Date())) || '').trim();
+  if (!v) return;
+  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(v)) { mostrarToast('Usa el formato dd/mm/aaaa'); return; }
+  cfgSet('ceniza_tela_inicio', v);
+  mostrarToast('Descontando desde el ' + v);
+  loadInventarioTelas();
 }
 
 async function loadSemanaCosturera() {
@@ -7460,6 +7643,10 @@ function actualizarColoresProducto(cambioDeProducto) {
     const precio = PRECIO_PRODUCTO[prod] ? PRECIO_PRODUCTO[prod]() : FIN.precio;
     montoEl.value = parseFloat(precio).toFixed(2);
   }
+  // Único punto por el que pasa todo cambio de color: mostrarAddItem, el
+  // onchange de producto y ponerColorAunqueSeaViejo. Con engancharlo aquí,
+  // el selector de tela queda al día en los tres casos.
+  actualizarTelaDeColor();
 }
 
 function mostrarAddItem() {
@@ -7501,7 +7688,15 @@ function agregarItem() {
     mostrarToast('⚠ Completa todos los campos del pantalón');
     return;
   }
-  carrito.push({ producto, color, talla, ruedo, montoProducto: monto });
+  // La tela solo se exige cuando el color existe en varias: si hay una sola,
+  // actualizarTelaDeColor() ya la dejó puesta y el campo ni se ve.
+  const opcionesTela = telasDeColor(color);
+  const tipoTela = document.getElementById('ai-tela')?.value || '';
+  if (opcionesTela.length > 1 && !tipoTela) {
+    mostrarToast('⚠ Elige la tela de este pantalón');
+    return;
+  }
+  carrito.push({ producto, color, talla, ruedo, montoProducto: monto, tipoTela });
   ocultarAddItem();
   renderCarrito();
 }
@@ -7509,6 +7704,33 @@ function agregarItem() {
 function eliminarItem(idx) {
   carrito.splice(idx, 1);
   renderCarrito();
+}
+
+// Rellena (y enseña u oculta) el selector de tela según el color elegido.
+// La regla: preguntar solo cuando haga falta de verdad.
+//   0 telas para ese color → no se pregunta, el pedido va sin tela y el
+//     inventario lo contará aparte en vez de descontar de la que no es.
+//   1 tela  → se elige sola y el campo queda oculto.
+//   varias  → se pregunta, porque no hay forma de adivinarlo.
+function actualizarTelaDeColor(telaPrevia) {
+  const wrap = document.getElementById('ai-tela-wrap');
+  const sel  = document.getElementById('ai-tela');
+  if (!wrap || !sel) return;
+  const color = document.getElementById('ai-color')?.value || '';
+  const ops   = telasDeColor(color);
+
+  if (ops.length <= 1) {
+    wrap.style.display = 'none';
+    sel.innerHTML = `<option value="">Tela...</option>`;
+    sel.value = ops.length === 1 ? (ops[0].tipo || '') : '';
+    if (ops.length === 1) sel.innerHTML = `<option value="${ops[0].tipo || ''}" selected>${ops[0].tipo || ''}</option>`;
+    return;
+  }
+
+  wrap.style.display = '';
+  const previa = telaPrevia !== undefined ? telaPrevia : sel.value;
+  sel.innerHTML = `<option value="">Tela...</option>` +
+    ops.map(t => `<option${(t.tipo || '') === previa ? ' selected' : ''}>${t.tipo || ''}</option>`).join('');
 }
 
 // Un pedido viejo puede tener un color que ya se retiró del catálogo (o que
@@ -7533,6 +7755,7 @@ function editarItem(idx) {
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
   set('ai-producto', item.producto || 'Pantalón Clásico');
   ponerColorAunqueSeaViejo(item.color);   // ya reconstruye la lista
+  actualizarTelaDeColor(item.tipoTela || '');   // y recupera la tela que llevaba
   set('ai-talla', item.talla);
   const _stdRuedos = ['93','97','100','103','105','108','110','113'];
   const _rv = String(item.ruedo || '');
@@ -7738,6 +7961,7 @@ function abrirEdicion(fila) {
   carrito = [{
     producto: p.producto || 'Pantalón Clásico',
     color: p.color || '',
+    tipoTela: p.tipoTela || '',
     talla: p.talla || '',
     ruedo: p.ruedo || '',
     montoProducto: parseFloat(p.montoProducto) || 0
@@ -7790,6 +8014,7 @@ async function submitPedidos() {
         cedula:        g('f-cedula'),
         producto:      item.producto || 'Pantalón Clásico',
         color:         item.color    || '',
+        tipoTela:      item.tipoTela || '',
         talla:         item.talla    || '',
         ruedo:         item.ruedo    || '',
         tipoEntrega,
