@@ -6450,15 +6450,52 @@ function saveTelaCargas(l) { cfgSet('ceniza_tela_cargas', l); }
 function getTelaInicio()   { return localStorage.getItem('ceniza_tela_inicio') || ''; }
 
 function telaEtiqueta(t) {
-  return (t.tipo ? t.tipo + ' · ' : '') + (t.color || '');
+  return (t.tipo ? t.tipo + ' · ' : '') + (t.color || '') +
+         (t.producto ? ' (' + t.producto.replace('Pantalón ', '') + ')' : '');
 }
 
-// Telas disponibles para un color de pantalón. Si devuelve una sola, la app la
-// elige sola y no molesta a la vendedora; si devuelve varias, hay que preguntar.
-function telasDeColor(color) {
-  const c = String(color || '').trim().toLowerCase();
+// Las telas que usan hoy (dictadas por la dueña, 2026-09-29). Se cargan de una
+// vez desde la pantalla vacía en vez de crearlas a mano una por una.
+// Los colores están escritos EXACTAMENTE igual que en COLORES_PRODUCTO: si no
+// coinciden, el pedido no encuentra su tela y no descuenta.
+const TELAS_INICIALES = [
+  ...['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia',
+      'Rojo','Blanco','Gris','Rayas blanco y negro','Rayas rojas y rosadas',
+      'Puntos blancos fondo negro']
+     .map(color => ({ tipo: 'Cey Crush', color, producto: 'Pantalón Clásico' })),
+  { tipo: 'Coqueta', color: 'Amarillo', producto: 'Pantalón Clásico' },
+  ...['Negro','Beige','Azul marino','Verde oscuro','Rojo','Lila','Vinotinto']
+     .map(color => ({ tipo: 'Laurent', color, producto: 'Pantalón Pareo' }))
+];
+
+function sembrarTelasIniciales() {
+  const yaHay = getTelas();
+  if (yaHay.length && !confirm(
+      `Ya hay ${yaHay.length} telas. ¿Añadir las que faltan de la lista inicial?`)) return;
+  const clave = t => (t.producto || '') + '||' + (t.tipo || '') + '||' + (t.color || '');
+  const vistas = new Set(yaHay.map(clave));
+  const nuevas = TELAS_INICIALES.filter(t => !vistas.has(clave(t)));
+  if (!nuevas.length) { mostrarToast('Ya estaban todas'); return; }
+  saveTelas(yaHay.concat(nuevas));
+  mostrarToast(`${nuevas.length} telas cargadas`);
+  renderTelasBox();
+  loadInventarioTelas();
+}
+
+// Telas posibles para un pantalón. La clave es PRODUCTO + COLOR, no el color
+// solo: Negro, Vinotinto, Beige y Rojo existen en Cey Crush (Clásico) y en
+// Laurent (Pareo) a la vez, pero nunca se repiten dentro del mismo producto.
+// Por eso la app puede deducir la tela sola y no preguntar nada.
+// Una tela sin `producto` vale para cualquiera (comodín).
+function telasDePedido(producto, color) {
+  const c = String(color    || '').trim().toLowerCase();
+  const p = String(producto || '').trim().toLowerCase();
   if (!c) return [];
-  return getTelas().filter(t => String(t.color || '').trim().toLowerCase() === c);
+  return getTelas().filter(t => {
+    if (String(t.color || '').trim().toLowerCase() !== c) return false;
+    const tp = String(t.producto || '').trim().toLowerCase();
+    return !tp || !p || tp === p;
+  });
 }
 
 // ── Insumos del taller ──────────────────────────────────────
@@ -6720,30 +6757,48 @@ function renderTelasBox() {
   }
 
   if (!telas.length) {
-    h += `<div style="text-align:center;padding:22px 10px">
+    h += `<div style="text-align:center;padding:20px 10px">
       <div style="font-size:34px;margin-bottom:8px">🧵</div>
       <div style="font-size:13px;font-weight:700;color:var(--text2)">Todavía no hay telas</div>
-      <div style="font-size:12px;color:var(--text3);margin-top:4px;line-height:1.45">Crea cada tela con su tipo y su color. Un mismo color puede existir en varios tipos.</div>
+      <div style="font-size:12px;color:var(--text3);margin:5px 0 12px;line-height:1.45">Carga de una vez las que usan hoy, o créalas a mano.</div>
+      <button onclick="sembrarTelasIniciales()" style="background:var(--gold);border:none;color:#000;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">Cargar Cey Crush, Coqueta y Laurent</button>
     </div>`;
   } else {
+    // Agrupadas por tela: con 22 colores, una lista plana no se lee.
+    const grupos = {};
     telas.forEach((t, i) => {
-      const c     = calc[(t.tipo || '') + '||' + (t.color || '')];
-      const disp  = c ? c.disponible : null;
-      const bajo  = disp !== null && disp < METROS_POR_PANT * 3;   // menos de 3 pantalones
-      const negat = disp !== null && disp < 0;
-      h += `<div style="display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--bg4)">
-        <div style="width:30px;height:30px;border-radius:8px;border:1.5px solid var(--bg4);flex-shrink:0;background:${t.hex || 'var(--bg3)'}"></div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600;color:var(--text)">${t.color || '—'}</div>
-          <div style="font-size:11px;color:var(--text3)">${t.tipo || 'sin tipo'}${c ? ` · cargado ${_mts(c.cargado)} · ${c.pantalones} pant.` : ''}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:17px;font-weight:800;color:${negat ? 'var(--red)' : (bajo ? 'var(--gold)' : 'var(--text)')};line-height:1.1">${disp === null ? '—' : _mts(disp)}</div>
-          <div style="font-size:10px;color:var(--text3)">${c ? `alcanza ${c.alcanza}` : 'sin calcular'}</div>
-        </div>
-        <button onclick="eliminarTela(${i})" title="Eliminar tela"
-          style="background:none;border:none;color:var(--text3);font-size:17px;cursor:pointer;padding:2px 0 2px 4px;flex-shrink:0">×</button>
+      const g = t.tipo || 'Sin tipo';
+      (grupos[g] = grupos[g] || []).push({ t, i });
+    });
+    Object.keys(grupos).forEach(nombre => {
+      const filas   = grupos[nombre];
+      const totDisp = filas.reduce((s, { t }) => {
+        const c = calc[(t.tipo || '') + '||' + (t.color || '')];
+        return s + (c ? c.disponible : 0);
+      }, 0);
+      const hayCalc = filas.some(({ t }) => calc[(t.tipo || '') + '||' + (t.color || '')]);
+      h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 2px">
+        <div style="font-size:12px;font-weight:800;color:var(--text2);letter-spacing:.03em">${nombre}</div>
+        <div style="font-size:11px;color:var(--text3)">${hayCalc ? _mts(totDisp) + ' en total' : ''}</div>
       </div>`;
+      filas.forEach(({ t, i }) => {
+        const c     = calc[(t.tipo || '') + '||' + (t.color || '')];
+        const disp  = c ? c.disponible : null;
+        const bajo  = disp !== null && disp < METROS_POR_PANT * 3;   // menos de 3 pantalones
+        const negat = disp !== null && disp < 0;
+        h += `<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--bg4)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${t.color || '—'}</div>
+            <div style="font-size:11px;color:var(--text3)">${c ? `cargado ${_mts(c.cargado)} · ${c.pantalones} pant.` : (t.producto || '').replace('Pantalón ', '')}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:16px;font-weight:800;color:${negat ? 'var(--red)' : (bajo ? 'var(--gold)' : 'var(--text)')};line-height:1.1">${disp === null ? '—' : _mts(disp)}</div>
+            <div style="font-size:10px;color:var(--text3)">${c ? `alcanza ${c.alcanza}` : 'sin calcular'}</div>
+          </div>
+          <button onclick="eliminarTela(${i})" title="Eliminar"
+            style="background:none;border:none;color:var(--text3);font-size:17px;cursor:pointer;padding:2px 0 2px 4px;flex-shrink:0">×</button>
+        </div>`;
+      });
     });
   }
 
@@ -6762,16 +6817,19 @@ function renderTelasBox() {
 
 // ── Crear una tela del catálogo ────────────────────────────
 function abrirNuevaTela() {
-  const tipo = (prompt('Tipo de tela (ej: Lino, Algodón, Licra):') || '').trim();
+  const tipo = (prompt('Nombre de la tela (ej: Cey Crush, Coqueta, Laurent):') || '').trim();
   if (!tipo) return;
-  const color = (prompt('Color de esa tela (escríbelo igual que en el pedido, ej: Negro):') || '').trim();
+  const color = (prompt('Color de esa tela.\n\nEscríbelo EXACTAMENTE igual que aparece al registrar el pedido, o no se podrá descontar.') || '').trim();
   if (!color) return;
+  const cual = (prompt('¿Para qué pantalón?\n\n1. Clásico\n2. Pareo\n3. Los dos\n\nEscribe el número:') || '').trim();
+  const producto = cual === '1' ? 'Pantalón Clásico' : cual === '2' ? 'Pantalón Pareo' : '';
   const telas = getTelas();
   const rep = telas.some(t =>
-    String(t.tipo  || '').trim().toLowerCase() === tipo.toLowerCase() &&
-    String(t.color || '').trim().toLowerCase() === color.toLowerCase());
+    String(t.tipo     || '').trim().toLowerCase() === tipo.toLowerCase()  &&
+    String(t.color    || '').trim().toLowerCase() === color.toLowerCase() &&
+    String(t.producto || '') === producto);
   if (rep) { mostrarToast('Esa tela ya existe'); return; }
-  telas.push({ tipo, color });
+  telas.push({ tipo, color, producto });
   saveTelas(telas);
   mostrarToast(`${tipo} · ${color} creada`);
   renderTelasBox();
@@ -7688,9 +7746,9 @@ function agregarItem() {
     mostrarToast('⚠ Completa todos los campos del pantalón');
     return;
   }
-  // La tela solo se exige cuando el color existe en varias: si hay una sola,
+  // La tela solo se exige cuando ese producto+color da varias: si hay una sola,
   // actualizarTelaDeColor() ya la dejó puesta y el campo ni se ve.
-  const opcionesTela = telasDeColor(color);
+  const opcionesTela = telasDePedido(producto, color);
   const tipoTela = document.getElementById('ai-tela')?.value || '';
   if (opcionesTela.length > 1 && !tipoTela) {
     mostrarToast('⚠ Elige la tela de este pantalón');
@@ -7716,8 +7774,9 @@ function actualizarTelaDeColor(telaPrevia) {
   const wrap = document.getElementById('ai-tela-wrap');
   const sel  = document.getElementById('ai-tela');
   if (!wrap || !sel) return;
-  const color = document.getElementById('ai-color')?.value || '';
-  const ops   = telasDeColor(color);
+  const color    = document.getElementById('ai-color')?.value    || '';
+  const producto = document.getElementById('ai-producto')?.value || '';
+  const ops      = telasDePedido(producto, color);
 
   if (ops.length <= 1) {
     wrap.style.display = 'none';
