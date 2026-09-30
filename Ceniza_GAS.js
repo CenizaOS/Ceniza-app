@@ -1199,16 +1199,14 @@ function _filaConsumeTela(row) {
 }
 
 function getInventarioTelas() {
-  const config  = leerConfig();
-  const telas   = _leerConfigJSON(config, "ceniza_telas",        []);
-  const cargas  = _leerConfigJSON(config, "ceniza_tela_cargas",  []);
-  const inicioS = String(config["ceniza_tela_inicio"] || "").trim();
+  const cargas = _leerConfigJSON(leerConfig(), "ceniza_tela_cargas", []);
 
-  // Sin fecha de inicio no se descuenta nada: si no, el primer día se restarían
-  // los 1.240 pantalones del histórico y el inventario saldría en negativo.
-  const inicio = inicioS ? _parseFechaVE(inicioS) : null;
-
+  // Cada tela empieza a descontar desde SU primera carga. Antes había una fecha
+  // de arranque global que la costurera tenía que poner a mano; sobra: si una
+  // tela no se ha cargado nunca, no hay nada de qué descontar, y si se cargó,
+  // lo natural es contar desde ese día. Así la pantalla no pide nada.
   const cargado = {};
+  const desde   = {};
   for (let i = 0; i < cargas.length; i++) {
     const c = cargas[i] || {};
     const k = _claveTela(c.tipo, c.color);
@@ -1216,52 +1214,57 @@ function getInventarioTelas() {
     const m = parseFloat(c.metros);
     if (isNaN(m)) continue;
     cargado[k] = (cargado[k] || 0) + m;
+    const f = _parseFechaVE(c.fecha);
+    if (f && (!desde[k] || f < desde[k])) desde[k] = f;
   }
 
   const pants = {};
   let sinTipo = 0;
-  if (inicio) {
+  const claves = Object.keys(cargado);
+  if (claves.length) {
     const ws = hoja().getSheetByName("Pedidos " + mesActivo());
     if (ws) {
       const datos = ws.getDataRange().getValues();
       for (let i = 1; i < datos.length; i++) {
         const f = _filaConsumeTela(datos[i]);
         if (!f || !f.clave) continue;
-        if (f.fecha < inicio) continue;
         // Pedidos anteriores al campo "tipo de tela" no traen tipo: se cuentan
         // aparte para avisar, no se reparten a ciegas entre las telas.
         if (!String(datos[i][22] || "").trim()) { sinTipo++; continue; }
+        const ini = desde[f.clave];
+        if (!ini || f.fecha < ini) continue;   // esa tela aún no se había cargado
         pants[f.clave] = (pants[f.clave] || 0) + 1;
       }
     }
   }
 
+  // Se devuelve una fila por tela CARGADA. El catálogo vive en el frontend
+  // (`TELAS` en index.html), que es quien lo cruza con esto: así añadir o
+  // quitar una tela no obliga a volver a desplegar el backend.
   const filas = [];
-  for (let i = 0; i < telas.length; i++) {
-    const t = telas[i] || {};
-    const k = _claveTela(t.tipo, t.color);
-    if (!k) continue;
+  for (let i = 0; i < claves.length; i++) {
+    const k   = claves[i];
+    const par = k.split("||");
     const m   = Math.round((cargado[k] || 0) * 100) / 100;
     const n   = pants[k] || 0;
     const con = Math.round(n * METROS_POR_PANT * 100) / 100;
     filas.push({
-      tipo:       t.tipo  || "",
-      color:      t.color || "",
-      hex:        t.hex   || "",
+      clave:      k,
+      tipo:       par[0] || "",
+      color:      par[1] || "",
       cargado:    m,
       pantalones: n,
       consumido:  con,
       disponible: Math.round((m - con) * 100) / 100,
-      alcanza:    Math.floor(Math.max(0, m - con) / METROS_POR_PANT)
+      alcanza:    Math.floor(Math.max(0, m - con) / METROS_POR_PANT),
+      desde:      desde[k] ? Utilities.formatDate(desde[k], "America/Caracas", "dd/MM/yyyy") : ""
     });
   }
 
   return {
-    telas:           filas,
-    metrosPorPant:   METROS_POR_PANT,
-    inicio:          inicioS,
-    sinFechaInicio:  !inicio,
-    pantsSinTipo:    sinTipo
+    telas:         filas,
+    metrosPorPant: METROS_POR_PANT,
+    pantsSinTipo:  sinTipo
   };
 }
 

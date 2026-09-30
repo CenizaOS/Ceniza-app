@@ -1297,7 +1297,7 @@ function copiarDatosEnvio(btn) {
 // CONFIG SYNC — persiste en Google Sheets, usa localStorage como caché
 // ══════════════════════════════════════════════════════════
 const CONFIG_KEYS = [
-  'ceniza_telas','ceniza_tela_cargas','ceniza_tela_inicio',
+  'ceniza_tela_cargas',
   'ceniza_colores_tela','ceniza_fin','ceniza_inventario','ceniza_insumos',
   'ceniza_encargos','ceniza_arreglos','ceniza_lote_pants',
   'ceniza_lote_producto','ceniza_compras_efectivo_log','ceniza_produccion_lotes',
@@ -6433,32 +6433,19 @@ async function loadCostHistorial(verTodo = false) {
 // ══════════════════════════════════════════════════════════
 // INVENTARIO DE TELAS (por metros)
 // ══════════════════════════════════════════════════════════
-// Tres piezas, todas guardadas en la hoja Config:
-//   ceniza_telas        catálogo: [{tipo, color, hex}]  — tipo+color es la clave,
-//                       porque un mismo color existe en varias telas.
-//   ceniza_tela_cargas  entradas: [{fecha, tipo, color, metros, nota}]
-//   ceniza_tela_inicio  fecha (dd/MM/yyyy) desde la que se descuenta
+// La costurera SOLO escribe metros. Nada de crear telas ni poner fechas: las
+// telas son las que son, así que van fijas aquí igual que COLORES_PRODUCTO.
+// Lo único que se guarda es `ceniza_tela_cargas`: [{fecha, tipo, color, metros}].
 // El DISPONIBLE no se guarda: lo calcula el backend (`inventarioTelas`) como
-// cargado − 2,7 × pantalones vendidos. Un saldo guardado que se va restando se
+// cargado − 2,7 × pantalones. Un saldo guardado que se va restando se
 // desincroniza en cuanto una petición se repite o se corrige un pedido.
+// Cada tela empieza a descontar desde SU primera carga, sin fecha que poner.
 const METROS_POR_PANT = 2.7;
 
-function getTelas()        { try { return JSON.parse(localStorage.getItem('ceniza_telas') || '[]'); } catch(_) { return []; } }
-function saveTelas(list)   { cfgSet('ceniza_telas', list); }
-function getTelaCargas()   { try { return JSON.parse(localStorage.getItem('ceniza_tela_cargas') || '[]'); } catch(_) { return []; } }
-function saveTelaCargas(l) { cfgSet('ceniza_tela_cargas', l); }
-function getTelaInicio()   { return localStorage.getItem('ceniza_tela_inicio') || ''; }
-
-function telaEtiqueta(t) {
-  return (t.tipo ? t.tipo + ' · ' : '') + (t.color || '') +
-         (t.producto ? ' (' + t.producto.replace('Pantalón ', '') + ')' : '');
-}
-
-// Las telas que usan hoy (dictadas por la dueña, 2026-09-29). Se cargan de una
-// vez desde la pantalla vacía en vez de crearlas a mano una por una.
-// Los colores están escritos EXACTAMENTE igual que en COLORES_PRODUCTO: si no
-// coinciden, el pedido no encuentra su tela y no descuenta.
-const TELAS_INICIALES = [
+// Telas que se usan hoy (dictadas por la dueña, 2026-09-29). Los colores están
+// escritos EXACTAMENTE igual que en COLORES_PRODUCTO: si no coinciden, el
+// pedido no encuentra su tela y no descuenta.
+const TELAS = [
   ...['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia',
       'Rojo','Blanco','Gris','Rayas blanco y negro','Rayas rojas y rosadas',
       'Puntos blancos fondo negro']
@@ -6468,18 +6455,17 @@ const TELAS_INICIALES = [
      .map(color => ({ tipo: 'Laurent', color, producto: 'Pantalón Pareo' }))
 ];
 
-function sembrarTelasIniciales() {
-  const yaHay = getTelas();
-  if (yaHay.length && !confirm(
-      `Ya hay ${yaHay.length} telas. ¿Añadir las que faltan de la lista inicial?`)) return;
-  const clave = t => (t.producto || '') + '||' + (t.tipo || '') + '||' + (t.color || '');
-  const vistas = new Set(yaHay.map(clave));
-  const nuevas = TELAS_INICIALES.filter(t => !vistas.has(clave(t)));
-  if (!nuevas.length) { mostrarToast('Ya estaban todas'); return; }
-  saveTelas(yaHay.concat(nuevas));
-  mostrarToast(`${nuevas.length} telas cargadas`);
-  renderTelasBox();
-  loadInventarioTelas();
+function getTelas()        { return TELAS; }
+function getTelaCargas()   { try { return JSON.parse(localStorage.getItem('ceniza_tela_cargas') || '[]'); } catch(_) { return []; } }
+function saveTelaCargas(l) { cfgSet('ceniza_tela_cargas', l); }
+
+// Misma clave que `_claveTela` en el backend, para poder cruzar las dos listas.
+function claveTela(tipo, color) {
+  return String(tipo || '').trim().toLowerCase() + '||' + String(color || '').trim().toLowerCase();
+}
+
+function telaEtiqueta(t) {
+  return (t.tipo ? t.tipo + ' · ' : '') + (t.color || '');
 }
 
 // Telas posibles para un pantalón. La clave es PRODUCTO + COLOR, no el color
@@ -6723,169 +6709,103 @@ function renderTelasBox() {
   const box = document.getElementById('cost-telas-box');
   if (!box) return;
 
-  const telas  = getTelas();
-  const inicio = getTelaInicio();
-  const calc   = {};
-  if (_invTelas && _invTelas.telas) {
-    _invTelas.telas.forEach(t => { calc[(t.tipo || '') + '||' + (t.color || '')] = t; });
-  }
+  const calc = {};
+  if (_invTelas && _invTelas.telas) _invTelas.telas.forEach(t => { calc[t.clave] = t; });
 
   let h = `<div style="background:var(--bg2);border-radius:12px;padding:14px 16px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--text)">🧵 Telas</div>
-        <div style="font-size:12px;color:var(--text3)">Metros disponibles · ${METROS_POR_PANT} m por pantalón</div>
-      </div>
-      <button onclick="abrirCargarTela()" style="background:var(--gold-bg);border:1px solid var(--gold-dim);color:var(--gold);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">➕ Cargar</button>
-    </div>`;
-
-  if (!inicio) {
-    h += `<div style="background:var(--gold-bg);border:1px solid var(--gold-dim);border-radius:10px;padding:10px 12px;margin:10px 0">
-      <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:3px">Falta la fecha de arranque</div>
-      <div style="font-size:11px;color:var(--text2);line-height:1.45">Hasta que la pongas no se descuenta nada, para no restar de golpe todos los pantalones que ya están en la hoja.</div>
-      <button onclick="abrirInicioTela()" style="margin-top:8px;background:var(--gold);border:none;color:#000;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">Poner fecha</button>
-    </div>`;
-  }
+    <div style="font-size:13px;font-weight:700;color:var(--text)">🧵 Telas</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:2px">Escribe los metros que entran y pulsa ＋. Cada pantalón gasta ${METROS_POR_PANT} m.</div>`;
 
   if (_invTelasErr) {
-    h += `<div style="font-size:11px;color:var(--text3);background:var(--bg3);border-radius:8px;padding:8px 10px;margin:8px 0">No se pudo calcular el consumo (${_invTelasErr}). Lo que ves es lo cargado, sin descontar.</div>`;
+    h += `<div style="font-size:11px;color:var(--text3);background:var(--bg3);border-radius:8px;padding:8px 10px;margin:9px 0">No se pudo calcular lo consumido (${_invTelasErr}). Puedes cargar metros igual; se recalcula al volver.</div>`;
   }
-
   if (_invTelas && _invTelas.pantsSinTipo > 0) {
-    h += `<div style="font-size:11px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 10px;margin:8px 0;line-height:1.45">
-      <b>${_invTelas.pantsSinTipo}</b> pantal${_invTelas.pantsSinTipo === 1 ? 'ón' : 'ones'} sin tela anotada no se descontaron de ninguna. Son pedidos registrados antes de que existiera este campo.</div>`;
+    h += `<div style="font-size:11px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 10px;margin:9px 0;line-height:1.45">
+      <b>${_invTelas.pantsSinTipo}</b> pantal${_invTelas.pantsSinTipo === 1 ? 'ón' : 'ones'} sin tela anotada no se descontaron de ninguna. Son pedidos de antes de que existiera este campo.</div>`;
   }
 
-  if (!telas.length) {
-    h += `<div style="text-align:center;padding:20px 10px">
-      <div style="font-size:34px;margin-bottom:8px">🧵</div>
-      <div style="font-size:13px;font-weight:700;color:var(--text2)">Todavía no hay telas</div>
-      <div style="font-size:12px;color:var(--text3);margin:5px 0 12px;line-height:1.45">Carga de una vez las que usan hoy, o créalas a mano.</div>
-      <button onclick="sembrarTelasIniciales()" style="background:var(--gold);border:none;color:#000;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer">Cargar Cey Crush, Coqueta y Laurent</button>
+  // Agrupadas por tela: 22 colores en una lista plana no se leen.
+  const grupos = {};
+  TELAS.forEach(t => { (grupos[t.tipo] = grupos[t.tipo] || []).push(t); });
+
+  Object.keys(grupos).forEach(nombre => {
+    const filas = grupos[nombre];
+    const total = filas.reduce((s, t) => {
+      const c = calc[claveTela(t.tipo, t.color)];
+      return s + (c ? c.disponible : 0);
+    }, 0);
+    const hayAlgo = filas.some(t => calc[claveTela(t.tipo, t.color)]);
+    h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 4px">
+      <div style="font-size:12px;font-weight:800;color:var(--text2);letter-spacing:.03em">${nombre}</div>
+      <div style="font-size:11px;color:var(--text3)">${hayAlgo ? _mts(total) + ' en total' : 'sin cargar'}</div>
     </div>`;
-  } else {
-    // Agrupadas por tela: con 22 colores, una lista plana no se lee.
-    const grupos = {};
-    telas.forEach((t, i) => {
-      const g = t.tipo || 'Sin tipo';
-      (grupos[g] = grupos[g] || []).push({ t, i });
-    });
-    Object.keys(grupos).forEach(nombre => {
-      const filas   = grupos[nombre];
-      const totDisp = filas.reduce((s, { t }) => {
-        const c = calc[(t.tipo || '') + '||' + (t.color || '')];
-        return s + (c ? c.disponible : 0);
-      }, 0);
-      const hayCalc = filas.some(({ t }) => calc[(t.tipo || '') + '||' + (t.color || '')]);
-      h += `<div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 2px">
-        <div style="font-size:12px;font-weight:800;color:var(--text2);letter-spacing:.03em">${nombre}</div>
-        <div style="font-size:11px;color:var(--text3)">${hayCalc ? _mts(totDisp) + ' en total' : ''}</div>
+
+    filas.forEach(t => {
+      const k     = claveTela(t.tipo, t.color);
+      const c     = calc[k];
+      const disp  = c ? c.disponible : null;
+      const bajo  = disp !== null && disp < METROS_POR_PANT * 3;   // menos de 3 pantalones
+      const negat = disp !== null && disp < 0;
+      const id    = 'tela-in-' + k.replace(/[^a-z0-9]/gi, '_');
+      h += `<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--bg4)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${t.color}</div>
+          <div style="font-size:11px;color:var(--text3)">${c ? `${c.pantalones} pant. · cargado ${_mts(c.cargado)}` : 'sin cargar'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;min-width:58px">
+          <div style="font-size:16px;font-weight:800;line-height:1.1;color:${negat ? 'var(--red)' : (bajo ? 'var(--gold)' : 'var(--text)')}">${disp === null ? '—' : _mts(disp)}</div>
+          <div style="font-size:10px;color:var(--text3)">${c ? `para ${c.alcanza}` : ''}</div>
+        </div>
+        <!-- type="text" a propósito: con type="number" el navegador RECHAZA la
+             coma decimal y el campo se queda vacío, así que "25,5" se perdía.
+             inputmode="decimal" mantiene el teclado numérico en el teléfono. -->
+        <input id="${id}" type="text" inputmode="decimal" placeholder="m" maxlength="7"
+          onkeydown="if(event.key==='Enter')cargarMetros('${t.tipo}','${t.color}','${id}')"
+          style="width:52px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:14px;font-weight:700;color:var(--text);flex-shrink:0;-moz-appearance:textfield">
+        <button onclick="cargarMetros('${t.tipo}','${t.color}','${id}')" title="Agregar metros"
+          style="width:34px;height:34px;border-radius:50%;background:var(--gold-bg);border:1px solid var(--gold-dim);color:var(--gold);font-size:19px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">＋</button>
       </div>`;
-      filas.forEach(({ t, i }) => {
-        const c     = calc[(t.tipo || '') + '||' + (t.color || '')];
-        const disp  = c ? c.disponible : null;
-        const bajo  = disp !== null && disp < METROS_POR_PANT * 3;   // menos de 3 pantalones
-        const negat = disp !== null && disp < 0;
-        h += `<div style="display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--bg4)">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--text)">${t.color || '—'}</div>
-            <div style="font-size:11px;color:var(--text3)">${c ? `cargado ${_mts(c.cargado)} · ${c.pantalones} pant.` : (t.producto || '').replace('Pantalón ', '')}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:16px;font-weight:800;color:${negat ? 'var(--red)' : (bajo ? 'var(--gold)' : 'var(--text)')};line-height:1.1">${disp === null ? '—' : _mts(disp)}</div>
-            <div style="font-size:10px;color:var(--text3)">${c ? `alcanza ${c.alcanza}` : 'sin calcular'}</div>
-          </div>
-          <button onclick="eliminarTela(${i})" title="Eliminar"
-            style="background:none;border:none;color:var(--text3);font-size:17px;cursor:pointer;padding:2px 0 2px 4px;flex-shrink:0">×</button>
-        </div>`;
-      });
     });
-  }
+  });
 
-  h += `<div style="display:flex;gap:8px;margin-top:12px">
-      <button onclick="abrirNuevaTela()" style="flex:1;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer">➕ Nueva tela</button>
-      <button onclick="verCargasTela()" style="flex:1;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:9px;padding:9px;font-size:12px;font-weight:600;cursor:pointer">📜 Cargas</button>
-    </div>`;
-
-  if (inicio) {
-    h += `<div style="font-size:10px;color:var(--text3);text-align:center;padding-top:9px">Descontando desde el ${inicio} · <span onclick="abrirInicioTela()" style="color:var(--gold);cursor:pointer;text-decoration:underline">cambiar</span></div>`;
-  }
-
+  h += `<button onclick="verCargasTela()" style="width:100%;margin-top:14px;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:9px;padding:10px;font-size:12px;font-weight:600;cursor:pointer">📜 Ver y corregir cargas</button>`;
   h += `</div>`;
   box.innerHTML = h;
 }
 
-// ── Crear una tela del catálogo ────────────────────────────
-function abrirNuevaTela() {
-  const tipo = (prompt('Nombre de la tela (ej: Cey Crush, Coqueta, Laurent):') || '').trim();
-  if (!tipo) return;
-  const color = (prompt('Color de esa tela.\n\nEscríbelo EXACTAMENTE igual que aparece al registrar el pedido, o no se podrá descontar.') || '').trim();
-  if (!color) return;
-  const cual = (prompt('¿Para qué pantalón?\n\n1. Clásico\n2. Pareo\n3. Los dos\n\nEscribe el número:') || '').trim();
-  const producto = cual === '1' ? 'Pantalón Clásico' : cual === '2' ? 'Pantalón Pareo' : '';
-  const telas = getTelas();
-  const rep = telas.some(t =>
-    String(t.tipo     || '').trim().toLowerCase() === tipo.toLowerCase()  &&
-    String(t.color    || '').trim().toLowerCase() === color.toLowerCase() &&
-    String(t.producto || '') === producto);
-  if (rep) { mostrarToast('Esa tela ya existe'); return; }
-  telas.push({ tipo, color, producto });
-  saveTelas(telas);
-  mostrarToast(`${tipo} · ${color} creada`);
-  renderTelasBox();
-  loadInventarioTelas();
-}
-
-function eliminarTela(i) {
-  const telas = getTelas();
-  const t = telas[i];
-  if (!t) return;
-  if (!confirm(`¿Quitar "${telaEtiqueta(t)}" del inventario?\n\nLas cargas y los pedidos NO se borran: si la vuelves a crear igual, reaparecen sus metros.`)) return;
-  telas.splice(i, 1);
-  saveTelas(telas);
-  renderTelasBox();
-  loadInventarioTelas();
-}
-
-// ── Cargar metros ──────────────────────────────────────────
-function abrirCargarTela() {
-  const telas = getTelas();
-  if (!telas.length) { mostrarToast('Primero crea una tela'); return; }
-  const lista = telas.map((t, i) => `${i + 1}. ${telaEtiqueta(t)}`).join('\n');
-  const sel = prompt(`¿A qué tela le entran metros?\n\n${lista}\n\nEscribe el número:`);
-  if (sel === null) return;
-  const idx = parseInt(sel, 10) - 1;
-  const t = telas[idx];
-  if (!t) { mostrarToast('Número no válido'); return; }
-  const m = parseFloat((prompt(`Metros que entran de ${telaEtiqueta(t)}:`) || '').replace(',', '.'));
-  if (isNaN(m) || m === 0) { mostrarToast('Cantidad no válida'); return; }
+// Registrar metros que entran. Es lo ÚNICO que hace la costurera aquí.
+function cargarMetros(tipo, color, inputId) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  const m = parseFloat(String(el.value).replace(',', '.'));
+  if (isNaN(m) || m <= 0) { mostrarToast('Escribe cuántos metros entran'); return; }
   const cargas = getTelaCargas();
-  cargas.push({ fecha: fechaStr(new Date()), tipo: t.tipo || '', color: t.color || '', metros: m });
+  cargas.push({ fecha: fechaStr(new Date()), tipo, color, metros: m });
   saveTelaCargas(cargas);
-  mostrarToast(`${_mts(m)} de ${telaEtiqueta(t)}`);
+  el.value = '';
+  mostrarToast(`+${_mts(m)} de ${tipo} ${color}`);
   loadInventarioTelas();
 }
 
+// Las cargas son la única forma de corregir: si se escribió mal, se borra esa
+// entrada. No hay un saldo que tocar a mano, así que nada se puede descuadrar.
 function verCargasTela() {
-  const cargas = getTelaCargas().slice().reverse();
-  if (!cargas.length) { mostrarToast('Todavía no hay cargas'); return; }
-  const lineas = cargas.slice(0, 25).map(c =>
-    `${c.fecha}  ${_mts(c.metros)}  ${(c.tipo ? c.tipo + ' · ' : '') + c.color}`).join('\n');
-  alert(`Últimas cargas de tela\n\n${lineas}${cargas.length > 25 ? `\n\n… y ${cargas.length - 25} más` : ''}`);
-}
-
-// ── Fecha desde la que se descuenta ────────────────────────
-function abrirInicioTela() {
-  const actual = getTelaInicio();
-  const v = (prompt(
-    'Fecha desde la que se descuenta la tela (dd/mm/aaaa).\n\n' +
-    'Los pantalones vendidos ANTES de esa fecha no restan metros. ' +
-    'Lo normal es poner el día en que cargas el inventario por primera vez.',
-    actual || fechaStr(new Date())) || '').trim();
-  if (!v) return;
-  if (!/^\d{2}\/\d{2}\/\d{4}$/.test(v)) { mostrarToast('Usa el formato dd/mm/aaaa'); return; }
-  cfgSet('ceniza_tela_inicio', v);
-  mostrarToast('Descontando desde el ' + v);
+  const cargas = getTelaCargas();
+  if (!cargas.length) { mostrarToast('Todavía no has cargado metros'); return; }
+  const ult = cargas.map((c, i) => ({ c, i })).reverse().slice(0, 30);
+  const lineas = ult.map(({ c, i }) =>
+    `${i + 1}. ${c.fecha}  ${_mts(c.metros)}  ${c.tipo} ${c.color}`).join('\n');
+  const r = prompt(
+    `Metros cargados (los últimos ${ult.length} de ${cargas.length}):\n\n${lineas}\n\n` +
+    `Si te equivocaste en alguno, escribe su número para borrarlo.\nSi está todo bien, cancela.`);
+  if (r === null) return;
+  const idx = parseInt(r, 10) - 1;
+  const c = cargas[idx];
+  if (!c) { mostrarToast('Número no válido'); return; }
+  if (!confirm(`¿Borrar la carga de ${_mts(c.metros)} de ${c.tipo} ${c.color} del ${c.fecha}?`)) return;
+  cargas.splice(idx, 1);
+  saveTelaCargas(cargas);
+  mostrarToast('Carga borrada');
   loadInventarioTelas();
 }
 
