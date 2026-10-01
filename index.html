@@ -8178,7 +8178,8 @@ async function submitPedidos() {
         // que se haya corregido entre medias —la casilla de cambio de talla,
         // por ejemplo— se perdió sin que nadie se enterara.
         if (data.deduped) {
-          mostrarToast('⚠️ Este pedido ya se había guardado antes. Si cambiaste algo, ábrelo y edítalo para comprobarlo.');
+          const _f = (data.filas && data.filas.length) ? ' (pedido #' + data.filas.join(', #') + ')' : '';
+          mostrarToast('⚠️ Este pedido ya se había guardado antes' + _f + '. Si cambiaste algo, ábrelo y edítalo para comprobarlo.');
         } else {
         // Decir en voz alta que quedó como cambio de talla. Sin esta
         // confirmación la vendedora no tenía forma de saber si la casilla
@@ -8187,6 +8188,20 @@ async function submitPedidos() {
           ? '🔄 Registrado como CAMBIO DE TALLA · no suma al conteo'
           : 'Pedido registrado');
         }
+        _prodCache = null;
+        localStorage.removeItem('ceniza_cache_pedidos');
+        setTimeout(() => loadVendedoraPedidos(), 1500);
+      } else if (data.corregido) {
+        // El pedido ya existe con OTROS datos: volver a pulsar Registrar no
+        // sirve (se rechazaría igual) y escribirlo de nuevo lo duplicaría. El
+        // único camino es editar el que ya está, así que se cierra el
+        // formulario y se lleva a la lista en vez de dejarla peleando con un
+        // botón que nunca va a funcionar.
+        cerrarFormulario();
+        carrito = [];
+        renderCarrito();
+        resetForm();
+        mostrarToast('⚠️ ' + data.error);
         _prodCache = null;
         localStorage.removeItem('ceniza_cache_pedidos');
         setTimeout(() => loadVendedoraPedidos(), 1500);

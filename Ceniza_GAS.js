@@ -477,17 +477,73 @@ function guardarCliente(nombre, telefono, direccion, cedula) {
 
 // ─── IDEMPOTENCIA: evita registrar el mismo pedido dos veces ─────────────────
 // Guarda los últimos 100 reqId procesados en ScriptProperties.
-function _yaFueProcesado(reqId) {
-  if (!reqId) return false;
-  const props = PropertiesService.getScriptProperties();
-  const raw = props.getProperty('REQIDS') || '[]';
-  let ids;
-  try { ids = JSON.parse(raw); } catch(e) { ids = []; }
-  if (ids.includes(reqId)) return true;   // duplicado detectado
-  ids.unshift(reqId);
-  if (ids.length > 100) ids = ids.slice(0, 100);
-  props.setProperty('REQIDS', JSON.stringify(ids));
-  return false;
+// Huella de lo que se envió. Sirve para distinguir un reintento idéntico (el
+// teléfono se pasó de tiempo pero el servidor sí escribió) de una CORRECCIÓN
+// (se cambió algo entre los dos intentos). Antes ambos casos se trataban igual
+// y la corrección se perdía en silencio: el 30/09/2026 un cambio de talla
+// marcado en el segundo intento no llegó nunca a la hoja.
+function _huellaPedido(p) {
+  const partes = [
+    (p.nombre || "").trim(), (p.telefono || "").trim(), (p.cedula || "").trim(),
+    p.tipoEntrega || "", p.fechaEntrega || "", (p.direccion || "").trim(),
+    String(p.montoDelivery || "0"), p.metodoPago || "", p.origen || "",
+    (p.notas || "").trim(), String(p.montoEfectivo || "0"), String(p.vuelto || "0"),
+    (p.cambioDeTalla === "true") ? "CT" : "",
+    p.items || ""
+  ].join("|");
+  const bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.MD5, partes, Utilities.Charset.UTF_8);
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    const b = (bytes[i] + 256) % 256;
+    hex += (b < 16 ? "0" : "") + b.toString(16);
+  }
+  return hex;
+}
+
+function _leerReqIds() {
+  const raw = PropertiesService.getScriptProperties().getProperty("REQIDS") || "[]";
+  let lista;
+  try { lista = JSON.parse(raw); } catch (e) { return []; }
+  if (!Array.isArray(lista)) return [];
+  // Formato viejo: lista de textos sueltos. Se convierten sin huella conocida,
+  // y sin huella se tratan como duplicado — que es lo que hacían antes.
+  return lista.map(e => (typeof e === "string") ? { i: e, h: null, f: null } : e)
+              .filter(e => e && e.i);
+}
+
+function _escribirReqIds(lista) {
+  PropertiesService.getScriptProperties()
+    .setProperty("REQIDS", JSON.stringify(lista.slice(0, 100)));
+}
+
+// "nuevo" → escribir. "duplicado" → ya está, no tocar nada.
+// "corregido" → mismo envío con algo cambiado: NO se puede escribir otra vez
+// (se duplicaría el pedido), así que hay que decirlo para que se edite a mano.
+function _estadoReqId(reqId, huella) {
+  if (!reqId) return { estado: "nuevo" };
+  const lista = _leerReqIds();
+  const prev  = lista.filter(e => e.i === reqId)[0];
+  if (prev) {
+    if (prev.h && huella && prev.h !== huella) {
+      return { estado: "corregido", filas: prev.f };
+    }
+    return { estado: "duplicado", filas: prev.f };
+  }
+  lista.unshift({ i: reqId, h: huella || null, f: null });
+  _escribirReqIds(lista);
+  return { estado: "nuevo" };
+}
+
+// Guarda en qué filas acabó el pedido, para poder decirle a la vendedora cuál
+// abrir si luego intenta corregirlo con el mismo envío.
+function _anotarFilasReqId(reqId, filas) {
+  if (!reqId) return;
+  const lista = _leerReqIds();
+  for (let i = 0; i < lista.length; i++) {
+    if (lista[i].i === reqId) { lista[i].f = filas; break; }
+  }
+  _escribirReqIds(lista);
 }
 
 // ─── REGISTRAR PEDIDOS (multi-ítem) ──────────────────────────────────────────
@@ -519,9 +575,24 @@ function registrarPedidos(p) {
       }
     }
 
-    // Anti-duplicado: si este reqId ya fue procesado, devolver éxito silencioso
-    if (_yaFueProcesado((p.reqId || "").trim())) {
-      return { success: true, deduped: true };
+    // Anti-duplicado. Ya no basta con "¿he visto este id?": hay que mirar si el
+    // contenido es el mismo. Un reintento idéntico (el teléfono se pasó de
+    // tiempo esperando, pero aquí sí se escribió) se ignora en silencio; uno
+    // con algo cambiado es una CORRECCIÓN y no puede ignorarse, porque lo que
+    // quedó en la hoja es lo del primer intento.
+    const _reqId  = (p.reqId || "").trim();
+    const _huella = _huellaPedido(p);
+    const _req    = _estadoReqId(_reqId, _huella);
+    if (_req.estado === "duplicado") {
+      return { success: true, deduped: true, filas: _req.filas || [] };
+    }
+    if (_req.estado === "corregido") {
+      const d = (_req.filas && _req.filas.length)
+        ? " (pedido #" + _req.filas.join(", #") + ")"
+        : "";
+      return { success: false, corregido: true, filas: _req.filas || [],
+               error: "Este pedido ya se registró" + d + " con otros datos, así que el cambio NO se guardó. " +
+                      "Ábrelo desde tus pedidos y edítalo para corregirlo." };
     }
 
     if (!ws.getRange(1, 19).getValue()) ws.getRange(1, 19).setValue("Cédula");
@@ -571,6 +642,10 @@ function registrarPedidos(p) {
       filas.push(nextRowNum);
       nextRowNum++;
     }
+
+    // Dejar anotado dónde acabó, para poder decir qué pedido abrir si más tarde
+    // llega una corrección con el mismo envío.
+    _anotarFilasReqId(_reqId, filas);
 
     guardarCliente(
       (p.nombre    || "").trim(),
