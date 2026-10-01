@@ -4148,6 +4148,15 @@ function renderFinQuincena() {
       <div id="fin-hist-quincenas">${window._histQuincenasHTML || ''}</div>
     </div>
 
+    <!-- Revisión de cambios de talla: para repasar antes de cerrar la quincena -->
+    <div class="fin-card" style="margin-top:4px" id="audit-talla-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${window._auditTallaHTML ? '10px' : '0'}">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em">🔄 Cambios de talla</div>
+        <button onclick="loadAuditTalla()" style="font-size:11px;background:var(--bg3);border:1px solid var(--bg4);color:var(--text2);border-radius:8px;padding:5px 10px;cursor:pointer;font-weight:600">${window._auditTallaHTML ? '↻ Actualizar' : 'Revisar quincena'}</button>
+      </div>
+      <div id="fin-audit-talla">${window._auditTallaHTML || ''}</div>
+    </div>
+
     <!-- Seguridad: cambiar los PIN de acceso -->
     <div class="fin-card" style="margin-top:4px">
       <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔒 Seguridad</div>
@@ -4212,6 +4221,65 @@ async function loadFinHistorialQuincenas() {
     window._histQuincenasHTML = `<div class="err-card" style="margin:0">No se pudo cargar: ${e.message}</div>`;
   }
   renderFinQuincena();
+}
+
+// ── Revisión de cambios de talla ───────────────────────────
+// Un cambio de talla NO debe contar para la comisión. La casilla del formulario
+// estuvo fallando hasta el 25/09/2026, así que conviene repasar la quincena
+// antes de cerrarla: la ruta solo LEE, no cambia ningún pedido.
+// Misma regla que el backend: Q1 = 1–15, Q2 = 16 a fin de mes.
+function inicioQuincenaActual() {
+  const h = new Date();
+  const d = h.getDate() >= 16 ? 16 : 1;
+  return fechaStr(new Date(h.getFullYear(), h.getMonth(), d));
+}
+
+async function loadAuditTalla() {
+  const cont = document.getElementById('fin-audit-talla');
+  if (cont) cont.innerHTML = '<div class="loading-msg" style="padding:10px 0"><div class="spinner"></div>Revisando pedidos…</div>';
+  const desde = inicioQuincenaActual();
+  try {
+    const d = await fetchData('auditarCambiosTalla', `&desde=${encodeURIComponent(desde)}`);
+    if (!d || d.error) throw new Error((d && d.error) || 'Respuesta sin datos');
+    window._auditTallaHTML = renderAuditTalla(d, desde);
+  } catch(e) {
+    window._auditTallaHTML = `<div class="err-card" style="margin:0">No se pudo revisar: ${e.message}</div>`;
+  }
+  renderFinQuincena();
+}
+
+function renderAuditTalla(d, desde) {
+  const marc = d.marcados    || [];
+  const sosp = d.sospechosos || [];
+  const linea = p => `<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bg4);font-size:12px">
+      <div style="color:var(--text3);flex-shrink:0;width:30px">#${p.fila}</div>
+      <div style="flex:1;min-width:0">
+        <div style="color:var(--text);font-weight:600">${p.cliente}</div>
+        <div style="color:var(--text3);font-size:11px">${p.fechaRegistro} · ${p.color} ${p.talla}${p.responsable ? ' · ' + p.responsable : ''}</div>
+        ${p.notas ? `<div style="color:var(--text3);font-size:11px;font-style:italic;margin-top:2px">${p.notas}</div>` : ''}
+      </div>
+    </div>`;
+
+  let h = `<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Quincena desde el ${desde}</div>`;
+
+  // Lo que de verdad hay que mirar: los que están contando y no deberían.
+  h += `<div style="background:${sosp.length ? 'var(--gold-bg)' : 'var(--bg3)'};border:1px solid ${sosp.length ? 'var(--gold-dim)' : 'var(--bg4)'};border-radius:10px;padding:11px 12px;margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:${sosp.length ? 'var(--gold)' : 'var(--text2)'}">
+      ${sosp.length ? `⚠️ ${sosp.length} que SÍ están sumando` : '✅ Ninguno suma de más'}</div>
+    <div style="font-size:11px;color:var(--text2);line-height:1.45;margin-top:3px">
+      ${sosp.length
+        ? 'La nota menciona un cambio pero les falta la casilla marcada, así que cuentan como venta. Para descontarlos, abre cada pedido y marca «Cambio de talla».'
+        : 'No hay pedidos cuya nota hable de un cambio y que estén contando como venta.'}</div>
+    ${sosp.map(linea).join('')}
+  </div>`;
+
+  h += `<div style="background:var(--bg3);border-radius:10px;padding:11px 12px">
+    <div style="font-size:12px;font-weight:700;color:var(--text2)">${marc.length} marcados como cambio de talla</div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.45;margin-top:3px">Estos <b>no</b> cuentan para la comisión — que es lo correcto. Sí gastan tela.</div>
+    ${marc.map(linea).join('')}
+  </div>`;
+
+  return h;
 }
 
 function renderFinHistorialQuincenas(meses) {
