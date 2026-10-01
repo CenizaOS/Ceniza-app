@@ -243,3 +243,13 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado sobre los 29 pares producto+color: **25 con tela, 4 sin, 0 que pregunten**.
 - **Sin tela todavía**: Clásico `Rosado`, `Morado`, `Neón`, `Puntos negros fondo blanco`.
 - **Los estampados llevan stock propio, NO se descuentan del blanco** (decidido 2026-10-01). Las estampadas salen de Cey Crush blanco que se manda a sublimar, así que es tentador descontarlas del blanco — **pero no cuesta lo mismo**: la dueña lo cifró en "80" el metro normal y "80 + 3,5" el sublimado (unidad sin confirmar). Al ser precios distintos tienen que contarse aparte. **No unificar.** Cada estampado se mantiene como su propia línea de inventario.
+
+## Insumos pasa a Administración + coste por metro (2026-10-01)
+- **Decisión de la dueña**: *"el inventario más bien lo llevo yo… ella tampoco es que lo hace"*. La pestaña **📦 Insumos ENTERA** (telas, insumos generales y etiquetas) se movió de la costurera a **Administración**. Dos motivos: el coste es información privada suya, y que lo cargara quien no lo usa era un riesgo de descuadre. Ella hará **un repaso por quincena** entre apertura y cierre.
+- **Costurera**: quedan 4 pestañas (Producción · Semana · Historial · Arreglos) en una cuadrícula 2×2 limpia. Se quitaron `ctab-insumos`, `cost-screen-insumos` y la rama `insumos` de `showCostTab`.
+- **Dueña**: pestaña nueva `fstab-insumos` → `#fin-insumos`, que **conserva el id `cost-insumos-content`** para no tocar `renderCostInsumos`. `showFinTab` la enchufa.
+- **El precio va en CADA carga, no en la tela**: cambia con el tiempo (la dueña citó 80 el metro liso y 83,5 el sublimado), así que el valor del stock se calcula con lo que de verdad se pagó. `precioMedio()` hace **media ponderada por metros**; `ultimoPrecio()` permite dejar el campo vacío y reutilizar el anterior, que es lo normal en el repaso quincenal.
+- **Sin tocar el backend**: las cargas ya están en `ceniza_tela_cargas` en la app, así que todo el dinero se calcula en el cliente. **El servidor no sabe nada de precios.**
+- El bloque 📊 muestra **valor de la tela en stock** y, si alguna tela tiene metros pero no precio, dice **cuántas faltan** — para que la cifra no parezca completa cuando no lo es.
+- `_din()` pone separador de miles: `14.091,70 $` se lee de un vistazo, `14091,70` no.
+- Verificado con el servidor estático local y `localStorage` real, a 375 px: media ponderada 81,17 $/m y valor 14.091,70 $, ambos comprobados a mano; la costurera ya no ve Insumos y sus 4 pestañas funcionan.

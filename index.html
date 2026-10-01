@@ -675,12 +675,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <button class="switch-btn" onclick="logoutRol()">← Volver</button>
   </div>
-  <div class="cost-tabs" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto">
+  <!-- Insumos se movió a Administración el 2026-10-01: el inventario (y sobre
+       todo los costes) es información de la dueña, y la costurera no lo usaba.
+       Que lo cargara ella era además un riesgo de descuadre. -->
+  <div class="cost-tabs" style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto">
     <button class="cost-tab active" id="ctab-cola" onclick="showCostTab('cola')">🧵 Producción</button>
     <button class="cost-tab" id="ctab-semana" onclick="showCostTab('semana')">📅 Semana</button>
-    <button class="cost-tab" id="ctab-insumos" onclick="showCostTab('insumos')">📦 Insumos</button>
     <button class="cost-tab" id="ctab-historial" onclick="showCostTab('historial')">📋 Historial</button>
-    <button class="cost-tab" id="ctab-arreglos" onclick="showCostTab('arreglos')" style="grid-column:1/-1">🔧 Arreglos</button>
+    <button class="cost-tab" id="ctab-arreglos" onclick="showCostTab('arreglos')">🔧 Arreglos</button>
   </div>
   <div class="cost-body">
     <div id="cost-screen-cola">
@@ -688,9 +690,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="cost-screen-semana" style="display:none">
       <div id="cost-semana-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
-    </div>
-    <div id="cost-screen-insumos" style="display:none">
-      <div id="cost-insumos-content"></div>
     </div>
     <div id="cost-screen-historial" style="display:none">
       <div id="cost-historial-content"><div class="loading-msg"><div class="spinner"></div>Cargando...</div></div>
@@ -744,6 +743,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <button class="fin-subtab" id="fstab-costos" onclick="showFinTab('costos',this)">⚙️ Costos</button>
     <button class="fin-subtab" id="fstab-proyeccion" onclick="showFinTab('proyeccion',this)">📈 Proyección</button>
     <button class="fin-subtab" id="fstab-registro" onclick="showFinTab('registro',this)">📒 Registro</button>
+    <button class="fin-subtab" id="fstab-insumos" onclick="showFinTab('insumos',this)">📦 Insumos</button>
   </div>
 
   <!-- Contenido -->
@@ -765,6 +765,11 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     </div>
     <div id="fin-registro" class="fin-screen" style="display:none">
       <div id="fin-registro-content"></div>
+    </div>
+    <!-- Inventario: vino de la pestaña Insumos de la costurera (2026-10-01).
+         Conserva el id `cost-insumos-content` para no tocar el render. -->
+    <div id="fin-insumos" class="fin-screen" style="display:none">
+      <div id="cost-insumos-content"></div>
     </div>
   </div>
 </div>
@@ -1023,7 +1028,7 @@ const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQ
 // un teléfono se quedó con una copia vieja: sin esto, un arreglo publicado
 // "no funciona" en un móvil concreto y no hay forma de saber por qué.
 // SUBIRLA en cada publicación que cambie el comportamiento.
-const APP_VERSION = '2026.10.01';
+const APP_VERSION = '2026.10.01b';
 
 // Token de sesión: se recibe al entrar con el PIN y acompaña a cada consulta.
 // Sin él, el servidor no devuelve datos.
@@ -2727,7 +2732,7 @@ function showFinSec(sec) {
   showFinTab('quincena');
 }
 function showFinTab(tab, btn) {
-  ['quincena','costos','historial','cierre','proyeccion','registro'].forEach(t => {
+  ['quincena','costos','historial','cierre','proyeccion','registro','insumos'].forEach(t => {
     const el = document.getElementById('fin-' + t);
     if (el) el.style.display = (t === tab) ? '' : 'none';
   });
@@ -2739,6 +2744,7 @@ function showFinTab(tab, btn) {
   if (tab === 'quincena')       loadFinQuincena();
   if (tab === 'produccion')     renderFinProduccion();
   if (tab === 'costos')         renderFinCostos();
+  if (tab === 'insumos')        renderCostInsumos();
   if (tab === 'historial')      renderFinHistorial();
   if (tab === 'cierre')         renderFinCierre();
   if (tab === 'compras')        renderFinCompras();
@@ -6405,7 +6411,7 @@ function renderCosturera(d) {
 }
 
 function showCostTab(tab) {
-  ['cola','semana','insumos','historial','arreglos'].forEach(t => {
+  ['cola','semana','historial','arreglos'].forEach(t => {
     document.getElementById('cost-screen-' + t).style.display = tab === t ? '' : 'none';
     document.getElementById('ctab-' + t).classList.toggle('active', tab === t);
   });
@@ -6413,7 +6419,6 @@ function showCostTab(tab) {
     const el = document.getElementById('cost-semana-content');
     if (el.querySelector('.loading-msg')) loadSemanaCosturera();
   }
-  if (tab === 'insumos') renderCostInsumos();
   if (tab === 'historial') {
     const el = document.getElementById('cost-historial-content');
     if (el.querySelector('.loading-msg') || el.querySelector('.err-card')) loadCostHistorial();
@@ -6884,6 +6889,21 @@ function renderTelasBox() {
       <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px">📊 Cuánto aguanta</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:9px">
         <b style="font-size:15px;color:var(--text)">${_mts(metros)}</b> disponibles · alcanzan para <b style="color:var(--text)">${pants}</b> pantal${pants === 1 ? 'ón' : 'ones'}</div>
+      ${(() => {
+        // Dinero parado en tela. Solo cuenta las telas que tienen precio puesto,
+        // y se dice cuántas faltan para no dar una cifra que parezca completa.
+        let valor = 0, conPrecio = 0, sinPrecio = 0;
+        _invTelas.telas.forEach(t => {
+          const p = precioMedio(t.tipo, t.color);
+          if (p === null) { if (t.disponible > 0) sinPrecio++; return; }
+          conPrecio++; valor += Math.max(0, t.disponible) * p;
+        });
+        if (!conPrecio) return '';
+        return `<div style="border-top:1px solid var(--bg4);padding-top:8px;margin-bottom:9px;font-size:12px;color:var(--text2)">
+          Valor de la tela en stock: <b style="color:var(--text)">${_din(valor)}</b>
+          ${sinPrecio ? `<span style="color:var(--text3)"> · faltan ${sinPrecio} sin precio</span>` : ''}
+        </div>`;
+      })()}
       <div style="display:grid;grid-template-columns:auto auto 1fr;gap:5px 10px;font-size:12px;align-items:baseline">
         ${[10, 15, 20, 30].map(r => {
           const dias = Math.floor(pants / r);
@@ -6923,13 +6943,14 @@ function renderTelasBox() {
       const disp  = c ? c.disponible : null;
       const bajo  = disp !== null && disp < METROS_POR_PANT * 3;   // menos de 3 pantalones
       const negat = disp !== null && disp < 0;
-      const id    = 'tela-in-' + k.replace(/[^a-z0-9]/gi, '_');
+      const id     = 'tela-in-' + k.replace(/[^a-z0-9]/gi, '_');
+      const precio = precioMedio(t.tipo, t.color);
       h += `<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--bg4)">
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--text)">${t.color}</div>
-          <div style="font-size:11px;color:var(--text3)">${c ? `${c.pantalones} pant. · cargado ${_mts(c.cargado)}` : 'sin cargar'}</div>
+          <div style="font-size:11px;color:var(--text3)">${c ? `${c.pantalones} pant. · ${_mts(c.cargado)}` : 'sin cargar'}${precio ? ` · ${_pm(precio)}` : ''}</div>
         </div>
-        <div style="text-align:right;flex-shrink:0;min-width:58px">
+        <div style="text-align:right;flex-shrink:0;min-width:52px">
           <div style="font-size:16px;font-weight:800;line-height:1.1;color:${negat ? 'var(--red)' : (bajo ? 'var(--gold)' : 'var(--text)')}">${disp === null ? '—' : _mts(disp)}</div>
           <div style="font-size:10px;color:var(--text3)">${c ? `para ${c.alcanza}` : ''}</div>
         </div>
@@ -6937,9 +6958,15 @@ function renderTelasBox() {
              coma decimal y el campo se queda vacío, así que "25,5" se perdía.
              inputmode="decimal" mantiene el teclado numérico en el teléfono. -->
         <input id="${id}" type="text" inputmode="decimal" placeholder="m" maxlength="7"
-          onkeydown="if(event.key==='Enter')cargarMetros('${t.tipo}','${t.color}','${id}')"
-          style="width:52px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:14px;font-weight:700;color:var(--text);flex-shrink:0;-moz-appearance:textfield">
-        <button onclick="cargarMetros('${t.tipo}','${t.color}','${id}')" title="Agregar metros"
+          onkeydown="if(event.key==='Enter')cargarMetros('${t.tipo}','${t.color}','${id}','${id}-p')"
+          style="width:44px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:14px;font-weight:700;color:var(--text);flex-shrink:0">
+        <!-- Precio por metro: si se deja vacío se reutiliza el último de esa
+             tela, así en el repaso de cada quincena solo hay que escribir los
+             metros y el precio únicamente cuando cambia. -->
+        <input id="${id}-p" type="text" inputmode="decimal" placeholder="${precio ? _pm(precio) : '$/m'}" maxlength="8" title="Precio por metro"
+          onkeydown="if(event.key==='Enter')cargarMetros('${t.tipo}','${t.color}','${id}','${id}-p')"
+          style="width:46px;text-align:center;background:var(--bg3);border:1px solid var(--bg4);border-radius:8px;padding:7px 2px;font-size:12px;color:var(--text2);flex-shrink:0">
+        <button onclick="cargarMetros('${t.tipo}','${t.color}','${id}','${id}-p')" title="Agregar metros"
           style="width:34px;height:34px;border-radius:50%;background:var(--gold-bg);border:1px solid var(--gold-dim);color:var(--gold);font-size:19px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;flex-shrink:0">＋</button>
       </div>`;
     });
@@ -6951,16 +6978,62 @@ function renderTelasBox() {
 }
 
 // Registrar metros que entran. Es lo ÚNICO que hace la costurera aquí.
-function cargarMetros(tipo, color, inputId) {
+// ── Coste por metro ───────────────────────────────────────
+// El precio va en CADA carga, no en la tela: cambia con el tiempo y así el
+// valor del inventario se calcula con lo que de verdad se pagó. Todo se saca
+// de `ceniza_tela_cargas`, que ya está en la app, así que el backend no sabe
+// nada de dinero y no hubo que desplegarlo.
+const _num = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(n) ? null : n; };
+const _pm  = n => (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' $/m';
+const _din = n => {
+  // Con separador de miles: "14091,70" cuesta leerlo de un vistazo.
+  const p = (Math.round(n * 100) / 100).toFixed(2).split('.');
+  return p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1] + ' $';
+};
+
+// Media ponderada por metros: si se compró a 80 y luego a 83,5, el valor del
+// stock sale con la mezcla real, no con el último precio.
+function precioMedio(tipo, color) {
+  const k = claveTela(tipo, color);
+  let m = 0, dinero = 0;
+  getTelaCargas().forEach(c => {
+    if (claveTela(c.tipo, c.color) !== k) return;
+    const mt = _num(c.metros), pr = _num(c.precio);
+    if (mt === null || pr === null) return;
+    m += mt; dinero += mt * pr;
+  });
+  return m > 0 ? dinero / m : null;
+}
+
+// Último precio conocido, para no tener que reescribirlo en cada carga.
+function ultimoPrecio(tipo, color) {
+  const k = claveTela(tipo, color);
+  const cargas = getTelaCargas();
+  for (let i = cargas.length - 1; i >= 0; i--) {
+    if (claveTela(cargas[i].tipo, cargas[i].color) !== k) continue;
+    const p = _num(cargas[i].precio);
+    if (p !== null) return p;
+  }
+  return null;
+}
+
+function cargarMetros(tipo, color, inputId, precioId) {
   const el = document.getElementById(inputId);
   if (!el) return;
-  const m = parseFloat(String(el.value).replace(',', '.'));
-  if (isNaN(m) || m <= 0) { mostrarToast('Escribe cuántos metros entran'); return; }
+  const m = _num(el.value);
+  if (m === null || m <= 0) { mostrarToast('Escribe cuántos metros entran'); return; }
+  const elP = precioId ? document.getElementById(precioId) : null;
+  let precio = elP ? _num(elP.value) : null;
+  if (precio !== null && precio < 0) { mostrarToast('El precio no puede ser negativo'); return; }
+  if (precio === null) precio = ultimoPrecio(tipo, color);   // se reutiliza el anterior
   const cargas = getTelaCargas();
-  cargas.push({ fecha: fechaStr(new Date()), tipo, color, metros: m });
+  const entrada = { fecha: fechaStr(new Date()), tipo, color, metros: m };
+  if (precio !== null) entrada.precio = precio;
+  cargas.push(entrada);
   saveTelaCargas(cargas);
   el.value = '';
-  mostrarToast(`+${_mts(m)} de ${tipo} ${color}`);
+  if (elP) elP.value = '';
+  mostrarToast(`+${_mts(m)} de ${tipo} ${color}` + (precio !== null ? ` · ${_din(m * precio)}` : ''));
   loadInventarioTelas();
 }
 
