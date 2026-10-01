@@ -276,3 +276,9 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Las cargas sí se guardaban**: el fallo era al leer, no al escribir. Por eso en "Ver y corregir cargas" (que lee del teléfono) sí aparecían.
 - **Arreglo doble**: (1) `getDisplayValues()` en esa lectura, como el resto; (2) `_parseFechaVE` acepta ahora un `Date` además del texto `dd/MM/yyyy`, y devuelve `null` en vez de lanzar ante un número o una fecha inválida. Lo segundo es la red de seguridad: esa función la llama medio backend y el mismo despiste no puede volver a tumbar una ruta.
 - Verificado simulando la hoja con fechas como objeto `Date`: antes reventaba, ahora da `181 m − 2 pants × 2,7 = 175,6 m` por los dos caminos de lectura.
+
+## El aviso de "sin tela anotada" contaba todo el histórico (2026-10-02)
+- Con el inventario ya funcionando, la pantalla decía **"1313 pantalones sin tela anotada"**: TODOS los pedidos anteriores al campo de tela. Habría dicho eso para siempre, tapando lo único que importa — que se registre un pedido NUEVO de un color sin tela asignada.
+- **Arreglo**: `sinTipo` solo cuenta desde `primeraCarga`, la fecha de la primera carga de cualquier tela. Antes de ese día no había inventario que cuadrar, así que esos pedidos no significan nada.
+- Verificado con 1.300 pedidos históricos + 3 recientes: antes avisaba de 1.302, ahora de **2** (los nuevos sin tela), y **el conteo de metros no cambia**. Sin ninguna carga, avisa de 0.
+- El aviso pasa a ser una **señal útil**: hoy saltaría con `Rosado` y `Morado`, que son de los 4 colores que siguen sin tela asignada.

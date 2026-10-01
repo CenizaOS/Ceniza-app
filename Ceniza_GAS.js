@@ -1324,6 +1324,16 @@ function getInventarioTelas() {
   const pants = {};
   let sinTipo = 0;
   const claves = Object.keys(cargado);
+  // Fecha de la PRIMERA carga de cualquier tela: antes de ese día no había
+  // inventario del que descontar, así que un pedido anterior sin tela anotada
+  // no significa nada. Sin este corte, el aviso decía "1313 pantalones sin tela
+  // anotada" —todo el histórico— y se quedaba así para siempre, tapando los
+  // casos que sí importan: un pedido NUEVO de un color sin tela asignada.
+  let primeraCarga = null;
+  for (let i = 0; i < claves.length; i++) {
+    const d = desde[claves[i]];
+    if (d && (!primeraCarga || d < primeraCarga)) primeraCarga = d;
+  }
   if (claves.length) {
     const ws = hoja().getSheetByName("Pedidos " + mesActivo());
     if (ws) {
@@ -1335,9 +1345,13 @@ function getInventarioTelas() {
       for (let i = 1; i < datos.length; i++) {
         const f = _filaConsumeTela(datos[i]);
         if (!f || !f.clave) continue;
-        // Pedidos anteriores al campo "tipo de tela" no traen tipo: se cuentan
-        // aparte para avisar, no se reparten a ciegas entre las telas.
-        if (!String(datos[i][22] || "").trim()) { sinTipo++; continue; }
+        // Sin tela anotada no se puede descontar de ninguna, así que se avisa
+        // aparte en vez de repartirlo a ciegas. Solo cuenta a partir de la
+        // primera carga: antes de eso no había inventario que cuadrar.
+        if (!String(datos[i][22] || "").trim()) {
+          if (primeraCarga && f.fecha >= primeraCarga) sinTipo++;
+          continue;
+        }
         const ini = desde[f.clave];
         if (!ini || f.fecha < ini) continue;   // esa tela aún no se había cargado
         pants[f.clave] = (pants[f.clave] || 0) + 1;
