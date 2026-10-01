@@ -260,3 +260,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **La lista es A PROPÓSITO más amplia que `COLORES_PRODUCTO`**: conserva `Rayas` (15 pedidos) y `Puntos blancos` (2) aunque ya no se puedan pedir, porque los pedidos viejos siguen siendo sublimados y tienen que contarse como tales. Misma idea que `_colorHeredado`.
 - **REGLA: al añadir un color estampado al catálogo, añadirlo también a `SUBLIMADO_COLORS_SET`.** Son dos listas que hay que mover juntas; la segunda es fácil de olvidar porque está en otra parte del archivo.
 - Precios comprobados en el histórico: estampados a $45 (algunos $40 antiguos), lisos a $30. El formulario propone $30 siempre, así que **el precio del sublimado se escribe a mano** — otra cosa a mirar más adelante.
+
+## La app avisa sola de que hay versión nueva (2026-10-02)
+- **El problema real**: la app está instalada en la pantalla de inicio (`display: standalone` en el manifest). Al volver a ella desde otra aplicación **no se recarga**: sigue en memoria con la versión vieja indefinidamente. Se publica un arreglo y en ese teléfono "no funciona", sin forma de saber por qué. **Ya pasó dos veces** (la falsa pista de la casilla de cambio de talla, y la pestaña Insumos que no aparecía).
+- **No hay service worker**, así que no es culpa de una caché propia. GitHub Pages manda `Cache-Control: max-age=600`; el problema es que la página no se vuelve a pedir.
+- **`<meta name="app-version">` al principio del `<head>` es ahora la ÚNICA fuente**; `APP_VERSION` la lee de ahí. **Subirla ahí en cada publicación que cambie el comportamiento.**
+- **`comprobarVersion()`** pide el archivo publicado con cabecera `Range: bytes=0-1500` y compara la etiqueta. **GitHub Pages respeta el rango** (verificado: responde `206` con 1.501 bytes en vez de 526.650, ~350× menos). La etiqueta cae en el byte 671, con margen de sobra.
+- Se llama en `initApp` y en `visibilitychange` (volver a la app es justo cuando conviene mirar), con límite de **10 minutos** entre consultas.
+- Si hay versión nueva aparece una barra dorada abajo: *"Hay una versión nueva · 2026.10.02 → …"* con botón **Actualizar**, que recarga con `?v=<ahora>` para forzar la descarga.
+- Verificado en los 5 casos: misma versión → sin aviso; versión distinta → aviso con las dos versiones; no se duplica; el límite de 10 min evita consultas extra; y sin red no lanza error.
