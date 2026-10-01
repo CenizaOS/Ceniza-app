@@ -6586,8 +6586,14 @@ const TELAS = [
       'Puntos blancos fondo negro']
      .map(color => ({ tipo: 'Cey Crush', color, producto: 'Pantalón Clásico' })),
   { tipo: 'Coqueta', color: 'Amarillo', producto: 'Pantalón Clásico' },
-  ...['Negro','Beige','Azul marino','Verde oscuro','Rojo','Lila','Vinotinto']
-     .map(color => ({ tipo: 'Laurent', color, producto: 'Pantalón Pareo' }))
+  // Gris del Pareo es Laurent (el Gris del Clásico es Cey Crush: mismo color,
+  // telas distintas, y por eso la clave lleva el producto).
+  ...['Negro','Beige','Azul marino','Verde oscuro','Rojo','Lila','Vinotinto','Gris']
+     .map(color => ({ tipo: 'Laurent', color, producto: 'Pantalón Pareo' })),
+  // Los estampados del Pareo NO son Laurent: son Cey Crush sublimada, la misma
+  // tela que los del Clásico. Por eso comen del mismo rollo.
+  ...['Rayas blanco y negro','Puntos blancos fondo negro']
+     .map(color => ({ tipo: 'Cey Crush', color, producto: 'Pantalón Pareo' }))
 ];
 
 function getTelas()        { return TELAS; }
@@ -7767,8 +7773,11 @@ let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdi
 const SUBLIMADO_COLORS_SET = new Set(['Rayas blanco y negro','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos']);
 
 const COLORES_PRODUCTO = {
-  'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rosado','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Rayas rojas y rosadas','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos'],
-  'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige','Verde oscuro','Rojo','Lila','Rayas blanco y negro','Puntos blancos']
+  // "Puntos blancos" se unificó en "Puntos blancos fondo negro" (2026-10-01):
+  // eran el mismo estampado con dos nombres. Solo había 2 pedidos con el nombre
+  // corto, y hay que cambiarlos en la hoja a mano (ver CLAUDE.md).
+  'Pantalón Clásico': ['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia','Rosado','Rojo','Blanco','Amarillo','Morado','Gris','Neón','Rayas blanco y negro','Rayas rojas y rosadas','Puntos negros fondo blanco','Puntos blancos fondo negro'],
+  'Pantalón Pareo':  ['Negro','Vinotinto','Azul marino','Gris','Beige','Verde oscuro','Rojo','Lila','Rayas blanco y negro','Puntos blancos fondo negro']
 };
 const PRECIO_PRODUCTO = {
   'Pantalón Clásico': () => FIN.precio,

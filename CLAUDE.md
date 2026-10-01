@@ -234,3 +234,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **La semana son 5 días**, no 7: los sábados no se trabaja (regla confirmada el 2026-09-24).
 - **Se dice la trampa en pantalla**: el cálculo suma TODA la tela junta, así que si un color concreto se acaba, ese se para antes aunque el total aguante. Si hay colores que no dan ni para un pantalón, se avisa con el número exacto en dorado.
 - `0 días` se muestra como **"menos de 1 día"**, y por debajo de 5 días el número va en dorado: con poca tela es justo cuando hay que verlo.
+
+## Colores y telas — ajustes (2026-10-01)
+- **`Puntos blancos` se unificó en `Puntos blancos fondo negro`**: eran el mismo estampado con dos nombres. Solo **2 pedidos** usaban el nombre corto (ambos Clásico). **Hay que cambiarlos a mano en la hoja**, y al usar Buscar y reemplazar en Sheets **marcar «Buscar celdas completas»**: si no, "Puntos blancos" también casa dentro de "Puntos blancos fondo negro" y deja *"…fondo negro fondo negro"* en los otros 5.
+- **El Pareo conserva** `Gris`, `Rayas blanco y negro` y ahora `Puntos blancos fondo negro`.
+- **`Gris` es tela distinta según el producto**: Clásico → Cey Crush, Pareo → **Laurent**. Es el primer caso real donde el mismo color cambia de tela entre productos; la clave `producto + color` ya lo cubría.
+- **Los estampados del Pareo NO son Laurent**: son **Cey Crush**, la misma tela que los del Clásico, así que **comen del mismo rollo**. Por eso aparecen como entradas `Cey Crush` con `producto: 'Pantalón Pareo'`.
+- Verificado sobre los 29 pares producto+color: **25 con tela, 4 sin, 0 que pregunten**.
+- **Sin tela todavía**: Clásico `Rosado`, `Morado`, `Neón`, `Puntos negros fondo blanco`.
+- **Pendiente de decidir**: la dueña dice que las estampadas son *"Cey Crush blanco que se manda a sublimar"*. Si es así, lo que limita la producción son los metros de **Cey Crush · Blanco**, no cada estampado por separado, y las líneas de estampado no deberían tener stock propio. Depende de si ella guarda tela ya estampada o solo blanco.
