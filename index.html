@@ -1023,7 +1023,7 @@ const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQ
 // un teléfono se quedó con una copia vieja: sin esto, un arreglo publicado
 // "no funciona" en un móvil concreto y no hay forma de saber por qué.
 // SUBIRLA en cada publicación que cambie el comportamiento.
-const APP_VERSION = '2026.09.30b';
+const APP_VERSION = '2026.10.01';
 
 // Token de sesión: se recibe al entrar con el PIN y acompaña a cada consulta.
 // Sin él, el servidor no devuelve datos.
@@ -4282,15 +4282,44 @@ async function loadAuditTalla() {
   renderFinQuincena();
 }
 
+// Marca un pedido como cambio de talla sin abrirlo. Manda SOLO la fila y la
+// casilla: `editarPedido` ignora lo que llega sin valor, así que no hay riesgo
+// de pisar el cliente, el color ni el monto. Funciona también con pedidos ya
+// entregados, que es justo donde hacía falta.
+async function marcarCambioTalla(fila, btn) {
+  if (!confirm('¿Marcar el pedido #' + fila + ' como cambio de talla?\n\nDejará de contar como venta. El pantalón sigue igual para la costurera y sigue gastando tela.')) return;
+  const original = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; btn.style.opacity = '.6'; }
+  try {
+    const r = await fetch(apiUrl('accion=editarPedido&fila=' + encodeURIComponent(fila) + '&cambioDeTalla=true'));
+    const d = await r.json();
+    if (!d || !d.success) throw new Error((d && d.error) || 'No se pudo guardar');
+    mostrarToast('🔄 #' + fila + ' ya no cuenta como venta');
+    window._auditTallaHTML = '';
+    loadAuditTalla();            // recargar: debe pasar a "marcados"
+  } catch (e) {
+    mostrarToast('No se pudo marcar: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = original; btn.style.opacity = ''; }
+  }
+}
+
 function renderAuditTalla(d, desde) {
   const marc = d.marcados    || [];
   const sosp = d.sospechosos || [];
-  const linea = p => `<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bg4);font-size:12px">
+  // `conBoton` solo en los sospechosos. Un pedido ya entregado desaparece de
+  // "Mis pedidos" (la ruta `produccion` solo devuelve los que están en curso) y
+  // en el Historial no hay botón de editar, así que hasta ahora NO HABÍA FORMA
+  // de marcar un cambio de talla detectado tarde. Y un cambio de talla se sabe
+  // casi siempre DESPUÉS de entregar. Se arregla aquí, que es justo donde se
+  // ven los que hay que corregir.
+  const linea = (p, conBoton) => `<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--bg4);font-size:12px">
       <div style="color:var(--text3);flex-shrink:0;width:30px">#${p.fila}</div>
       <div style="flex:1;min-width:0">
         <div style="color:var(--text);font-weight:600">${p.cliente}</div>
         <div style="color:var(--text3);font-size:11px">${p.fechaRegistro} · ${p.color} ${p.talla}${p.responsable ? ' · ' + p.responsable : ''}</div>
         ${p.notas ? `<div style="color:var(--text3);font-size:11px;font-style:italic;margin-top:2px">${p.notas}</div>` : ''}
+        ${conBoton ? `<button id="btn-ct-${p.fila}" onclick="marcarCambioTalla(${p.fila}, this)"
+          style="margin-top:6px;background:var(--gold);border:none;color:#000;border-radius:7px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer">🔄 Marcar como cambio de talla</button>` : ''}
       </div>
     </div>`;
 
@@ -4302,15 +4331,15 @@ function renderAuditTalla(d, desde) {
       ${sosp.length ? `⚠️ ${sosp.length} que SÍ están sumando` : '✅ Ninguno suma de más'}</div>
     <div style="font-size:11px;color:var(--text2);line-height:1.45;margin-top:3px">
       ${sosp.length
-        ? 'La nota menciona un cambio pero les falta la casilla marcada, así que cuentan como venta. Para descontarlos, abre cada pedido y marca «Cambio de talla».'
+        ? 'La nota menciona un cambio pero les falta la casilla marcada, así que cuentan como venta. Pulsa el botón de cada uno para descontarlo.'
         : 'No hay pedidos cuya nota hable de un cambio y que estén contando como venta.'}</div>
-    ${sosp.map(linea).join('')}
+    ${sosp.map(p => linea(p, true)).join('')}
   </div>`;
 
   h += `<div style="background:var(--bg3);border-radius:10px;padding:11px 12px">
     <div style="font-size:12px;font-weight:700;color:var(--text2)">${marc.length} marcados como cambio de talla</div>
     <div style="font-size:11px;color:var(--text3);line-height:1.45;margin-top:3px">Estos <b>no</b> cuentan para la comisión — que es lo correcto. Sí gastan tela.</div>
-    ${marc.map(linea).join('')}
+    ${marc.map(p => linea(p, false)).join('')}
   </div>`;
 
   return h;
@@ -6828,6 +6857,42 @@ function renderTelasBox() {
   if (_invTelas && _invTelas.pantsSinTipo > 0) {
     h += `<div style="font-size:11px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 10px;margin:9px 0;line-height:1.45">
       <b>${_invTelas.pantsSinTipo}</b> pantal${_invTelas.pantsSinTipo === 1 ? 'ón' : 'ones'} sin tela anotada no se descontaron de ninguna. Son pedidos de antes de que existiera este campo.</div>`;
+  }
+
+  // ── Cuánto aguanta la tela ────────────────────────────────────────────────
+  // Lo que la dueña quiere saber de un vistazo: "¿me alcanza para una semana,
+  // dos, tres?". Se calcula sobre el TOTAL disponible, y se avisa de la
+  // trampa: si un color concreto se acaba, ese se para antes aunque el total
+  // siga alto. La semana son 5 días porque los sábados no se trabaja.
+  if (_invTelas && _invTelas.telas && _invTelas.telas.length) {
+    const metros = _invTelas.telas.reduce((s, t) => s + Math.max(0, t.disponible), 0);
+    const pants  = Math.floor(metros / METROS_POR_PANT);
+    const bajas  = _invTelas.telas.filter(t => t.disponible < METROS_POR_PANT).length;
+    const semana = n => {
+      const s = n / 5;
+      if (s < 1) return 'menos de 1 semana';
+      const r = Math.round(s * 10) / 10;
+      return (Number.isInteger(r) ? r : r.toFixed(1).replace('.', ',')) + (r === 1 ? ' semana' : ' semanas');
+    };
+    h += `<div style="background:var(--bg3);border-radius:10px;padding:12px 13px;margin:12px 0">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px">📊 Cuánto aguanta</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:9px">
+        <b style="font-size:15px;color:var(--text)">${_mts(metros)}</b> disponibles · alcanzan para <b style="color:var(--text)">${pants}</b> pantal${pants === 1 ? 'ón' : 'ones'}</div>
+      <div style="display:grid;grid-template-columns:auto auto 1fr;gap:5px 10px;font-size:12px;align-items:baseline">
+        ${[10, 15, 20, 30].map(r => {
+          const dias = Math.floor(pants / r);
+          // Con poca tela, "0 días" se lee raro justo cuando más importa
+          const txt = dias === 0 ? 'menos de 1 día' : dias + ' día' + (dias === 1 ? '' : 's');
+          return `<div style="color:var(--text3)">${r}/día</div>
+                  <div style="font-weight:700;color:${dias < 5 ? 'var(--gold)' : 'var(--text)'};text-align:right;white-space:nowrap">${txt}</div>
+                  <div style="color:var(--text2)">${dias === 0 ? '' : semana(dias)}</div>`;
+        }).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--text3);line-height:1.45;margin-top:9px">
+        Cuenta toda la tela junta y la semana son 5 días (sin sábados).
+        ${bajas ? `<b style="color:var(--gold)">Ojo: ${bajas} color${bajas === 1 ? '' : 'es'} ya no da${bajas === 1 ? '' : 'n'} ni para un pantalón</b>, así que ese se para antes aunque el total aguante.` : 'Si un color se acaba, ese se para antes aunque el total aguante.'}
+      </div>
+    </div>`;
   }
 
   // Agrupadas por tela: 22 colores en una lista plana no se leen.

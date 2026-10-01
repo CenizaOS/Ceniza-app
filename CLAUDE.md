@@ -221,3 +221,16 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Arreglo**: `_esCambioDeTalla(v)` acepta `true` booleano y los textos `true`/`TRUE`/`VERDADERO`/`SI`/`SÍ`/`X`/`1`, sin distinguir mayúsculas ni espacios. Se usa en `_filaComisionable`, en `auditarCambiosTalla` y al devolver el campo, que ahora **se normaliza a `'true'`/`''`** para que el frontend siga comparando igual.
 - **Lección**: no comparar con `=== "true"` nada que venga de una celda. Sheets reinterpreta lo que parece número, fecha o lógico, y lo devuelve según el idioma de la hoja.
 - **Fallo latente cerrado de paso**: `getEntregas` y `getHistorial` **no devolvían** `cambioDeTalla`. Editar un pedido viejo desde Delivery o desde el historial lo traía sin la marca y al guardar la **borraba en silencio**.
+
+## Marcar cambio de talla después de entregar (2026-10-01)
+- **El hueco**: "Mis pedidos" se alimenta de `produccion`, que **solo devuelve estados en curso**. En cuanto un pedido pasa a `Entregado a cliente` desaparece de ahí, y en el Historial no hay botón de editar. O sea: **no había forma de marcar un cambio de talla detectado tarde**, y un cambio de talla se sabe casi siempre DESPUÉS de entregar. La dueña se topó con esto al cerrar septiembre.
+- **Arreglo**: botón **«🔄 Marcar como cambio de talla»** en cada sospechoso de la tarjeta de auditoría — que es justo donde se ven los que hay que corregir. `marcarCambioTalla(fila)` llama a `editarPedido` con **solo** `fila` y `cambioDeTalla=true`; `editarPedido` ignora los campos que llegan sin valor, así que no puede pisar cliente, color ni monto. Pide confirmación, y al guardar recarga la tarjeta: el pedido pasa solo de "sospechosos" a "marcados".
+- Los **marcados no llevan botón**: ya están bien, y no hay forma de desmarcarlos desde aquí a propósito (para desmarcar hay que abrir el pedido, que es más deliberado).
+- **Solo frontend**: `editarPedido` ya existía en el backend desplegado.
+
+## Telas — "cuánto aguanta" (2026-10-01)
+- **Petición de la dueña**: *"una proyección intermedia donde yo diga, con esto puedo producir al menos una semana, dos, tres"*. Ritmo actual 10–15 pantalones/día, con intención de subir a 20–30.
+- **Bloque 📊 al principio de la sección Telas**: metros totales disponibles → pantalones que salen (÷ 2,7) → días a 10, 15, 20 y 30 por día, y su equivalente en semanas.
+- **La semana son 5 días**, no 7: los sábados no se trabaja (regla confirmada el 2026-09-24).
+- **Se dice la trampa en pantalla**: el cálculo suma TODA la tela junta, así que si un color concreto se acaba, ese se para antes aunque el total aguante. Si hay colores que no dan ni para un pantalón, se avisa con el número exacto en dorado.
+- `0 días` se muestra como **"menos de 1 día"**, y por debajo de 5 días el número va en dorado: con poca tela es justo cuando hay que verlo.
