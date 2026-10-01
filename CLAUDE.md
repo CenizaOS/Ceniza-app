@@ -253,3 +253,10 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - El bloque 📊 muestra **valor de la tela en stock** y, si alguna tela tiene metros pero no precio, dice **cuántas faltan** — para que la cifra no parezca completa cuando no lo es.
 - `_din()` pone separador de miles: `14.091,70 $` se lee de un vistazo, `14091,70` no.
 - Verificado con el servidor estático local y `localStorage` real, a 375 px: media ponderada 81,17 $/m y valor 14.091,70 $, ambos comprobados a mano; la costurera ya no ve Insumos y sus 4 pestañas funcionan.
+
+## `SUBLIMADO_COLORS_SET` — un color estampado se contaba como liso (2026-10-01)
+- **Existe un modelo financiero aparte para los sublimados**: `FIN_SUBLIMADO` (precio **$45**, tela $7,60, transfer $6,50) frente al liso (`FIN`, $30, tela más barata). `SUBLIMADO_COLORS_SET` es lo que decide cuál se aplica, y de ahí salen `clasUni/clasSub/parUni/parSub` para la **proyección**.
+- **Fallo encontrado**: `Rayas rojas y rosadas` se añadió al catálogo el 27/09 y **no se añadió a esa lista**. Comprobado en el histórico: sus 8 pedidos se vendieron a **$45** (7 de 8), como el resto de estampados, pero se contaban como lisos de $30 y con el coste de tela del liso. Corregido.
+- **La lista es A PROPÓSITO más amplia que `COLORES_PRODUCTO`**: conserva `Rayas` (15 pedidos) y `Puntos blancos` (2) aunque ya no se puedan pedir, porque los pedidos viejos siguen siendo sublimados y tienen que contarse como tales. Misma idea que `_colorHeredado`.
+- **REGLA: al añadir un color estampado al catálogo, añadirlo también a `SUBLIMADO_COLORS_SET`.** Son dos listas que hay que mover juntas; la segunda es fácil de olvidar porque está en otra parte del archivo.
+- Precios comprobados en el histórico: estampados a $45 (algunos $40 antiguos), lisos a $30. El formulario propone $30 siempre, así que **el precio del sublimado se escribe a mano** — otra cosa a mirar más adelante.

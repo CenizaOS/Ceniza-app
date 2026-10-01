@@ -1028,7 +1028,7 @@ const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQ
 // un teléfono se quedó con una copia vieja: sin esto, un arreglo publicado
 // "no funciona" en un móvil concreto y no hay forma de saber por qué.
 // SUBIRLA en cada publicación que cambie el comportamiento.
-const APP_VERSION = '2026.10.01b';
+const APP_VERSION = '2026.10.01c';
 
 // Token de sesión: se recibe al entrar con el PIN y acompaña a cada consulta.
 // Sin él, el servidor no devuelve datos.
@@ -7842,8 +7842,16 @@ let _submitting = false;  // bandera anti-duplicado
 let _reqId = '';          // ID único por apertura de formulario
 let pedidosMap  = {};     // fila → pedido (para acceso rápido desde abrirEdicion)
 
-// Colores que corresponden a pantalón sublimado
-const SUBLIMADO_COLORS_SET = new Set(['Rayas blanco y negro','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos']);
+// Colores que corresponden a pantalón sublimado (se vende a FIN_SUBLIMADO.precio
+// y lleva otro coste de tela, así que de esta lista depende la proyección).
+// OJO: es A PROPÓSITO más amplia que COLORES_PRODUCTO. Incluye nombres que ya
+// no se pueden pedir (`Rayas`, `Puntos blancos`) porque los pedidos VIEJOS que
+// los usan siguen siendo sublimados y tienen que seguir contándose como tales.
+// **Al añadir un color estampado al catálogo hay que añadirlo también aquí.**
+// `Rayas rojas y rosadas` se añadió al catálogo el 27/09 y se olvidó aquí: sus
+// 8 pedidos (vendidos a $45, como el resto de estampados) se contaban como
+// lisos de $30. Corregido el 2026-10-01.
+const SUBLIMADO_COLORS_SET = new Set(['Rayas blanco y negro','Rayas rojas y rosadas','Rayas','Puntos negros fondo blanco','Puntos blancos fondo negro','Puntos blancos']);
 
 const COLORES_PRODUCTO = {
   // "Puntos blancos" se unificó en "Puntos blancos fondo negro" (2026-10-01):
