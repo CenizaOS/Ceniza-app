@@ -323,7 +323,8 @@ function getProduccion() {
       cedula:         row[18] || "",
       montoEfectivo:  row[19] || "0",
       vuelto:         row[20] || "0",
-      cambioDeTalla:  row[21] || "",
+      // Se normaliza aquí para que el frontend siga comparando con 'true'
+      cambioDeTalla:  _esCambioDeTalla(row[21]) ? "true" : "",
     });
   }
   pedidos.sort((a, b) => a.fechaSort.localeCompare(b.fechaSort));
@@ -374,6 +375,9 @@ function getEntregas(fechaParam) {
       producto:      row[3]  || "",
       color:         row[4]  || "",
       tipoTela:      row[22] || "",
+      // Sin esto, editar un pedido desde Delivery/Historial lo devolvía sin
+      // la marca y al guardar la BORRABA en silencio.
+      cambioDeTalla: _esCambioDeTalla(row[21]) ? "true" : "",
       talla:         row[6]  || "",
       tipoEntrega:   row[7]  || "",
       direccion:     row[8]  || "",
@@ -755,6 +759,7 @@ function getHistorial(responsable, fecha, desde) {
         producto:      row[3]  || "",
         color:         row[4]  || "",
         tipoTela:      row[22] || "",
+        cambioDeTalla: _esCambioDeTalla(row[21]) ? "true" : "",
         talla:         row[6]  || "",
         ruedo:         row[5]  || "",
         montoProducto: row[9]  || "0",
@@ -867,11 +872,25 @@ function eliminarPedido(p) {
 // ─── CONTEO DE PANTALONES POR VENDEDORA ──────────────────────────────────────
 // Única regla de "qué fila cuenta para comisión": excluye Cancelado / Cambio /
 // Arreglo y cambios de talla. Devuelve { resp, fecha } o null.
+// ¿Esta fila está marcada como cambio de talla?
+// Hay que ser tolerante a propósito. Se escribe el texto "true", pero Sheets lo
+// interpreta como valor lógico y al leerlo con getDisplayValues() lo devuelve
+// en el idioma de la hoja: en español, "VERDADERO". Comparar contra "true" en
+// minúsculas fallaba siempre, así que la casilla se guardaba bien y aun así el
+// pedido seguía contando. Era el fallo de fondo tras los 5 cambios de talla
+// sumados (2026-09-30). También acepta un booleano por si se lee con getValues.
+function _esCambioDeTalla(v) {
+  if (v === true) return true;
+  const s = String(v === null || v === undefined ? "" : v).trim().toLowerCase();
+  return s === "true" || s === "verdadero" || s === "sí" || s === "si" ||
+         s === "x"    || s === "1";
+}
+
 function _filaComisionable(row) {
   if (!row[1] || row[1] === "") return null;
   const estado = row[11] || "";
   if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") return null;
-  if ((row[21] || "").toString().trim() === "true") return null; // cambio de talla: no cuenta
+  if (_esCambioDeTalla(row[21])) return null;   // cambio de talla: no cuenta
   const resp = normalizarResponsable(row[14]);
   if (!resp) return null;
   const fecha = _parseFechaVE(row[0]);
@@ -986,7 +1005,7 @@ function auditarCambiosTalla(desde) {
     const fechaObj = _parseFechaVE(row[0] || "");
     if (desdeObj && (!fechaObj || fechaObj < desdeObj)) continue;
     const notas    = (row[17] || "").toString();
-    const marcado  = (row[21] || "").toString().trim() === "true";
+    const marcado  = _esCambioDeTalla(row[21]);
     const estado   = (row[11] || "").toString();
     const info = { fila: i + 1, fechaRegistro: row[0] || "", cliente: row[1],
                    color: row[4] || "", talla: row[6] || "", estado: estado,
