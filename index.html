@@ -1023,7 +1023,7 @@ const API = "https://script.google.com/macros/s/AKfycbxMXnE63jAIaQiVvpZkA0CZeUqQ
 // un teléfono se quedó con una copia vieja: sin esto, un arreglo publicado
 // "no funciona" en un móvil concreto y no hay forma de saber por qué.
 // SUBIRLA en cada publicación que cambie el comportamiento.
-const APP_VERSION = '2026.09.30';
+const APP_VERSION = '2026.09.30b';
 
 // Token de sesión: se recibe al entrar con el PIN y acompaña a cada consulta.
 // Sin él, el servidor no devuelve datos.
@@ -2190,7 +2190,7 @@ function agregarArreglo(destino) {
     notas:        document.getElementById('arr-notas')?.value.trim()      || '',
     estado:       destino,
     fecha:        now,
-    vendedora:    localStorage.getItem('vendedora_nombre') || ''
+    vendedora:    _nombreVendedora()
   };
   // Si va directo a costurera, ya tiene fecha de recibido
   if (destino === 'recibido') a.fechaRecibido = now;
@@ -2298,11 +2298,19 @@ function _initPinPad() {
 }
 
 function initApp() {
-  // Pre-seed names (only if not already stored)
+  // Pre-seed names (only if not already stored).
+  // Va por _setNombreRol a propósito: escribiendo la clave a pelo se sembraba
+  // `ceniza_nombre_vendedora` pero NO la clave antigua `vendedora_nombre`, y
+  // como _getNombreRol se da por satisfecho con la primera, la segunda no se
+  // escribía nunca. El registro de pedidos leía esa segunda y mandaba el
+  // responsable VACÍO: el pedido entraba en la hoja pero no contaba para nadie.
   const _defaults = { vendedora:'Angi', costurera:'Gamaliel', delivery:'Yonaiker', compras:'Julio', duena:'Vivianka' };
   for (const [rol, nombre] of Object.entries(_defaults)) {
-    if (!localStorage.getItem('ceniza_nombre_' + rol)) localStorage.setItem('ceniza_nombre_' + rol, nombre);
+    if (!localStorage.getItem('ceniza_nombre_' + rol)) _setNombreRol(rol, nombre);
   }
+  // Reparar un teléfono que ya quedó a medias con el fallo de arriba
+  const _nv = localStorage.getItem('ceniza_nombre_vendedora');
+  if (_nv && !localStorage.getItem('vendedora_nombre')) _setNombreRol('vendedora', _nv);
   // Show initial screen immediately — never wait on network for navigation
   // Con rol guardado pero sin token (app recién actualizada o sesión caducada)
   // hay que volver a pedir el PIN: sin token el servidor no devuelve datos.
@@ -2392,6 +2400,16 @@ function _getNombreRol(rol) {
 function _setNombreRol(rol, nombre) {
   localStorage.setItem('ceniza_nombre_' + rol, nombre);
   if (rol === 'vendedora') localStorage.setItem('vendedora_nombre', nombre);
+}
+
+// Única forma de obtener el nombre de la vendedora. Mira las dos claves y, si
+// hace falta, las deja sincronizadas. Nunca devuelve vacío: un pedido sin
+// responsable entra en la hoja pero no cuenta para nadie, y eso no se nota
+// hasta que alguien cuadra la quincena.
+function _nombreVendedora() {
+  let n = _getNombreRol('vendedora');
+  if (!n) { n = 'Angi'; _setNombreRol('vendedora', n); }
+  return n;
 }
 
 function _pedirNombre(rol) {
@@ -6004,7 +6022,7 @@ function renderVendPedidos(misOrdenes) {
 
 function _applyVendedoraPedidos(d) {
   document.getElementById('vend-mes').textContent = getMesActualDisplay();
-  const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
+  const nombre = _nombreVendedora();
   const misOrdenes = [];
   pedidosMap = {};
   (d.grupos || []).forEach(g => {
@@ -6049,7 +6067,7 @@ async function loadVendedoraHistorial(verTodo = false) {
   const el = document.getElementById('vend-hist-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
-    const nombre = localStorage.getItem('vendedora_nombre') || '';
+    const nombre = _nombreVendedora();
     // Por defecto solo los últimos días; "Ver todo" repite sin acotar
     const ventana = verTodo ? '' : '&desde=' + encodeURIComponent(fechaHaceDias(HIST_DIAS));
     const d = await fetchData('historial', '&responsable=' + encodeURIComponent(nombre) + ventana);
@@ -6104,7 +6122,7 @@ async function loadVendedoraComisiones() {
   const el = document.getElementById('vend-com-content');
   el.innerHTML = '<div class="loading-msg"><div class="spinner"></div>Cargando...</div>';
   try {
-    const nombre = localStorage.getItem('vendedora_nombre') || 'Angi';
+    const nombre = _nombreVendedora();
     // El servidor ya incluye el arrastre de cada vendedora en `comisiones`
     const d = await fetchData('comisiones');
     document.getElementById('vend-mes').textContent = getMesActualDisplay();
@@ -7911,7 +7929,7 @@ function abrirFormulario(){
   if (_cbNuevo) _cbNuevo.checked = false;
   pintarCambioTalla();
   document.querySelector('.form-title').textContent = 'Nuevo pedido';
-  const v = localStorage.getItem('vendedora_nombre') || 'Angi';
+  const v = _nombreVendedora();
   document.getElementById('form-vendedora-nombre').textContent = v;
   prepararFechaEntrega();
   carrito = [];
@@ -8155,7 +8173,10 @@ async function submitPedidos() {
         notas:         g('f-notas'),
         montoEfectivo: g('f-monto-efectivo') || '0',
         vuelto:        g('f-vuelto') || '0',
-        responsable:     localStorage.getItem('vendedora_nombre') || '',
+        // Por _getNombreRol, que mira las dos claves. Leyendo la antigua a pelo,
+        // un teléfono recién instalado mandaba '' y el pedido quedaba en la
+        // hoja sin dueña: ni contaba ni salía en el resumen de la vendedora.
+        responsable:     _nombreVendedora(),
         items:           JSON.stringify(carrito),
         reqId:           _reqId,
         cambioDeTalla:   _esCambioTallaEnvio ? 'true' : 'false'
