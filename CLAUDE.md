@@ -269,3 +269,10 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Se llama en `initApp` y en `visibilitychange` (volver a la app es justo cuando conviene mirar), con límite de **10 minutos** entre consultas.
 - Si hay versión nueva aparece una barra dorada abajo: *"Hay una versión nueva · 2026.10.02 → …"* con botón **Actualizar**, que recarga con `?v=<ahora>` para forzar la descarga.
 - Verificado en los 5 casos: misma versión → sin aviso; versión distinta → aviso con las dos versiones; no se duplica; el límite de 10 min evita consultas extra; y sin red no lanza error.
+
+## El inventario de telas nunca llegó a calcular nada (2026-10-02)
+- **Síntoma**: la pantalla mostraba *"No se pudo calcular lo consumido (**str.split is not a function**)"* y todas las telas salían "sin cargar" aunque la dueña había cargado los metros. Llegó a cargar 181 m dos veces pensando que no se habían guardado.
+- **Causa**: `getInventarioTelas` leía la hoja con **`getDataRange().getValues()`**. Era **la ÚNICA lectura de filas del backend que no usaba `getDisplayValues()`** (las otras 11 sí). Con `getValues`, una celda con formato de fecha vuelve como **objeto `Date`**, y `_parseFechaVE` le hacía `.split` → excepción → **la ruta entera fallaba**. El inventario no estaba mal calculado: no se calculaba nunca.
+- **Las cargas sí se guardaban**: el fallo era al leer, no al escribir. Por eso en "Ver y corregir cargas" (que lee del teléfono) sí aparecían.
+- **Arreglo doble**: (1) `getDisplayValues()` en esa lectura, como el resto; (2) `_parseFechaVE` acepta ahora un `Date` además del texto `dd/MM/yyyy`, y devuelve `null` en vez de lanzar ante un número o una fecha inválida. Lo segundo es la red de seguridad: esa función la llama medio backend y el mismo despiste no puede volver a tumbar una ruta.
+- Verificado simulando la hoja con fechas como objeto `Date`: antes reventaba, ahora da `181 m − 2 pants × 2,7 = 175,6 m` por los dos caminos de lectura.

@@ -342,11 +342,20 @@ function getProduccion() {
 }
 
 // ─── ENTREGAS ────────────────────────────────────────────────────────────────
+// Acepta texto "dd/MM/yyyy" y también un Date. Lo segundo pasa cuando la hoja
+// se lee con getValues() en vez de getDisplayValues(): una celda con formato de
+// fecha vuelve como objeto, y hacerle .split lanzaba "str.split is not a
+// function", tumbando la ruta entera. Que se defienda aquí evita que ese
+// despiste vuelva a romper nada, porque esta función la llama medio backend.
 function _parseFechaVE(str) {
   if (!str) return null;
-  const p = str.split('/');
+  if (Object.prototype.toString.call(str) === "[object Date]") {
+    return isNaN(str.getTime()) ? null : new Date(str.getFullYear(), str.getMonth(), str.getDate());
+  }
+  const p = String(str).split('/');
   if (p.length !== 3) return null;
-  return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+  const d = new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function getEntregas(fechaParam) {
@@ -1318,7 +1327,11 @@ function getInventarioTelas() {
   if (claves.length) {
     const ws = hoja().getSheetByName("Pedidos " + mesActivo());
     if (ws) {
-      const datos = ws.getDataRange().getValues();
+      // getDisplayValues, igual que el resto de lecturas de la hoja. Con
+      // getValues la fecha llega como objeto Date y `_parseFechaVE` reventaba
+      // ("str.split is not a function"): la ruta fallaba ENTERA y el inventario
+      // nunca llegó a calcular nada. Era la única lectura que no lo usaba.
+      const datos = ws.getDataRange().getDisplayValues();
       for (let i = 1; i < datos.length; i++) {
         const f = _filaConsumeTela(datos[i]);
         if (!f || !f.clave) continue;
