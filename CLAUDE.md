@@ -282,3 +282,11 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Arreglo**: `sinTipo` solo cuenta desde `primeraCarga`, la fecha de la primera carga de cualquier tela. Antes de ese día no había inventario que cuadrar, así que esos pedidos no significan nada.
 - Verificado con 1.300 pedidos históricos + 3 recientes: antes avisaba de 1.302, ahora de **2** (los nuevos sin tela), y **el conteo de metros no cambia**. Sin ninguna carga, avisa de 0.
 - El aviso pasa a ser una **señal útil**: hoy saltaría con `Rosado` y `Morado`, que son de los 4 colores que siguen sin tela asignada.
+
+## Cargar metros ahora espera confirmación del servidor (2026-10-02)
+- **Lo que pasó**: la dueña cargó los metros de varias telas y al día siguiente **solo quedaba una** (`Cey Crush Negro`). La lista "Ver y corregir cargas" mostraba *1 de 1*.
+- **El agujero**: `cargarMetros` escribía en `localStorage` y mandaba a la nube **sin esperar respuesta** (`cfgSet` es fire-and-forget). Si el envío fallaba —el servidor es lento y se pasa de tiempo— el dato se veía en el teléfono pero NO estaba en la nube, y **`syncConfigDesdeSheets` lo borraba en la siguiente sincronización**, en silencio. Con 20 telas seguidas y un servidor lento, perder varias es muy plausible.
+- **Arreglo**: `pushConfigVerificado()` devuelve `true/false`; `cargarMetros` es `async`, **espera** y, si no se confirma, **deshace el cambio local** y avisa *"⚠️ NO se guardó. Revisa la conexión y vuelve a pulsar ＋"*, dejando el número escrito para reintentar. Mientras guarda, el campo se bloquea y pone "guardando…" (evita el doble toque con `_cargandoMetros`).
+- **El borrado de una carga lleva la misma protección**, al revés: si el borrado no llega a la nube se deshace, porque si no reaparecería sola en la siguiente sincronización.
+- **Principio**: *nunca dejar divergir el teléfono y la nube*. Si no se puede confirmar, no se queda a medias — se deshace y se dice.
+- Verificado con el servidor simulado en 5 casos (confirma / se pasa de tiempo / responde error, y borrado que confirma / que falla). **Ojo al probar**: `fetchData` reintenta con esperas, así que hay que esperar ~7 s antes de leer el resultado de un fallo; una primera prueba con 250 ms dio un falso positivo.
