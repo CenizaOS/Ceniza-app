@@ -312,3 +312,10 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **El total se suma tela por tela**, no dividiendo el total de metros entre una cifra: con 100 m de Cey Crush + 100 m de Laurent, lo correcto son **70** pantalones (37+33) y la cuenta vieja daba **74**.
 - **Precios revisados por la dueña**: `Cey Crush` unicolor **$2,00/m** y `Laurent` **$2,00/m** (antes 1,80 y 2,55). Sublimada sigue en $5,30 **a confirmar**: si es la base + $3,50 y la base subió a $2,00, serían $5,50.
 - Verificado a 375 px con cargas reales: 178,3 ÷ 2,7 = 66 · 94 ÷ 3 = 31 · 60 ÷ 3 = 20 → **117 pantalones**, y 862,60 $ de valor. Ambos comprobados a mano.
+
+## `Rayas rojas y rosadas` → `Rayas rojas y moradas` + disponible en Pareo (2026-10-04)
+- **El nombre estaba mal**: son moradas, no rosadas. La dueña lo renombró *"para evitar que la clienta tenga algún tema"*. **Es el MISMO diseño**, no uno nuevo.
+- **Se tocaron los tres sitios** (la regla de siempre): `COLORES_PRODUCTO` (renombrado en Clásico, **añadido al Pareo**), `SUBLIMADO_COLORS_SET` y `TELAS` (Cey Crush $5,30/m, en los dos productos).
+- **El nombre viejo SE QUEDA en `SUBLIMADO_COLORS_SET`**, aunque ya no se pueda pedir: los **8 pedidos** que lo usan tienen que seguir contándose como sublimados de $45. Misma idea que `Rayas` y `Puntos blancos`.
+- **No hace falta renombrar nada en la hoja**: `_colorHeredado` ya hace que editar un pedido viejo conserve su color, y verificado que al cambiar de producto a mano el nombre viejo no se cuela en un pantalón nuevo.
+- Verificado: pedible en los dos productos · propone **$45** en ambos (un liso propone $30) · tela Cey Crush a $5,30/m · gasta **3 m** (sirve a los dos productos, se usa el que más gasta) · **0 colores preguntan** a la vendedora. Catálogo: Clásico 19, Pareo 11, telas 26.
