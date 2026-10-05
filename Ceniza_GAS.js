@@ -922,7 +922,14 @@ function contarPantsPorVendedora(datos, desde, hasta) {
 
 // ─── NIVELES DE COMISIÓN ─────────────────────────────────────────────────────
 // `pants` = base del mes (Q1, o Q1 + Q2 en la segunda quincena).
-const UTILIDAD_NETA = 13.25;
+// Base de la comisión: $13 POR PANTALÓN, sea cual sea el producto (regla de la
+// dueña, 2026-10-04). Un sublimado se vende a $45 y deja más margen, pero la
+// vendedora cobra lo mismo por venderlo que por un clásico de $30.
+// OJO: NO es lo mismo que la utilidad real del clásico ($13,25 = 30 − 16,75),
+// que se usa para las proyecciones. Coincidían casi, y por eso se mezclaban;
+// ahora son dos cosas separadas a propósito.
+const UTILIDAD_COMISION = 13;
+const UTILIDAD_NETA = UTILIDAD_COMISION;   // nombre antiguo, para no tocar los usos
 const BASE_FIJA     = 100;
 function _calcularComision(pants) {
   let pct = 0.08, nivelSiguiente = { pants: 150, pct: 9 };

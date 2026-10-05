@@ -319,3 +319,11 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **El nombre viejo SE QUEDA en `SUBLIMADO_COLORS_SET`**, aunque ya no se pueda pedir: los **8 pedidos** que lo usan tienen que seguir contándose como sublimados de $45. Misma idea que `Rayas` y `Puntos blancos`.
 - **No hace falta renombrar nada en la hoja**: `_colorHeredado` ya hace que editar un pedido viejo conserve su color, y verificado que al cambiar de producto a mano el nombre viejo no se cuela en un pantalón nuevo.
 - Verificado: pedible en los dos productos · propone **$45** en ambos (un liso propone $30) · tela Cey Crush a $5,30/m · gasta **3 m** (sirve a los dos productos, se usa el que más gasta) · **0 colores preguntan** a la vendedora. Catálogo: Clásico 19, Pareo 11, telas 26.
+
+## La comisión es plana: $13 por pantalón (2026-10-04)
+- **Regla de la dueña**: *"hay pantalones que cuestan más, pero eso no significa que la vendedora va a ganar más por esos"*. La comisión se calcula siempre sobre **$13 por pantalón**, da igual que sea un clásico de $30, un pareo de $35 o un sublimado de $45.
+- **`UTILIDAD_COMISION = 13`** es ahora una constante **aparte** en los dos archivos. **No confundir con `FIN.utilNeta` ($13,25)**, que es la utilidad REAL del clásico ($30 − $16,75) y se usa en las proyecciones. Coincidían casi, y por eso se mezclaron. **Si cambia una, cambiar la otra solo si de verdad toca.**
+- **Fallo encontrado de paso**: `calcCierre()` calculaba la comisión como `(uni × utilNeta_uni + sub × utilNeta_sub) × tier%`, o sea pagando sobre **$20,64** por cada sublimado. Esa pantalla **no cuadraba con lo que paga el servidor**. Con 400 sublimados mostraba **$1.238,40** en vez de $780: **$458 de más**. Corregido.
+- `renderFinPlanificador` usa `FIN.utilNeta` **a propósito**: ahí `utilEsp` es la utilidad ESPERADA del negocio, no una comisión. (Se cambió por error y se revirtió.)
+- Verificado: los 3 cálculos de comisión del frontend y el del backend dan lo mismo; la mezcla de productos ya no altera la cifra (400 clásicos, 200+200 o 400 sublimados → **$780** en los tres casos); los tramos siguen igual.
+- **Efecto en septiembre** (429 pantalones, 15%): antes $952,64 → ahora **$936,55**.
