@@ -1265,7 +1265,16 @@ function guardarConfig(clave, valor) {
 // quincenas:  disponible = metros cargados − 2,7 × pantalones vendidos.
 // Un saldo guardado que se va restando se desincroniza en cuanto una petición
 // se repite, se pierde o se corrige un pedido; calculado no puede pasar.
-const METROS_POR_PANT = 2.7;
+// Cada producto gasta lo suyo (confirmado por la dueña, 2026-10-02). Antes era
+// una sola cifra para todo y el Pareo se quedaba corto: 0,3 m menos por
+// pantalón, que en cientos de pantalones es mucha tela sin descontar.
+const METROS_POR_PRODUCTO = { "Pantalón Clásico": 2.7, "Pantalón Pareo": 3 };
+const METROS_POR_PANT = 2.7;   // por defecto, para un producto que no esté en la lista
+
+function _metrosDe(producto) {
+  const p = String(producto || "").trim();
+  return METROS_POR_PRODUCTO[p] != null ? METROS_POR_PRODUCTO[p] : METROS_POR_PANT;
+}
 
 // Clave de una tela: tipo + color. Un mismo color puede existir en varias telas
 // (regla de la dueña, 2026-09-29), por eso el tipo forma parte de la clave.
@@ -1322,6 +1331,7 @@ function getInventarioTelas() {
   }
 
   const pants = {};
+  const consumo = {};   // metros reales, sumados fila a fila
   let sinTipo = 0;
   const claves = Object.keys(cargado);
   // Fecha de la PRIMERA carga de cualquier tela: antes de ese día no había
@@ -1355,6 +1365,10 @@ function getInventarioTelas() {
         const ini = desde[f.clave];
         if (!ini || f.fecha < ini) continue;   // esa tela aún no se había cargado
         pants[f.clave] = (pants[f.clave] || 0) + 1;
+        // Los metros se suman fila a fila según el producto: una misma tela
+        // puede servir al Clásico (2,7 m) y al Pareo (3 m), así que no vale
+        // multiplicar el total de pantalones por una cifra única.
+        consumo[f.clave] = (consumo[f.clave] || 0) + _metrosDe(datos[i][3]);
       }
     }
   }
@@ -1368,7 +1382,7 @@ function getInventarioTelas() {
     const par = k.split("||");
     const m   = Math.round((cargado[k] || 0) * 100) / 100;
     const n   = pants[k] || 0;
-    const con = Math.round(n * METROS_POR_PANT * 100) / 100;
+    const con = Math.round((consumo[k] || 0) * 100) / 100;
     filas.push({
       clave:      k,
       tipo:       par[0] || "",
@@ -1377,15 +1391,17 @@ function getInventarioTelas() {
       pantalones: n,
       consumido:  con,
       disponible: Math.round((m - con) * 100) / 100,
-      alcanza:    Math.floor(Math.max(0, m - con) / METROS_POR_PANT),
+      // `alcanza` ya NO se calcula aquí: depende de si esa tela es de Clásico
+      // (2,7 m) o de Pareo (3 m), y quién lo sabe es el catálogo del frontend.
       desde:      desde[k] ? Utilities.formatDate(desde[k], "America/Caracas", "dd/MM/yyyy") : ""
     });
   }
 
   return {
-    telas:         filas,
-    metrosPorPant: METROS_POR_PANT,
-    pantsSinTipo:  sinTipo
+    telas:            filas,
+    metrosPorPant:    METROS_POR_PANT,          // compatibilidad con clientes viejos
+    metrosPorProducto: METROS_POR_PRODUCTO,
+    pantsSinTipo:     sinTipo
   };
 }
 
