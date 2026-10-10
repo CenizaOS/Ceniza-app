@@ -327,3 +327,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - `renderFinPlanificador` usa `FIN.utilNeta` **a propósito**: ahí `utilEsp` es la utilidad ESPERADA del negocio, no una comisión. (Se cambió por error y se revirtió.)
 - Verificado: los 3 cálculos de comisión del frontend y el del backend dan lo mismo; la mezcla de productos ya no altera la cifra (400 clásicos, 200+200 o 400 sublimados → **$780** en los tres casos); los tramos siguen igual.
 - **Efecto en septiembre** (429 pantalones, 15%): antes $952,64 → ahora **$936,55**.
+
+## Carga por día para la vendedora + el modelo en las tarjetas (2026-10-10)
+- **Dos peticiones de la dueña**: *"ella necesita saber cuántos pantalones hay que entregar el lunes, el martes… porque siempre hay un tope de 30 por día"* y *"ni a ella ni a la costurera les aparece el modelo de pantalón"*.
+- **`TOPE_DIARIO = 30`**. `_cargaPorDia` se calcula de `d.grupos` en `_applyVendedoraPedidos` y cuenta **TODOS** los pantalones de cada fecha, no solo los de ella: el tope es del taller. Hoy solo hay una vendedora, pero así sigue bien si entra otra. `_asegurarCarga()` lo rellena desde la caché si la respuesta aún no llegó.
+- **Aviso bajo el campo de fecha** (`pintarCargaDia`), que es **donde se decide**: *"El lunes va por 28 de 30 · quedan 2"*. Verde / dorado (≤5 libres) / rojo (lleno o pasado). **Suma los pantalones del carrito**, porque si hay 28 y va a registrar 3 el aviso tiene que contar con esos 3. **Editando no los suma**: ese pantalón ya está contado en el total del día.
+- **También avisa del fin de semana**: *"El domingo no se trabaja"*. Prometer una entrega en sábado o domingo es peor que pasarse del tope, porque ese día no sale ningún pantalón. Se llama desde el `onchange`, desde `prepararFechaEntrega` y desde `renderCarrito` (en sus dos salidas).
+- **Tarjeta 📅 "Carga por día"** arriba de "Mis pedidos": 6 días hábiles con barra y `n/30`, saltando sábados y domingos. Para planificar antes de abrir el formulario.
+- **El modelo ya aparece** en los 4 sitios donde faltaba: los dos listados de la vendedora, el historial de la costurera y **el carrito del formulario** (ahí no se distinguía un Clásico de un Pareo al revisar antes de registrar). `_prodCorto()` recorta "Pantalón " porque en una línea con color, talla y ruedo el nombre completo empuja el resto fuera de pantalla.
+- **Solo frontend**: `produccion` ya devolvía `producto` y las fechas agrupadas.
