@@ -976,7 +976,38 @@ function _quincenaFija() {
 // ─── COMISIONES ──────────────────────────────────────────────────────────────
 // Se calcula en vivo desde la hoja; el parámetro `arrastres` (memoria de cada
 // teléfono) se ignora para que todos los dispositivos vean lo mismo.
+// Desglose de la quincena por producto + color, para el Estado de resultados.
+// Devuelve { "Pantalón Clásico|Negro": {n, ingresos}, ... } con `ingresos`
+// sumando el monto REALMENTE cobrado (col 10), no un precio de catálogo: así
+// un estampado vendido a $40 cuenta como $40.
+//
+// La clasificación unicolor/sublimado NO se hace aquí A PROPÓSITO. La lista de
+// colores estampados vive en el frontend (SUBLIMADO_COLORS_SET) y copiarla aquí
+// crearía una segunda fuente de verdad que se desincroniza en cuanto se añada
+// un color — que es exactamente el fallo que ya costó caro con `Rayas rojas y
+// rosadas`. El frontend recibe producto+color y clasifica con su propia lista.
+//
+// Usa `_filaComisionable`, la MISMA regla que el conteo de pantalones, para que
+// el desglose y el total no puedan discrepar.
+function desglosePorProductoColor(datos, desde, hasta) {
+  const m = {};
+  for (let i = 1; i < datos.length; i++) {
+    const row = datos[i];
+    const f = _filaComisionable(row);
+    if (!f) continue;
+    if (desde && f.fecha < desde) continue;
+    if (hasta && f.fecha >= hasta) continue;
+    const clave = (row[3] || "Pantalón Clásico") + "|" + (row[4] || "");
+    if (!m[clave]) m[clave] = { n: 0, ingresos: 0 };
+    m[clave].n++;
+    m[clave].ingresos += parseFloat(row[9]) || 0;
+  }
+  Object.keys(m).forEach(k => { m[k].ingresos = Math.round(m[k].ingresos * 100) / 100; });
+  return m;
+}
+
 function getComisiones(quincena, arrastresJson) {
+
   const ws    = hoja().getSheetByName("Pedidos " + mesActivo());
   const datos = ws.getDataRange().getDisplayValues();
 
@@ -1002,7 +1033,8 @@ function getComisiones(quincena, arrastresJson) {
     return Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants));
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
-  return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes };
+  const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
+  return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose };
 }
 
 // ─── AUDITORÍA DE CAMBIOS DE TALLA ───────────────────────────────────────────

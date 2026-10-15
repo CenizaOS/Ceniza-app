@@ -401,3 +401,16 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Márgenes reales** (precio − materiales): unicolor **$20,14** · sublimado **$23,64** · Pareo **$23,99**. **El Pareo es el de mejor margen**, por delante del sublimado. La ventaja del estampado sobre el unicolor es de **$3,50**, no de $7,39 como se dijo con los literales viejos.
 - **Cuadra con lo que muestra su app**: puntos de equilibrio 39 / 32 / 31 pantalones (616 ÷ 16,14 / 19,64 / 19,99), idénticos a sus capturas.
 - **La comisión no se movió**: 100→$104,00 · 205→$266,50 · 429→$836,55, con `UTILIDAD_COMISION` en 13.
+
+## Ingresos y materiales por producto en el Estado de resultados (2026-10-14)
+- **Lo que fallaba**: `ingresos = n × FIN.precio` valoraba **todos** los pantalones a $30, y los materiales todos a `FIN.varMat`. Con estampados a $45 y pareos a $35 la pantalla **mostraba menos dinero del que se gana**.
+- **Backend (`desglosePorProductoColor`)**: `getComisiones` ya recorría la hoja entera, así que el desglose sale **sin una sola petición extra** — importante, porque la lentitud de Apps Script es el dolor recurrente del proyecto y meter 2 llamadas más en la pantalla de entrada habría sido peor que el problema.
+- **Los ingresos son el monto REALMENTE cobrado** (col 10), no un precio de catálogo: un estampado vendido a $40 cuenta $40. Es más fiel que multiplicar por `FIN_SUBLIMADO.precio`.
+- **La clasificación unicolor/sublimado NO se hizo en el backend, a propósito.** El backend devuelve `producto|color` crudo y el frontend clasifica con su `SUBLIMADO_COLORS_SET`. Copiar esa lista al backend habría creado **una tercera fuente de verdad** que se desincroniza al añadir un color — exactamente el fallo de `Rayas rojas y rosadas`. Misma regla que ya costó cara dos veces.
+- **Usa `_filaComisionable`**, la misma regla que el conteo de pantalones, para que desglose y total no puedan discrepar.
+- **Degrada solo**: un backend viejo no manda `desglose` → `_finDesglose` queda `null` → cuenta de antes **y un aviso en pantalla** (*"Todos los pantalones se están contando a $30… ganaste más de lo que dice aquí"*). Así la app publicada no se rompe mientras la dueña despliega.
+- **Ajuste manual de pantalones**: conserva la MEZCLA real y la escala al número escrito, avisándolo. Antes el ajuste simplemente multiplicaba por el precio del clásico.
+- **Pareo estampado**: no tiene modelo propio en la pestaña Costos (solo hay tres). Se cuenta como pareo + el transfer del sublimado ($11,01 + $11,40 = **$22,41**) y **se dice en pantalla**. Pendiente de confirmar con la dueña.
+- **Arreglada de paso** la fila *"Costo total real/pant esta quincena"*, que seguía usando solo `FIN.varMat`: con mezcla daba $20,02 cuando lo real eran **$22,66**.
+- Verificado con una mezcla de 70/20/8/2: ingresos **$3.350** (la cuenta vieja decía $3.000), materiales **$1.250,30** ($986), utilidad bruta **$1.083,70** ($998) — **$85,70 más**, todos los números cuadrados a mano. Escalar a 200 duplica ingresos y materiales y la comisión sube de tramo correctamente ($260 al 10%). Sin errores de consola.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.** Sin él la pantalla funciona pero sigue con la cuenta vieja y el aviso puesto.
