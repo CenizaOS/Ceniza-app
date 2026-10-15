@@ -424,3 +424,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **FALSA ALARMA CORREGIDA en la tarjeta de estampados**: `baratos` marcaba todo lo que bajara de $45, así que **cada estampado vendido en efectivo a $40 salía como posible olvido**. Ahora el mínimo depende del método de pago de ESE pedido. Verificado con 5 ventas (2 legítimas en efectivo a $40 y 1 de verdad barata por transferencia): antes habría avisado de 3, ahora avisa de **1**. El texto también lo dice: *"por debajo de su precio ($45,00, o $40,00 en efectivo)"*.
 - **El Estado de resultados no necesitó ningún cambio**: ya suma el monto REALMENTE cobrado (`desglose` del backend), así que una venta en efectivo entra como $40 sola. La decisión de no usar precios de catálogo se pagó aquí.
 - **Pendiente de pensar**: el descuento es por PEDIDO (el método de pago es del pedido), así que no se puede registrar un pedido mitad efectivo mitad transferencia. Si pasa, hay que escribir los montos a mano.
+
+## Pago mixto — lo mínimo, a propósito (2026-10-14)
+- **La dueña**: *"en ocasiones, muy muy pocas, hay personas que hacen un pago parcial, una parte en efectivo y otra en bolívares"*.
+- **NO se montó un sistema de pagos partidos** (importes por forma de pago, cuadre, reparto del descuento). Para un caso raro sería mucha complejidad en el formulario que más se usa, y el precio final igual lo acuerda ella.
+- **Pero había un agujero que sí tocaba tapar**: sin una forma de marcarlo, un pago mixto a $42 habría vuelto a disparar la falsa alarma de "estampado por debajo de $45" recién corregida.
+- **Lo hecho**: opción `Mixto (parte en efectivo)` en `#f-metodo-pago`. No propone precio con descuento —el reparto lo decide ella— pero **dice el rango**: *"Pago mixto: escribe el precio acordado ($45,00 a BCV, $40,00 en efectivo)"*.
+- **`esPagoMixto` se comprueba ANTES que `esPagoEfectivo`**: el texto lleva "efectivo" dentro, así que `/efectivo/i` lo atraparía y aplicaría el descuento entero.
+- **En la alarma de estampados el suelo del mixto es el precio en EFECTIVO**: el precio real queda entre BCV y efectivo, así que por debajo del de efectivo sí es un error. Verificado: un mixto a $42 no avisa, uno a $35 sí.
+- Como el texto contiene "efectivo", `toggleMetodoPago` muestra igual los campos de monto y vuelto — útil para anotar cuánto se pagó en efectivo, y salió gratis.
