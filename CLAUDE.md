@@ -442,3 +442,9 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
   - `fila` vale como identificador aquí porque solo llegan pedidos de la quincena en curso, que viven todos en la hoja activa (`getHistorial` recorre varias hojas y no manda cuál) — mismo razonamiento que la tarjeta de Estampados.
 - **Solo frontend**: `produccion` e `historial` ya devolvían `color` y `fila`.
 - Verificado a 375 px con una mezcla de 13 pedidos: las cuatro tarjetas muestran su desglose, los cancelados y los cambios de talla no cuentan, y no hay errores de consola.
+
+## Vuelven `Rosado` y `Puntos negros fondo blanco` (2026-10-16)
+- **Petición de la dueña**: `Rosado` en el **Clásico** y `Puntos negros fondo blanco` en **los dos** productos. Se habían retirado el 2026-10-10 porque no tenían tela; ahora vuelven **con tela**, así que siguen en 0 colores sin tela y 0 que preguntan.
+- **Tocados los tres sitios**: `COLORES_PRODUCTO`, `TELAS` y `SUBLIMADO_COLORS_SET` (este ya tenía `Puntos negros fondo blanco`, porque se había dejado para los pedidos viejos).
+- **Telas asumidas, sin confirmar con la dueña**: `Rosado` → **Cey Crush lisa** ($2,00/m, 2,7 m), como el resto de lisos del Clásico salvo el Amarillo. `Puntos negros fondo blanco` → **Cey Crush sublimada** ($5,50/m) en los dos productos, como los demás estampados; al servir a los dos, la previsión usa 3 m.
+- Verificado: los dos aparecen en el desplegable (el Rosado solo en Clásico) · Rosado propone $30 y el estampado $45 en los dos productos · catálogo Clásico 17, Pareo 12, telas 29. Solo frontend.
