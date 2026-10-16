@@ -433,3 +433,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **`esPagoMixto` se comprueba ANTES que `esPagoEfectivo`**: el texto lleva "efectivo" dentro, así que `/efectivo/i` lo atraparía y aplicaría el descuento entero.
 - **En la alarma de estampados el suelo del mixto es el precio en EFECTIVO**: el precio real queda entre BCV y efectivo, así que por debajo del de efectivo sí es un error. Verificado: un mixto a $42 no avisa, uno a $35 sí.
 - Como el texto contiene "efectivo", `toggleMetodoPago` muestra igual los campos de monto y vuelto — útil para anotar cuánto se pagó en efectivo, y salió gratis.
+
+## Avance de la proyección, desglosado por color (2026-10-15)
+- **Petición de la dueña**: en el avance de la pestaña Proyección quería ver, dentro de cada modelo, **cuántos de cada color** — cuántos negros clásicos, cuántos verdes — y lo mismo en Pareo unicolor y en los estampados.
+- `_contarVentasProy` devuelve ahora `porColor: { clasUni:{}, clasSub:{}, parUni:{}, parSub:{} }` además de los cuatro totales. `_filasColorProy(mapa)` pinta la lista dentro de cada tarjeta: color · barrita · cantidad, **de mayor a menor**, y devuelve `''` si esa categoría aún no tiene ventas para no dejar un hueco.
+- **FALLO ENCONTRADO Y ARREGLADO de paso — se contaba doble.** `getProduccion` incluye `"Entregado a delivery"` y `getHistorial` **también**, así que todo pedido en ese estado llegaba por las dos consultas y `_cargarProgressProyeccion` las concatenaba **sin quitar repetidos**. El avance estaba inflado. La tarjeta de Estampados ya lo hacía bien (`vistos` por `fila`); esta no.
+  - Verificado: con 2 pedidos repetidos, Clásico unicolor daba **8 con Negro=5**; ahora **6 con Negro=3**.
+  - `fila` vale como identificador aquí porque solo llegan pedidos de la quincena en curso, que viven todos en la hoja activa (`getHistorial` recorre varias hojas y no manda cuál) — mismo razonamiento que la tarjeta de Estampados.
+- **Solo frontend**: `produccion` e `historial` ya devolvían `color` y `fila`.
+- Verificado a 375 px con una mezcla de 13 pedidos: las cuatro tarjetas muestran su desglose, los cancelados y los cambios de talla no cuentan, y no hay errores de consola.
