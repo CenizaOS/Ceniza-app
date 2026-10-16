@@ -7035,18 +7035,20 @@ function metrosDeTela(tipo, color) {
 // Precios dictados por la dueña: Cey Crush unicolor $2,00/m y Laurent $2,00/m
 // (revisados el 2026-10-04) · Coqueta $2,00/m y Cey Crush sublimada $5,50/m
 // (2026-10-10: la sublimada es la base + $3,50, así que al subir la base de
-// $1,80 a $2,00 subió con ella).
-const P_CEY = 2.00, P_SUBL = 5.50, P_LAURENT = 2.00, P_COQUETA = 2.00;
+// $1,80 a $2,00 subió con ella) · Bengal $2,00/m (2026-10-16, "igual que el
+// Cey Crush"; constante aparte porque es otra tela y puede moverse sola).
+const P_CEY = 2.00, P_SUBL = 5.50, P_LAURENT = 2.00, P_COQUETA = 2.00, P_BENGAL = 2.00;
 
 const TELAS = [
-  // `Rosado` (2026-10-16): Cey Crush como el resto de lisos del Clásico.
   ...['Negro','Vinotinto','Verde','Marrón','Beige','Azul rey','Terracota','Fucsia',
-      'Rosado','Rojo','Blanco','Gris']
+      'Rojo','Blanco','Gris']
      .map(color => ({ tipo: 'Cey Crush', color, producto: 'Pantalón Clásico', precio: P_CEY })),
   // Estampados: misma tela, pero sublimada, y por eso casi el triple de precio.
   ...['Rayas blanco y negro','Rayas rojas y moradas','Puntos blancos fondo negro','Puntos negros fondo blanco']
      .map(color => ({ tipo: 'Cey Crush', color, producto: 'Pantalón Clásico', precio: P_SUBL })),
   { tipo: 'Coqueta', color: 'Amarillo', producto: 'Pantalón Clásico', precio: P_COQUETA },
+  // `Rosado` (2026-10-16): tela Bengal, solo Clásico (confirmado por la dueña).
+  { tipo: 'Bengal', color: 'Rosado', producto: 'Pantalón Clásico', precio: P_BENGAL },
   // Gris del Pareo es Laurent (el Gris del Clásico es Cey Crush: mismo color,
   // telas distintas, y por eso la clave lleva el producto).
   ...['Negro','Beige','Azul marino','Verde oscuro','Rojo','Lila','Vinotinto','Gris']
