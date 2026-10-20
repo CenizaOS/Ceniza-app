@@ -458,3 +458,10 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado también que descuenta inventario: con 40 m cargados y 5,4 consumidos, la pantalla dice **34,6 m → 12 pantalones** (34,6 ÷ 2,7). Y en el formulario la vendedora **no ve ningún campo de tela**, porque solo hay una posible.
 - **Ojo al probar el inventario**: la clave es `tipo||color` con **doble** barra (`_claveTela` en el backend, `claveTela` en el frontend). Una prueba con una sola barra hace que la tela salga "sin cargar" y parezca un fallo que no existe.
 - **Solo frontend**: el backend no valida colores ni conoce el catálogo de telas.
+
+## `Rayas rojas y blancas` en los dos productos (2026-10-20)
+- **Petición de la dueña**: estampado nuevo, en Clásico **y** Pareo.
+- **Los tres sitios, incluido el que se olvida**: `COLORES_PRODUCTO` (los dos productos), **`SUBLIMADO_COLORS_SET`** y `TELAS` (Cey Crush sublimada, $5,50/m, en los dos). Es exactamente el patrón de `Rayas rojas y moradas`.
+- Verificado: pedible en los dos · propone **$45**, o **$40 en efectivo**, en ambos · tela Cey Crush a $5,50/m · la previsión le asigna **3 m** (sirve a los dos productos, se usa el que más gasta) · **0 sin tela y 0 que preguntan**. Catálogo: Clásico 19, Pareo 13, 32 telas.
+- Comprobado también en la tarjeta «🎨 Estampados de la quincena»: cuenta como estampado, sale en el desglose por diseño, y la alarma de precio bajo **solo** marca el vendido por debajo de su mínimo real — un $40 en efectivo no la dispara.
+- **Solo frontend.**
