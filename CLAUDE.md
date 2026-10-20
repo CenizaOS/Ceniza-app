@@ -448,3 +448,13 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Tocados los tres sitios**: `COLORES_PRODUCTO`, `TELAS` y `SUBLIMADO_COLORS_SET` (este ya tenía `Puntos negros fondo blanco`, porque se había dejado para los pedidos viejos).
 - **Telas CONFIRMADAS por la dueña (2026-10-16)**: `Rosado` → **Bengal** (tela nueva, `P_BENGAL` = $2,00/m, igual que el Cey Crush pero constante aparte), solo Clásico, 2,7 m. `Puntos negros fondo blanco` → **Cey Crush sublimada** ($5,50/m) en los dos productos; al servir a los dos, la previsión usa 3 m. Precio: $45, o $40 en efectivo, en los dos.
 - Verificado: los dos aparecen en el desplegable (el Rosado solo en Clásico) · Rosado propone $30 y el estampado $45 en los dos productos · catálogo Clásico 17, Pareo 12, telas 29 (Bengal: Rosado propone $30 y $25 en efectivo). Solo frontend.
+
+## `Chambray` en el Clásico — y es su propia tela (2026-10-20)
+- **Petición de la dueña**: añadir el color `Chambray` al Pantalón Clásico.
+- **Chambray es tela Y color a la vez.** Preguntado antes de tocar nada; la dueña confirmó que **es su propia tela**, no un color dentro del Cey Crush. Lleva inventario de metros aparte, igual que `Bengal` con el Rosado. `P_CHAMBRAY` = **$2,00/m** (lo que valen todas sus telas lisas; es solo la sugerencia de la marca de agua, el precio que cuenta es el de cada carga).
+- **Es un LISO, así que NO va en `SUBLIMADO_COLORS_SET`**: se vende a precio de clásico, **$30 (o $25 en efectivo)**. Verificado.
+- **Se tocaron los tres sitios de siempre** salvo el del sublimado, que no aplica: `COLORES_PRODUCTO` (solo Clásico), `TELAS` (tipo nuevo) y el precio.
+- **El invariante aguanta**: sigue habiendo **0 colores sin tela y 0 que preguntan** a la vendedora, verificado sobre los 30 pares producto+color. Catálogo: Clásico 18, Pareo 12, 30 telas, 5 tipos (Cey Crush · Coqueta · Bengal · Chambray · Laurent).
+- Verificado también que descuenta inventario: con 40 m cargados y 5,4 consumidos, la pantalla dice **34,6 m → 12 pantalones** (34,6 ÷ 2,7). Y en el formulario la vendedora **no ve ningún campo de tela**, porque solo hay una posible.
+- **Ojo al probar el inventario**: la clave es `tipo||color` con **doble** barra (`_claveTela` en el backend, `claveTela` en el frontend). Una prueba con una sola barra hace que la tela salga "sin cargar" y parezca un fallo que no existe.
+- **Solo frontend**: el backend no valida colores ni conoce el catálogo de telas.
