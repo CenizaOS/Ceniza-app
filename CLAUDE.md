@@ -465,3 +465,15 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado: pedible en los dos · propone **$45**, o **$40 en efectivo**, en ambos · tela Cey Crush a $5,50/m · la previsión le asigna **3 m** (sirve a los dos productos, se usa el que más gasta) · **0 sin tela y 0 que preguntan**. Catálogo: Clásico 19, Pareo 13, 32 telas.
 - Comprobado también en la tarjeta «🎨 Estampados de la quincena»: cuenta como estampado, sale en el desglose por diseño, y la alarma de precio bajo **solo** marca el vendido por debajo de su mínimo real — un $40 en efectivo no la dispara.
 - **Solo frontend.**
+
+## El descuento de $5 se amplía a Binance (2026-10-23)
+- **Petición de la dueña**: que pagar con **Binance** reste los mismos $5 que el efectivo.
+- **Lo importante del cambio**: "efectivo" decidía **dos cosas distintas** a la vez y había que separarlas, porque **Binance lleva descuento pero NO lleva vuelto**.
+  - `esPagoEfectivo` → ¿es dinero en mano? De ahí dependen los campos *"el cliente paga con"* y *"vuelto a dar"*.
+  - **`tieneDescuentoPago`** → ¿le tocan los $5? Es la **única fuente de verdad** del descuento; `proponerPrecio`, `avisarPreciosCarrito` y la alarma de estampados la usan a ella.
+  - Si solo se hubiera metido `/binance/i` dentro de `esPagoEfectivo`, a Binance le habrían salido los campos de vuelto. Y `toggleMetodoPago` ni siquiera usaba esa función: tenía su propio `mp.includes('efectivo')`, así que el descuento del carrito se habría quedado sin aplicar.
+- `precioSugerido(prod, color, conDescuento)` — el parámetro se renombró de `efectivo`, que ya mentía.
+- **El aviso nombra el método**: *"En Binance: $30,00 − $5,00 de descuento"* / *"En efectivo: …"*, vía `etiquetaDescuento`.
+- Verificado con los 6 métodos: Pago móvil, Transferencia y PayPal → $30/$45 sin descuento ni vuelto · Efectivo → **$25/$40 con vuelto** · **Binance → $25/$40 SIN vuelto** · Mixto → sin descuento automático, con vuelto y diciendo el rango.
+- **Efecto secundario que es una corrección**: la alarma de "estampado por debajo de su precio" ya no marca un **Binance a $40**, que es legítimo. Verificado con 5 ventas: marca 2 (transferencia a $40 y Binance a $35, que sí están por debajo de su mínimo) y deja pasar los dos de $40 con descuento. El texto lo dice: *"($45,00, o $40,00 en efectivo o Binance)"*.
+- **Solo frontend.** El método de pago ya se guardaba en la columna 17 y `produccion`/`historial` ya lo devolvían.
