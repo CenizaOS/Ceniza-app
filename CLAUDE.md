@@ -509,3 +509,9 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **`_limpiarRolesViejos`** borra de `PINES` los perfiles que ya no existen (hoy `compras`), para que no quede un acceso vivo de un perfil retirado. Corre sola al guardar cualquier PIN; es idempotente.
 - Verificado con `PropertiesService` simulado: poner el primer PIN a `produccion` → `{ok:true}` y **`compras` desaparece de `PINES`**; un rol inventado → *"Rol desconocido"*; y desde un rol que no es dueña → rechazado. En la app: 5 perfiles en pantalla, la pantalla vieja no existe, las 4 funciones viejas eliminadas y 0 errores de consola.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO**, y después **ponerle el PIN a Producción** desde Administración → Seguridad.
+
+## La joyería no sale en Delivery hasta que se entrega (2026-10-29)
+- **Regla de la dueña**: *"puede estar empaquetado, pero no entregado al delivery porque es para otro día"*. La joyería solo aparece en Delivery cuando ella la pasa a **"Entregado a delivery"** desde el perfil Producción.
+- **Implementado en `getEntregas`**: `if (_esJoya(row[3]) && !estadosEntrega.includes(estado)) continue;`
+- **DIFERENCIA IMPORTANTE, dicha a la dueña**: los **PANTALONES NO llevan esa puerta**. Aparecen en Delivery en su fecha de entrega **aunque sigan "En producción"** — es el comportamiento desde septiembre (*"Un pedido aparece SOLO en su fecha de entrega pautada"*). Ella creía que ya funcionaban como la costurera; **no es así**. Se deja como está a propósito: cambiarlo tocaría el flujo que costurera y delivery usan a diario. **Si algún día lo quiere igual, es quitar la condición de joyería y aplicarla a todo.**
+- Verificado con hoja simulada, 5 filas con la misma fecha de entrega: en Delivery salen el **pantalón "En producción"** (comportamiento de siempre), la joyería **"Entregado a delivery"** y la **"Entregado a cliente"**; **no** salen la joyería recién registrada ni la ya empaquetada.
