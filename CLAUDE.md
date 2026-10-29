@@ -510,8 +510,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado con `PropertiesService` simulado: poner el primer PIN a `produccion` → `{ok:true}` y **`compras` desaparece de `PINES`**; un rol inventado → *"Rol desconocido"*; y desde un rol que no es dueña → rechazado. En la app: 5 perfiles en pantalla, la pantalla vieja no existe, las 4 funciones viejas eliminadas y 0 errores de consola.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO**, y después **ponerle el PIN a Producción** desde Administración → Seguridad.
 
-## La joyería no sale en Delivery hasta que se entrega (2026-10-29)
-- **Regla de la dueña**: *"puede estar empaquetado, pero no entregado al delivery porque es para otro día"*. La joyería solo aparece en Delivery cuando ella la pasa a **"Entregado a delivery"** desde el perfil Producción.
-- **Implementado en `getEntregas`**: `if (_esJoya(row[3]) && !estadosEntrega.includes(estado)) continue;`
-- **DIFERENCIA IMPORTANTE, dicha a la dueña**: los **PANTALONES NO llevan esa puerta**. Aparecen en Delivery en su fecha de entrega **aunque sigan "En producción"** — es el comportamiento desde septiembre (*"Un pedido aparece SOLO en su fecha de entrega pautada"*). Ella creía que ya funcionaban como la costurera; **no es así**. Se deja como está a propósito: cambiarlo tocaría el flujo que costurera y delivery usan a diario. **Si algún día lo quiere igual, es quitar la condición de joyería y aplicarla a todo.**
-- Verificado con hoja simulada, 5 filas con la misma fecha de entrega: en Delivery salen el **pantalón "En producción"** (comportamiento de siempre), la joyería **"Entregado a delivery"** y la **"Entregado a cliente"**; **no** salen la joyería recién registrada ni la ya empaquetada.
+
+## La joyería SÍ sale en Delivery desde que se registra — y el porqué (2026-10-29)
+- **Se probó lo contrario y se revirtió el mismo día.** Primero la dueña pidió que la joyería no apareciera en Delivery hasta marcarla "Entregado a delivery" (*"puede estar empaquetada y no entregada porque es para otro día"*). Se implementó, se verificó… y entonces **recordó el motivo del diseño original**, que no estaba escrito en ninguna parte:
+  > *"Ya me acordé por qué yo puse que apenas se registrara la venta le apareciera al delivery. Porque así él sabe cuántos pedidos hay que entregar mañana o pasado mañana y me da prioridad de entrega a mí, porque él trabaja también por otro lado."*
+- **O sea: esa pantalla no es solo la lista del día, es la previsión de carga del repartidor.** Esconderle lo que viene le quita la razón para priorizar a Ceniza. **No volver a "arreglarlo".**
+- **Pantalones y joyería se comportan igual**: aparecen en su fecha de entrega aunque sigan "En producción". La dueña lo confirmó: *"lo demás déjalo como ha estado funcionando justamente para no atropellar ese proceso"*.
+- **El perfil Producción sigue**, pero como **registro de estatus**, no como puerta: *"lo va a hacer otra persona"* y ella quiere el control del empaquetado.
+- **Botones → desplegable**, igual que la cola de la costurera (`.estado-select`), con los 4 estados. Mismo patrón que `cambiarEstadoPedido`: pinta al instante y **revierte el desplegable y el caché si el servidor falla**. Verificado en los dos caminos.
+- Un estado que no esté en la lista (un pedido viejo, un `Pagado`) **se añade al final** para no perderlo al abrir el desplegable.

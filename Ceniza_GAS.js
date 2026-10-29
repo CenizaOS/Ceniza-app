@@ -444,14 +444,14 @@ function getEntregas(fechaParam) {
                           (fechaEntrega === "" && estadosEntrega.includes(estado) && row[0] === fechaBuscar);
     if (!coincideFecha) continue;
 
-    // JOYERÍA: no sale en Delivery hasta que la dueña la pasa a "Entregado a
-    // delivery" desde el perfil Producción. Regla suya (2026-10-29): puede
-    // estar empaquetada y aún no entregada, porque es para otro día.
-    // OJO: los PANTALONES NO llevan esta puerta — aparecen en su fecha de
-    // entrega aunque sigan "En producción". Es el comportamiento de siempre y
-    // se deja como está a propósito; cambiarlo afectaría al flujo que ya usan
-    // la costurera y el delivery todos los días.
-    if (_esJoya(row[3]) && !estadosEntrega.includes(estado)) continue;
+    // La joyería aparece en Delivery desde que se registra, IGUAL que los
+    // pantalones. Se probó la puerta contraria (que esperara a "Entregado a
+    // delivery") y la dueña la revirtió el mismo día, con el motivo que falta
+    // en todo este archivo: **el delivery necesita ver lo que viene** para
+    // darle prioridad frente al otro trabajo que lleva. Saber el volumen de
+    // mañana y pasado es justo para lo que mira esta pantalla.
+    // El perfil Producción sigue llevando el estatus del empaquetado, pero
+    // eso es un registro interno y NO decide lo que ve el delivery.
     pedidos.push(buildRow(row, i));
   }
 
