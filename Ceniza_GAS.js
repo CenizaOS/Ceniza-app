@@ -698,9 +698,12 @@ function editarPedido(p) {
 
     if (p.telefono    !== undefined) ws.getRange(fila, 3).setValue((p.telefono    || "").trim());
     if (p.producto    !== undefined) ws.getRange(fila, 4).setValue((p.producto    || "").trim());
-    // Col 24: solo la joyería la usa. Se escribe cuando llega, para que editar
-    // una venta de joyería no se lleve por delante la cantidad de piezas.
-    if (p.piezas      !== undefined) ws.getRange(fila, 24).setValue(parseInt(p.piezas, 10) || 1);
+    // Col 24: solo la joyería la usa. Se escribe cuando llega un número válido,
+    // para que editar una venta de joyería no se lleve por delante la cantidad.
+    // Un vacío NO se escribe: el formulario manda el parámetro siempre, y con
+    // `!== undefined` un pantalón editado acababa con un 1 en esa columna.
+    const _pz = parseInt(p.piezas, 10);
+    if (!isNaN(_pz) && _pz > 0) ws.getRange(fila, 24).setValue(_pz);
     if (p.color       !== undefined) ws.getRange(fila, 5).setValue((p.color       || "").trim());
     if (p.ruedo       !== undefined) ws.getRange(fila, 6).setValue((p.ruedo       || "").trim());
     if (p.talla       !== undefined) ws.getRange(fila, 7).setValue((p.talla       || "").trim());
