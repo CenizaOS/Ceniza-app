@@ -243,6 +243,7 @@ function doGet(e) {
     else if (accion === "historial")       data = getHistorial(e.parameter.responsable, e.parameter.fecha, e.parameter.desde);
     else if (accion === "historialQuincenas") data = getHistorialQuincenas();
     else if (accion === "auditarCambiosTalla") data = auditarCambiosTalla(e.parameter.desde);
+    else if (accion === "joyeria")        data = getJoyeria();
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "inventarioTelas") data = getInventarioTelas();
     else if (accion === "reiniciarQuincena") data = _quincenaFija();
@@ -325,6 +326,8 @@ function getProduccion() {
       vuelto:         row[20] || "0",
       // Se normaliza aquí para que el frontend siga comparando con 'true'
       cambioDeTalla:  _esCambioDeTalla(row[21]) ? "true" : "",
+      // Piezas de joyería (col 24). Vacío en los pantalones.
+      piezas:  _esJoya(row[3]) ? _piezasDe(row) : "",
     });
   }
   pedidos.sort((a, b) => a.fechaSort.localeCompare(b.fechaSort));
@@ -387,6 +390,8 @@ function getEntregas(fechaParam) {
       // Sin esto, editar un pedido desde Delivery/Historial lo devolvía sin
       // la marca y al guardar la BORRABA en silencio.
       cambioDeTalla: _esCambioDeTalla(row[21]) ? "true" : "",
+      // Piezas de joyería (col 24). Vacío en los pantalones.
+      piezas: _esJoya(row[3]) ? _piezasDe(row) : "",
       talla:         row[6]  || "",
       tipoEntrega:   row[7]  || "",
       direccion:     row[8]  || "",
@@ -649,7 +654,10 @@ function registrarPedidos(p) {
         parseFloat(p.vuelto)        || 0,
         (p.cambioDeTalla === 'true') ? 'true' : '',
         // Col 23. Va por ítem, no por pedido: cada pantalón puede llevar su tela.
-        (item.tipoTela || "").trim()
+        (item.tipoTela || "").trim(),
+        // Col 24. Piezas: solo la joyería la usa. Una fila de joyería es una
+        // venta de N piezas con su total, no N filas.
+        _esJoya(item.producto) ? (parseInt(item.piezas, 10) || 1) : ""
       ];
       ws.getRange(nextRowNum, 1, 1, fila.length).setValues([fila]);
       filas.push(nextRowNum);
@@ -690,6 +698,9 @@ function editarPedido(p) {
 
     if (p.telefono    !== undefined) ws.getRange(fila, 3).setValue((p.telefono    || "").trim());
     if (p.producto    !== undefined) ws.getRange(fila, 4).setValue((p.producto    || "").trim());
+    // Col 24: solo la joyería la usa. Se escribe cuando llega, para que editar
+    // una venta de joyería no se lleve por delante la cantidad de piezas.
+    if (p.piezas      !== undefined) ws.getRange(fila, 24).setValue(parseInt(p.piezas, 10) || 1);
     if (p.color       !== undefined) ws.getRange(fila, 5).setValue((p.color       || "").trim());
     if (p.ruedo       !== undefined) ws.getRange(fila, 6).setValue((p.ruedo       || "").trim());
     if (p.talla       !== undefined) ws.getRange(fila, 7).setValue((p.talla       || "").trim());
@@ -769,6 +780,8 @@ function getHistorial(responsable, fecha, desde) {
         color:         row[4]  || "",
         tipoTela:      row[22] || "",
         cambioDeTalla: _esCambioDeTalla(row[21]) ? "true" : "",
+        // Piezas de joyería (col 24). Vacío en los pantalones.
+        piezas: _esJoya(row[3]) ? _piezasDe(row) : "",
         talla:         row[6]  || "",
         ruedo:         row[5]  || "",
         montoProducto: row[9]  || "0",
@@ -805,6 +818,52 @@ function limpiarResponsable(p) {
     }
   }
   return { success: true, actualizados: total, viejo, nuevo };
+}
+
+// ─── JOYERÍA PENDIENTE DE EMPAQUETAR ─────────────────────────────────────────
+// La dueña empaqueta la joyería ella misma, así que necesita ver qué hay por
+// preparar y para quién. Devuelve las ventas de joyería que AÚN no han salido
+// (todo lo que no esté ya entregado al cliente), con los códigos que la
+// vendedora dejó en las notas.
+// Solo lee la hoja activa: el piloto es de la quincena en curso.
+function getJoyeria() {
+  const ws = hoja().getSheetByName("Pedidos " + mesActivo());
+  if (!ws) return { error: "Hoja no encontrada" };
+  const datos = ws.getDataRange().getDisplayValues();
+  const pendientes = [], entregadas = [];
+  for (let i = 1; i < datos.length; i++) {
+    const row = datos[i];
+    if (!row[1] || row[1] === "") continue;
+    if (!_esJoya(row[3])) continue;
+    const estado = row[11] || "";
+    if (estado === "Cancelado") continue;
+    const item = {
+      fila:          i + 1,
+      fechaRegistro: row[0]  || "",
+      fechaEntrega:  row[12] || "",
+      cliente:       row[1],
+      telefono:      row[2]  || "",
+      direccion:     row[8]  || "",
+      tipoEntrega:   row[7]  || "",
+      piezas:        _piezasDe(row),
+      monto:         row[9]  || "0",
+      estado:        estado,
+      responsable:   normalizarResponsable(row[14]),
+      // Aquí van los códigos de las piezas (brazalete 058, anillo 701…)
+      notas:         row[17] || ""
+    };
+    if (estado === "Entregado a cliente") entregadas.push(item); else pendientes.push(item);
+  }
+  const porFecha = (a, b) => String(a.fechaEntrega).split("/").reverse().join("")
+                    .localeCompare(String(b.fechaEntrega).split("/").reverse().join(""));
+  pendientes.sort(porFecha);
+  entregadas.sort(porFecha);
+  return {
+    pendientes: pendientes,
+    entregadas: entregadas,
+    piezasPendientes: pendientes.reduce(function(s, p) { return s + p.piezas; }, 0),
+    comisionPorPieza: COMISION_JOYA
+  };
 }
 
 // ─── SEMANA COSTURERA ────────────────────────────────────────────────────────
@@ -897,6 +956,7 @@ function _esCambioDeTalla(v) {
 
 function _filaComisionable(row) {
   if (!row[1] || row[1] === "") return null;
+  if (_esJoya(row[3])) return null;   // la joyería no es un pantalón: ver _filaJoya
   const estado = row[11] || "";
   if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") return null;
   if (_esCambioDeTalla(row[21])) return null;   // cambio de talla: no cuenta
@@ -931,6 +991,63 @@ function contarPantsPorVendedora(datos, desde, hasta) {
 const UTILIDAD_COMISION = 13;
 const UTILIDAD_NETA = UTILIDAD_COMISION;   // nombre antiguo, para no tocar los usos
 const BASE_FIJA     = 100;
+
+// ─── JOYERÍA (lote piloto, 2026-10-29) ──────────────────────────────────────
+// Acero inoxidable: brazaletes, anillos, collares y zarcillos. NO es un color
+// ni un modelo más de pantalón, y esa es la clave de todo lo que sigue.
+//
+// `_filaComisionable` NO mira el producto: cuenta cualquier fila con cliente,
+// fecha, responsable y estado válido. Si la joyería entrara por ahí, cada
+// pieza pagaría $13, empujaría el tramo (subiendo la comisión de TODOS los
+// pantalones), ocuparía hueco del tope de 30 diarios, pediría tela y entraría
+// en el Estado de resultados como un clásico de $30. Nada de eso avisa.
+// Por eso la joyería se aparta en CADA conteo, uno por uno.
+//
+// Comisión: **$0,25 planos por pieza**, aparte y SIN tramo (regla de la dueña,
+// 2026-10-29: es un lote de prueba y lo primero es recuperar la inversión).
+const PRODUCTO_JOYERIA = "Joyería";
+const COMISION_JOYA    = 0.25;
+
+// Se compara flojo (sin tildes ni mayúsculas) porque el producto llega como
+// texto desde el teléfono y una tilde perdida no puede descuadrar un conteo.
+function _esJoya(producto) {
+  return /joyer/i.test(String(producto || "").normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+}
+
+// Piezas de una fila de joyería (columna 24). Una fila = una venta de N
+// piezas, no N filas: la vendedora escribe la cantidad y el total.
+function _piezasDe(row) {
+  const n = parseInt(row[23], 10);
+  return isNaN(n) || n < 1 ? 1 : n;
+}
+// Gemelo de _filaComisionable para la joyería. Mismas exclusiones de estado,
+// pero cuenta PIEZAS (columna 24), no filas.
+function _filaJoya(row) {
+  if (!row[1] || row[1] === "") return null;
+  if (!_esJoya(row[3])) return null;
+  const estado = row[11] || "";
+  if (estado === "Cancelado" || estado === "Cambio" || estado === "Arreglo") return null;
+  const resp = normalizarResponsable(row[14]);
+  if (!resp) return null;
+  const fecha = _parseFechaVE(row[0]);
+  if (!fecha) return null;
+  return { resp: resp, fecha: fecha, piezas: _piezasDe(row) };
+}
+
+// Piezas de joyería por vendedora en [desde, hasta). Mismo contrato que
+// contarPantsPorVendedora, para que las dos se usen igual.
+function contarJoyasPorVendedora(datos, desde, hasta) {
+  const conteo = {};
+  for (let i = 1; i < datos.length; i++) {
+    const f = _filaJoya(datos[i]);
+    if (!f) continue;
+    if (desde && f.fecha < desde) continue;
+    if (hasta && f.fecha >= hasta) continue;
+    conteo[f.resp] = (conteo[f.resp] || 0) + f.piezas;
+  }
+  return conteo;
+}
+
 function _calcularComision(pants) {
   let pct = 0.08, nivelSiguiente = { pants: 150, pct: 9 };
   if      (pants >= 400) { pct = 0.15; nivelSiguiente = null; }
@@ -993,6 +1110,8 @@ function desglosePorProductoColor(datos, desde, hasta) {
   const m = {};
   for (let i = 1; i < datos.length; i++) {
     const row = datos[i];
+    // _filaComisionable ya descarta la joyería, así que el desglose del Estado
+    // de resultados sigue siendo solo de pantalones.
     const f = _filaComisionable(row);
     if (!f) continue;
     if (desde && f.fecha < desde) continue;
@@ -1016,6 +1135,8 @@ function getComisiones(quincena, arrastresJson) {
   const mesInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
   const conteo    = contarPantsPorVendedora(datos, q.actual.desde, q.actual.hasta);
+  // Las piezas van APARTE: no entran en `pants` ni, por tanto, en el tramo.
+  const joyas     = contarJoyasPorVendedora(datos, q.actual.desde, q.actual.hasta);
   const arrastres = q.anterior ? contarPantsPorVendedora(datos, q.anterior.desde, q.anterior.hasta) : {};
   const conteoMes = contarPantsPorVendedora(datos, mesInicio, null);
 
@@ -1024,13 +1145,21 @@ function getComisiones(quincena, arrastresJson) {
   const d0 = q.actual.desde;
   const fechaInicioStr = String(d0.getDate()).padStart(2, "0") + "/" + String(d0.getMonth() + 1).padStart(2, "0") + "/" + d0.getFullYear();
 
-  const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres)]);
+  const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres), ...Object.keys(joyas)]);
   const vendedoras = Array.from(todosNombres).map(nombre => {
     const pantsQuincena = conteo[nombre] || 0;
     const pantsMes      = conteoMes[nombre] || 0;
     const arrastre = parseInt(arrastres[nombre] || 0);
     const pants    = pantsQuincena + arrastre;
-    return Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants));
+    const piezasJoya    = joyas[nombre] || 0;
+    const comisionJoya  = +(piezasJoya * COMISION_JOYA).toFixed(2);
+    const base = Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants));
+    // El total a pagar incluye la joyería; `comision` sigue siendo solo la de
+    // pantalones, para no romper lo que ya lee ese campo.
+    base.piezasJoya   = piezasJoya;
+    base.comisionJoya = comisionJoya.toFixed(2);
+    base.totalAPagar  = (parseFloat(base.totalAPagar) + comisionJoya).toFixed(2);
+    return base;
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
@@ -1342,6 +1471,7 @@ function _leerConfigJSON(config, clave, porDefecto) {
 //  · "Cancelado" no consume. "Arreglo" tampoco: se arregla lo ya cosido.
 function _filaConsumeTela(row) {
   if (!row[1] || row[1] === "") return null;
+  if (_esJoya(row[3])) return null;   // la joyería no lleva tela
   const estado = String(row[11] || "").trim();
   if (estado === "Cancelado" || estado === "Arreglo") return null;
   const fecha = _parseFechaVE(row[0]);
