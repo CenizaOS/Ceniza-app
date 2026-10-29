@@ -139,14 +139,31 @@ function _leerPines() {
 // Los que estaban antes en la app (visibles en el código público) hay que
 // cambiarlos: dalos por conocidos.
 // Después, para cambiarlos se usa la app: Administración → Seguridad.
+// Los perfiles que existen. `compras` se eliminó el 2026-10-29 (no se usaba) y
+// entró `produccion`, que es quien empaqueta la joyería.
+// Es la ÚNICA lista: `cambiarPin` valida contra ella, así que un perfil nuevo
+// puede recibir su PIN desde la app sin tocar código.
+const ROLES = ["vendedora", "costurera", "delivery", "produccion", "duena"];
+
 function instalarPines() {
   _guardarPines({
-    vendedora: "",
-    costurera: "",
-    delivery:  "",
-    compras:   "",
-    duena:     ""
+    vendedora:  "",
+    costurera:  "",
+    delivery:   "",
+    produccion: "",
+    duena:      ""
   });
+}
+
+// Borra de PINES los perfiles que ya no existen (hoy: `compras`). Se ejecuta
+// sola al guardar un PIN, para que no quede un acceso vivo de un perfil
+// retirado. Idempotente.
+function _limpiarRolesViejos(pines) {
+  let quitados = 0;
+  for (const rol in pines) {
+    if (ROLES.indexOf(rol) === -1) { delete pines[rol]; quitados++; }
+  }
+  return quitados;
 }
 
 function _guardarPines(nuevos) {
@@ -160,7 +177,8 @@ function _guardarPines(nuevos) {
     actuales[rol] = pin;
     puestos++;
   }
-  if (puestos) p.setProperty("PINES", JSON.stringify(actuales));
+  const _fuera = _limpiarRolesViejos(actuales);
+  if (puestos || _fuera) p.setProperty("PINES", JSON.stringify(actuales));
   _authSecret();
   Logger.log("PIN guardados: " + puestos +
              (ignorados.length ? " · ignorados (no son 4 números): " + ignorados.join(", ") : "") +
@@ -207,9 +225,13 @@ function cambiarPin(p, rolSolicitante) {
   const rol = (p.rol || "").toString().trim();
   const pin = (p.pin || "").toString().trim();
   if (!/^\d{4}$/.test(pin)) return { ok: false, error: "El PIN debe tener 4 números" };
+  // Se valida contra ROLES y NO contra las claves que ya haya guardadas: un
+  // perfil recién creado todavía no tiene PIN, y con lo de antes nunca habría
+  // podido recibir el primero sin tocar el código.
+  if (ROLES.indexOf(rol) === -1) return { ok: false, error: "Rol desconocido" };
   const pines = _leerPines();
-  if (!pines.hasOwnProperty(rol)) return { ok: false, error: "Rol desconocido" };
   pines[rol] = pin;
+  _limpiarRolesViejos(pines);
   _props().setProperty("PINES", JSON.stringify(pines));
   return { ok: true, rol: rol };
 }
