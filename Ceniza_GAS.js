@@ -257,7 +257,7 @@ function doGet(e) {
     else if (accion === "cambiarPin")     data = cambiarPin(e.parameter, rolToken);
     else if (accion === "produccion")      data = getProduccion();
     else if (accion === "entregas")        data = getEntregas(e.parameter.fecha);
-    else if (accion === "comisiones")      data = getComisiones(e.parameter.quincena, e.parameter.arrastres);
+    else if (accion === "comisiones")      data = getComisiones(e.parameter.quincena, e.parameter.arrastres, rolToken);
     else if (accion === "registrarPedidos") data = _conLock(() => registrarPedidos(e.parameter));
     else if (accion === "cambiarEstado")   data = cambiarEstado(e.parameter);
     else if (accion === "editarPedido")    data = editarPedido(e.parameter);
@@ -1380,7 +1380,7 @@ function desglosePorProductoColor(datos, desde, hasta) {
   return m;
 }
 
-function getComisiones(quincena, arrastresJson) {
+function getComisiones(quincena, arrastresJson, rol) {
 
   const ws    = hoja().getSheetByName("Pedidos " + mesActivo());
   const datos = ws.getDataRange().getDisplayValues();
@@ -1428,8 +1428,27 @@ function getComisiones(quincena, arrastresJson) {
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
-  return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose,
-           cierre, escalas: ESCALAS };
+  const res = { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose,
+                cierre, escalas: ESCALAS };
+  // Solo la dueña recibe los montos por pantalón de cada escala
+  return (cierre && rol !== "duena") ? _sinMontosPorPantalon(res) : res;
+}
+
+// La vendedora NO debe ver cuánto vale un pantalón en cada escala (decisión de
+// la dueña, 2026-11-02: esos montos cambian con el tiempo). No basta con no
+// pintarlos: si viajaran en la respuesta, se verían desde el navegador. Así que
+// se quitan aquí y en su lugar va su INGRESO ESTIMADO en cada escala.
+function _sinMontosPorPantalon(res) {
+  const sinPago = e => e ? { n: e.n, nombre: e.nombre, conv: e.conv, aud: e.aud } : e;
+  res.vendedoras.forEach(v => {
+    const nuevas = v.pantsNuevas || 0, joya = parseFloat(v.comisionJoya) || 0;
+    v.ingresosPorEscala = ESCALAS.map(e => ({ n: e.n, total: (BASE_FIJA + nuevas * e.pago + joya).toFixed(2) }));
+  });
+  res.escalas = ESCALAS.map(sinPago);
+  const c = res.cierre;
+  res.cierre = Object.assign({}, c, { escala: sinPago(c.escala), escalaConversion: sinPago(c.escalaConversion),
+                                      escalaAuditoria: sinPago(c.escalaAuditoria) });
+  return res;
 }
 
 // ─── AUDITORÍA DE CAMBIOS DE TALLA ───────────────────────────────────────────
