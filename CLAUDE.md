@@ -114,6 +114,7 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Mínimo**: el input lleva `min` = hoy, y `submitPedidos` rebota una fecha anterior a hoy **solo en pedidos nuevos**; editando se respeta la fecha original (si no, no se podría corregir un pedido viejo).
 - **Backend**: `registrarPedidos` repite la comprobación por si un teléfono tiene la app vieja. Va **antes** de `_yaFueProcesado`: si consumiera el `reqId`, al corregir la fecha y reintentar el pedido se daría por registrado sin escribirse.
 - **Por qué importa**: la costurera trabaja por fecha de entrega; una fecha pasada descoloca el pedido en su cola.
+- **⚠️ SUPERADO el 2026-11-02: desde noviembre el sábado SÍ se produce y se entrega** (ver "El sábado pasa a ser laborable"). Lo de abajo es el histórico.
 - **Sábados** (confirmado por la dueña 2026-09-24): **no se trabaja**. Por eso `sumarDiasHabiles` los salta. Pero `getSemanaCosturera` y `renderCajaSemanal` siguen agrupando Lun–Sáb **a propósito**: el histórico tiene 95 entregas con fecha en sábado (y 2 en domingo) y quitar esa columna las escondería, además de restar el efectivo cobrado esos días del total semanal. Con el arreglo, la columna del sábado se queda vacía sola.
 - **Origen de esos 95 sábados**: 70 se registraron en **jueves**, justo donde el antiguo "hoy + 2 días de calendario" caía en sábado. Eran el síntoma del fallo, no entregas reales de fin de semana.
 
@@ -231,7 +232,7 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 ## Telas — "cuánto aguanta" (2026-10-01)
 - **Petición de la dueña**: *"una proyección intermedia donde yo diga, con esto puedo producir al menos una semana, dos, tres"*. Ritmo actual 10–15 pantalones/día, con intención de subir a 20–30.
 - **Bloque 📊 al principio de la sección Telas**: metros totales disponibles → pantalones que salen (÷ 2,7) → días a 10, 15, 20 y 30 por día, y su equivalente en semanas.
-- **La semana son 5 días**, no 7: los sábados no se trabaja (regla confirmada el 2026-09-24).
+- **La semana son `DIAS_LABORABLES_SEMANA` días** (6 desde el 2026-11-02; antes 5, sin sábados).
 - **Se dice la trampa en pantalla**: el cálculo suma TODA la tela junta, así que si un color concreto se acaba, ese se para antes aunque el total aguante. Si hay colores que no dan ni para un pantalón, se avisa con el número exacto en dorado.
 - `0 días` se muestra como **"menos de 1 día"**, y por debajo de 5 días el número va en dorado: con poca tela es justo cuando hay que verlo.
 
@@ -519,3 +520,11 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **El perfil Producción sigue**, pero como **registro de estatus**, no como puerta: *"lo va a hacer otra persona"* y ella quiere el control del empaquetado.
 - **Botones → desplegable**, igual que la cola de la costurera (`.estado-select`), con los 4 estados. Mismo patrón que `cambiarEstadoPedido`: pinta al instante y **revierte el desplegable y el caché si el servidor falla**. Verificado en los dos caminos.
 - Un estado que no esté en la lista (un pedido viejo, un `Pagado`) **se añade al final** para no perderlo al abrir el desplegable.
+
+## El sábado pasa a ser laborable (2026-11-02)
+- **Decisión de la dueña**: para subir ventas (meta ~600 pantalones en noviembre y duplicar en diciembre), desde noviembre se **vende, produce y entrega de lunes a sábado**. El domingo sigue sin trabajarse.
+- **Una sola regla**: `esDiaLaborable(d)` y `DIAS_LABORABLES_SEMANA` (6), junto a `sumarDiasHabiles`. La usan los 4 sitios que antes tenían el sábado escrito a mano: la fecha propuesta (`sumarDiasHabiles`), el aviso bajo la fecha (`pintarCargaDia`), la tarjeta 📅 de próximos días (`renderCargaProximosDias`) y el bloque 📊 "Cuánto aguanta" de telas. **Si vuelve a cambiar, se toca solo ahí.**
+- Efecto: registrar un jueves propone el **sábado** (antes el lunes); un viernes, el lunes; un sábado, el martes.
+- **Backend sin cambios**: `getSemanaCosturera` ya agrupaba Lun–Sáb, y el registro solo rechaza fechas pasadas, no días de la semana.
+- **Tope diario**: sigue en 30. Con 600 al mes en 25 días de trabajo son ~24/día, cerca del tope; en diciembre, al doble, no alcanzaría con un solo taller. Pendiente de hablar con la dueña.
+- Verificado en el navegador: propuesta para cada día de la semana, aviso del sábado (normal) y del domingo (bloqueado), y la tarjeta muestra Lun–Sáb. `APP_VERSION` → `2026.11.02`.
