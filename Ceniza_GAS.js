@@ -1451,6 +1451,10 @@ function _sinMontosPorPantalon(res) {
   const c = res.cierre;
   res.cierre = Object.assign({}, c, { escala: sinPago(c.escala), escalaConversion: sinPago(c.escalaConversion),
                                       escalaAuditoria: sinPago(c.escalaAuditoria) });
+  // Tampoco cuántas recurrentes hubo (decisión de la dueña: no tiene por qué saberlo)
+  delete res.cierre.recurrentes;
+  delete res.cierre.porVendedora;
+  res.vendedoras.forEach(v => { delete v.pantsRecurrentes; });
   return res;
 }
 
