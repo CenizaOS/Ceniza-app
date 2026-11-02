@@ -860,8 +860,7 @@ function getVentasPorDia(desde, hasta) {
       const f = _filaComisionable(row);
       if (!f || f.fecha < d0 || f.fecha > d1) continue;
       const dia = row[0];
-      const cliente = String(row[2] || "").replace(/\D/g, "") ||
-                      String(row[1]).trim().toLowerCase().replace(/\s+/g, " ");
+      const cliente = _claveClienta(row);
       const g = grupos[dia] || (grupos[dia] = { clientes: {}, pants: 0 });
       g.clientes[cliente] = 1;
       g.pants++;
@@ -1124,16 +1123,99 @@ function contarJoyasPorVendedora(datos, desde, hasta) {
   return conteo;
 }
 
-function _calcularComision(pants) {
+// `mult` = multiplicador por tasa de cierre (1 si no aplica). Afecta SOLO a la
+// comisión de pantalones: la base fija de $100 y la joyería no se tocan.
+function _calcularComision(pants, mult) {
+  const m = (typeof mult === "number" && isFinite(mult)) ? mult : 1;
   let pct = 0.08, nivelSiguiente = { pants: 150, pct: 9 };
   if      (pants >= 400) { pct = 0.15; nivelSiguiente = null; }
   else if (pants >= 300) { pct = 0.12; nivelSiguiente = { pants: 400, pct: 15 }; }
   else if (pants >= 200) { pct = 0.10; nivelSiguiente = { pants: 300, pct: 12 }; }
   else if (pants >= 150) { pct = 0.09; nivelSiguiente = { pants: 200, pct: 10 }; }
-  const comision    = (pants * UTILIDAD_NETA * pct).toFixed(2);
+  const sinMult     = pants * UTILIDAD_NETA * pct;
+  const comision    = (sinMult * m).toFixed(2);
   const totalAPagar = (BASE_FIJA + parseFloat(comision)).toFixed(2);
-  return { pct: (pct * 100).toFixed(0) + "%", comision, totalAPagar, nivelSiguiente,
+  return { pct: (pct * 100).toFixed(0) + "%", comision, comisionSinMultiplicador: sinMult.toFixed(2),
+           multiplicador: m, totalAPagar, nivelSiguiente,
            faltanParaSiguiente: nivelSiguiente ? nivelSiguiente.pants - pants : 0 };
+}
+
+// ─── TASA DE CIERRE → MULTIPLICADOR (aprobado por la dueña, 2026-11-02) ──────
+// La comisión de pantalones se multiplica según la tasa de cierre de la
+// QUINCENA: clientas ÷ conversaciones de Meta (las anota la dueña cada día en
+// Administración → 🎯 Cierre; se guardan en Config `ceniza_conversaciones`).
+// - Solo cuentan los días con conversaciones anotadas. Si la quincena no
+//   tiene ninguna, el multiplicador es 1: un olvido no puede bajar el pago.
+// - Es la tasa del EQUIPO (todas las ventas ÷ todas las conversaciones): las
+//   conversaciones no están asignadas a una vendedora. Hoy solo hay una.
+// - Calibrado con su historial: jul–oct entre 5,3 % y 6,1 % por mes; 5 de 8
+//   quincenas caen en × 1,00.
+// - Se compara la tasa REDONDEADA a 1 decimal: la que se ve en pantalla es la
+//   que decide el tramo (un 4,96 % se ve "5,0 %" y paga × 1,00).
+const TRAMOS_CIERRE = [       // tasa en %, de mayor a menor
+  { desde: 9, mult: 1.20 },
+  { desde: 7, mult: 1.10 },
+  { desde: 5, mult: 1.00 },
+  { desde: 4, mult: 0.95 },
+  { desde: 0, mult: 0.85 },
+];
+const INICIO_MULTIPLICADOR = new Date(2026, 10, 1);   // quincena 1–15 nov 2026
+
+function _multiplicadorCierre(tasa) {
+  if (tasa === null || tasa === undefined) return 1;
+  for (const t of TRAMOS_CIERRE) if (tasa >= t.desde) return t.mult;
+  return 1;
+}
+
+// Una venta = una clienta en un día de registro. MISMA clave que getVentasPorDia.
+function _claveClienta(row) {
+  return String(row[2] || "").replace(/\D/g, "") ||
+         String(row[1]).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// { 'yyyy-mm-dd': n }. Se guarda por mes ({'2026-11': [152, 27, null…]}) para
+// que quepa en la URL; ver getConversaciones() en el frontend.
+function _conversacionesGuardadas() {
+  try {
+    const raw = JSON.parse(leerConfig().ceniza_conversaciones || "{}") || {};
+    const mapa = {};
+    Object.keys(raw).forEach(k => {
+      const v = raw[k];
+      if (Array.isArray(v)) v.forEach((n, i) => {
+        if (n !== null && n !== undefined && n !== "") mapa[k + "-" + String(i + 1).padStart(2, "0")] = Number(n);
+      });
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(k)) mapa[k] = Number(v);
+    });
+    return mapa;
+  } catch (e) {
+    return {};
+  }
+}
+
+// Tasa de cierre en [desde, hasta). `conv` = _conversacionesGuardadas().
+function _tasaCierreRango(datos, desde, hasta, conv) {
+  const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const clientas = {};   // iso → { clave: 1 }
+  for (let i = 1; i < datos.length; i++) {
+    const f = _filaComisionable(datos[i]);
+    if (!f || f.fecha < desde || f.fecha >= hasta) continue;
+    const k = iso(f.fecha);
+    (clientas[k] = clientas[k] || {})[_claveClienta(datos[i])] = 1;
+  }
+  let conversaciones = 0, ventas = 0, dias = 0;
+  for (let d = new Date(desde); d < hasta; d.setDate(d.getDate() + 1)) {
+    const n = conv[iso(d)];
+    if (n === undefined || isNaN(n)) continue;
+    conversaciones += n; dias++;
+    ventas += Object.keys(clientas[iso(d)] || {}).length;
+  }
+  const tasa = conversaciones > 0 ? Math.round(ventas / conversaciones * 1000) / 10 : null;
+  return { conversaciones, ventas, dias, tasa, multiplicador: _multiplicadorCierre(tasa) };
+}
+
+// Cierre de una quincena, o null si es anterior al multiplicador.
+function _cierreQuincena(datos, desde, hasta, conv) {
+  return desde >= INICIO_MULTIPLICADOR ? _tasaCierreRango(datos, desde, hasta, conv) : null;
 }
 
 // ─── QUINCENAS FIJAS ─────────────────────────────────────────────────────────
@@ -1221,6 +1303,11 @@ function getComisiones(quincena, arrastresJson) {
   const d0 = q.actual.desde;
   const fechaInicioStr = String(d0.getDate()).padStart(2, "0") + "/" + String(d0.getMonth() + 1).padStart(2, "0") + "/" + d0.getFullYear();
 
+  // Tasa de cierre de ESTA quincena (no de la anterior: el arrastre solo
+  // cuenta para el tramo de %, no para el multiplicador).
+  const cierre = _cierreQuincena(datos, q.actual.desde, q.actual.hasta, _conversacionesGuardadas());
+  const mult   = cierre ? cierre.multiplicador : 1;
+
   const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres), ...Object.keys(joyas)]);
   const vendedoras = Array.from(todosNombres).map(nombre => {
     const pantsQuincena = conteo[nombre] || 0;
@@ -1229,7 +1316,7 @@ function getComisiones(quincena, arrastresJson) {
     const pants    = pantsQuincena + arrastre;
     const piezasJoya    = joyas[nombre] || 0;
     const comisionJoya  = +(piezasJoya * COMISION_JOYA).toFixed(2);
-    const base = Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants));
+    const base = Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants, mult));
     // El total a pagar incluye la joyería; `comision` sigue siendo solo la de
     // pantalones, para no romper lo que ya lee ese campo.
     base.piezasJoya   = piezasJoya;
@@ -1239,7 +1326,8 @@ function getComisiones(quincena, arrastresJson) {
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
-  return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose };
+  return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose,
+           cierre, tramosCierre: TRAMOS_CIERRE };
 }
 
 // ─── AUDITORÍA DE CAMBIOS DE TALLA ───────────────────────────────────────────
@@ -1283,9 +1371,11 @@ const MESES_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
 function getHistorialQuincenas() {
   const hojasP = hoja().getSheets().filter(h => h.getName().startsWith("Pedidos "));
   const meses = {}; // "2026-08" → { anio, mes, q: { 1: {Angi: n}, 2: {...} } }
+  let filas = [[]];  // todas las hojas juntas (con una cabecera vacía), para la tasa de cierre
 
   for (const ws of hojasP) {
     const datos = ws.getDataRange().getDisplayValues();
+    filas = filas.concat(datos.slice(1));
     for (let i = 1; i < datos.length; i++) {
       const f = _filaComisionable(datos[i]);
       if (!f) continue;
@@ -1301,6 +1391,7 @@ function getHistorialQuincenas() {
   const hoy = _hoyCaracas();
   const claveHoy = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0");
   const qHoy = hoy.getDate() >= 16 ? 2 : 1;
+  const conv = _conversacionesGuardadas();
 
   const lista = Object.keys(meses).sort().reverse().map(clave => {
     const m = meses[clave];
@@ -1311,15 +1402,16 @@ function getHistorialQuincenas() {
     const quincenas = [1, 2].map(q => {
       // Un mes anterior siempre tiene ambas quincenas; el actual solo hasta la de hoy
       if (esMesActual && q > qHoy) return null;
+      const r = q === 1 ? rangos.anterior : rangos.actual;
+      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv);
       const vendedoras = nombres.map(nombre => {
         const q1 = m.q[1][nombre] || 0;
         const pantsQuincena = m.q[q][nombre] || 0;
         const base = q === 1 ? q1 : q1 + pantsQuincena;
-        return Object.assign({ nombre, pantsQuincena, base }, _calcularComision(base));
+        return Object.assign({ nombre, pantsQuincena, base }, _calcularComision(base, cierre ? cierre.multiplicador : 1));
       }).filter(v => v.base > 0);
       const total = vendedoras.reduce((a, v) => a + v.pantsQuincena, 0);
-      return { q, rango: _etiquetaRango(q === 1 ? rangos.anterior : rangos.actual),
-               enCurso: esMesActual && q === qHoy, total, vendedoras };
+      return { q, rango: _etiquetaRango(r), enCurso: esMesActual && q === qHoy, total, vendedoras, cierre };
     }).filter(Boolean);
 
     const total = quincenas.reduce((a, qq) => a + qq.total, 0);
