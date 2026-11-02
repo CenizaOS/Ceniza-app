@@ -660,6 +660,15 @@ function registrarPedidos(p) {
 
     const hoy = Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
 
+    // Origen AUTOMÁTICO (regla de la dueña, 2026-11-02): lo decide el servidor
+    // y la vendedora no puede cambiarlo. Si su teléfono (o su nombre, si no
+    // hay teléfono) ya compró un día anterior → recurrente; si no → nueva.
+    // Lo que mande el teléfono en `origen` se ignora. Misma regla que la tasa
+    // de cierre (_esRecurrente), así la columna y la tasa no pueden discrepar.
+    const _claveNueva = _claveClienta(["", p.nombre, p.telefono]);
+    const origen = _esRecurrente(_claveNueva, _parseFechaVE(hoy), _primerasCompras(_filasTodasLasHojas()))
+      ? ORIGEN_RECURRENTE : ORIGEN_NUEVA;
+
     const filas = [];
     for (const item of items) {
       const fila = [
@@ -678,7 +687,7 @@ function registrarPedidos(p) {
         fechaEntrega,
         "",
         normalizarResponsable(p.responsable),
-        p.origen       || "",
+        origen,
         p.metodoPago          || "",
         (p.notas              || "").trim(),
         (p.cedula             || "").trim(),
@@ -713,7 +722,8 @@ function registrarPedidos(p) {
       total:        items.length,
       cliente:      p.nombre,
       fechaPedido:  hoy,
-      fechaEntrega
+      fechaEntrega,
+      origen
     };
   } catch(err) {
     return { success: false, error: err.message };
@@ -751,7 +761,8 @@ function editarPedido(p) {
       }
       ws.getRange(fila, 13).setValue(fe);
     }
-    if (p.origen      !== undefined) ws.getRange(fila, 16).setValue((p.origen      || "").trim());
+    // El origen NO se edita: lo pone el servidor al registrar (recurrente /
+    // nueva) y la vendedora no puede cambiarlo. Se ignora aunque llegue.
     if (p.metodoPago  !== undefined) ws.getRange(fila, 17).setValue((p.metodoPago  || "").trim());
     if (p.notas       !== undefined) ws.getRange(fila, 18).setValue((p.notas       || "").trim());
     if (p.cedula      !== undefined) ws.getRange(fila, 19).setValue((p.cedula      || "").trim());
@@ -841,9 +852,11 @@ function getHistorial(responsable, fecha, desde) {
 // conversación cerrada, no tres. La hoja tiene una fila por pantalón, así que
 // se agrupa por día de REGISTRO + cliente (teléfono, o el nombre si no hay).
 // Se usa `_filaComisionable`, la misma regla que el conteo de la comisión: sin
-// cancelados, cambios de talla ni joyería. Cuentan TODOS los orígenes, no
-// solo "Ads" (decisión de la dueña): así no depende de que la vendedora marque
-// bien el origen.
+// cancelados, cambios de talla ni joyería.
+// `ventas` = clientas NUEVAS, que son las que cuentan para la tasa;
+// `recurrentes` (su teléfono ya compró un día antes) va aparte, solo para
+// mostrarlo. No se mira la columna Origen: en octubre marcaba 10 recurrentes
+// de 32 reales y casi nunca decía "Ads".
 function getVentasPorDia(desde, hasta) {
   const d0 = _parseFechaVE(String(desde || "").trim());
   const d1 = _parseFechaVE(String(hasta || "").trim());
@@ -851,24 +864,23 @@ function getVentasPorDia(desde, hasta) {
   if (d1 < d0) return { error: "La fecha final es anterior a la inicial" };
   if ((d1 - d0) / 86400000 > 93) return { error: "Rango demasiado largo (máximo 3 meses)" };
 
-  const grupos = {};   // fecha → { clientes:{clave:1}, pants }
-  const hojasP = hoja().getSheets().filter(h => h.getName().startsWith("Pedidos "));
-  for (const ws of hojasP) {
-    const datos = ws.getDataRange().getDisplayValues();
-    for (let i = 1; i < datos.length; i++) {
-      const row = datos[i];
-      const f = _filaComisionable(row);
-      if (!f || f.fecha < d0 || f.fecha > d1) continue;
-      const dia = row[0];
-      const cliente = _claveClienta(row);
-      const g = grupos[dia] || (grupos[dia] = { clientes: {}, pants: 0 });
-      g.clientes[cliente] = 1;
-      g.pants++;
-    }
+  const filas    = _filasTodasLasHojas();
+  const primeras = _primerasCompras(filas);
+  const grupos = {};   // fecha → { nuevas:{clave:1}, recur:{clave:1}, pants }
+  for (let i = 1; i < filas.length; i++) {
+    const row = filas[i];
+    const f = _filaComisionable(row);
+    if (!f || f.fecha < d0 || f.fecha > d1) continue;
+    const dia = row[0];
+    const cliente = _claveClienta(row);
+    const g = grupos[dia] || (grupos[dia] = { nuevas: {}, recur: {}, pants: 0 });
+    (_esRecurrente(cliente, f.fecha, primeras) ? g.recur : g.nuevas)[cliente] = 1;
+    g.pants++;
   }
   const dias = {};
   Object.keys(grupos).forEach(dia => {
-    dias[dia] = { ventas: Object.keys(grupos[dia].clientes).length, pantalones: grupos[dia].pants };
+    const g = grupos[dia];
+    dias[dia] = { ventas: Object.keys(g.nuevas).length, recurrentes: Object.keys(g.recur).length, pantalones: g.pants };
   });
   return { dias };
 }
@@ -1148,15 +1160,21 @@ function _calcularComision(pants, mult) {
 //   tiene ninguna, el multiplicador es 1: un olvido no puede bajar el pago.
 // - Es la tasa del EQUIPO (todas las ventas ÷ todas las conversaciones): las
 //   conversaciones no están asignadas a una vendedora. Hoy solo hay una.
-// - Calibrado con su historial: jul–oct entre 5,3 % y 6,1 % por mes; 5 de 8
-//   quincenas caen en × 1,00.
+// - Solo cuentan las clientas NUEVAS (decisión de la dueña, 2026-11-02): una
+//   recurrente casi nunca llega por un anuncio, ya se le paga por pantalón, y
+//   con ella dentro la tasa subiría sola cada mes (pasaron del 14 % al 22 %
+//   de las ventas entre julio y octubre). Recurrente = su teléfono ya compró
+//   en un día ANTERIOR (_primerasCompras), no lo que diga la columna Origen.
+// - Calibrado con su historial de clientas nuevas: jul–oct 5,4 / 4,9 / 4,8 /
+//   4,3 % por mes; mediana por quincena 4,4 %. Con estos tramos, 7 de 9
+//   quincenas caen en × 1,00 y 2 en × 1,10.
 // - Se compara la tasa REDONDEADA a 1 decimal: la que se ve en pantalla es la
 //   que decide el tramo (un 4,96 % se ve "5,0 %" y paga × 1,00).
-const TRAMOS_CIERRE = [       // tasa en %, de mayor a menor
-  { desde: 9, mult: 1.20 },
-  { desde: 7, mult: 1.10 },
-  { desde: 5, mult: 1.00 },
-  { desde: 4, mult: 0.95 },
+const TRAMOS_CIERRE = [       // tasa en %, de mayor a menor (clientas nuevas)
+  { desde: 8, mult: 1.20 },
+  { desde: 6, mult: 1.10 },
+  { desde: 4, mult: 1.00 },
+  { desde: 3, mult: 0.95 },
   { desde: 0, mult: 0.85 },
 ];
 const INICIO_MULTIPLICADOR = new Date(2026, 10, 1);   // quincena 1–15 nov 2026
@@ -1168,10 +1186,47 @@ function _multiplicadorCierre(tasa) {
 }
 
 // Una venta = una clienta en un día de registro. MISMA clave que getVentasPorDia.
+// El teléfono se reduce a sus últimos 10 dígitos sin ceros delante: en la hoja
+// conviven "0414-999…", "+58 414…" y "4141234567" (Sheets lo guardó como
+// número y se comió el 0), y son la misma clienta.
 function _claveClienta(row) {
-  return String(row[2] || "").replace(/\D/g, "") ||
-         String(row[1]).trim().toLowerCase().replace(/\s+/g, " ");
+  let tel = String(row[2] || "").replace(/\D/g, "").replace(/^0+/, "");
+  if (tel.length > 10) tel = tel.slice(-10);
+  return tel || _claveCliente(row[1]);
 }
+
+// Todas las filas de todas las hojas "Pedidos *", con una cabecera vacía
+// delante para que los bucles que empiezan en 1 sigan valiendo.
+function _filasTodasLasHojas() {
+  let filas = [[]];
+  hoja().getSheets().filter(h => h.getName().startsWith("Pedidos ")).forEach(ws => {
+    filas = filas.concat(ws.getDataRange().getDisplayValues().slice(1));
+  });
+  return filas;
+}
+
+// clave de clienta → fecha de su PRIMERA compra. Cuenta cualquier pedido no
+// cancelado (también joyería o un cambio de talla: ya era clienta).
+function _primerasCompras(filas) {
+  const primera = {};
+  for (let i = 1; i < filas.length; i++) {
+    const row = filas[i];
+    if (!row[1] || row[11] === "Cancelado") continue;
+    const f = _parseFechaVE(row[0]);
+    if (!f) continue;
+    const k = _claveClienta(row);
+    if (!primera[k] || f < primera[k]) primera[k] = f;
+  }
+  return primera;
+}
+
+// Recurrente = ya había comprado un día ANTES de `fecha`. Dos pedidos el mismo
+// día de una clienta nueva siguen siendo de una clienta nueva.
+function _esRecurrente(clave, fecha, primeras) {
+  return !!(primeras[clave] && primeras[clave] < fecha);
+}
+const ORIGEN_RECURRENTE = "Cliente recurrente";
+const ORIGEN_NUEVA      = "Cliente nueva";
 
 // { 'yyyy-mm-dd': n }. Se guarda por mes ({'2026-11': [152, 27, null…]}) para
 // que quepa en la URL; ver getConversaciones() en el frontend.
@@ -1192,30 +1247,35 @@ function _conversacionesGuardadas() {
   }
 }
 
-// Tasa de cierre en [desde, hasta). `conv` = _conversacionesGuardadas().
-function _tasaCierreRango(datos, desde, hasta, conv) {
+// Tasa de cierre en [desde, hasta). `filas` = todas las hojas (hace falta el
+// histórico para saber quién es recurrente); `conv` = _conversacionesGuardadas().
+// `ventas` = clientas NUEVAS (las que cuentan); `recurrentes` va aparte, solo
+// para mostrarlo. Ambas solo de los días con conversaciones anotadas.
+function _tasaCierreRango(filas, desde, hasta, conv, primeras) {
   const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  const clientas = {};   // iso → { clave: 1 }
-  for (let i = 1; i < datos.length; i++) {
-    const f = _filaComisionable(datos[i]);
+  const nuevas = {}, recur = {};   // iso → { clave: 1 }
+  for (let i = 1; i < filas.length; i++) {
+    const f = _filaComisionable(filas[i]);
     if (!f || f.fecha < desde || f.fecha >= hasta) continue;
-    const k = iso(f.fecha);
-    (clientas[k] = clientas[k] || {})[_claveClienta(datos[i])] = 1;
+    const k = _claveClienta(filas[i]);
+    const destino = _esRecurrente(k, f.fecha, primeras) ? recur : nuevas;
+    (destino[iso(f.fecha)] = destino[iso(f.fecha)] || {})[k] = 1;
   }
-  let conversaciones = 0, ventas = 0, dias = 0;
+  let conversaciones = 0, ventas = 0, recurrentes = 0, dias = 0;
   for (let d = new Date(desde); d < hasta; d.setDate(d.getDate() + 1)) {
     const n = conv[iso(d)];
     if (n === undefined || isNaN(n)) continue;
     conversaciones += n; dias++;
-    ventas += Object.keys(clientas[iso(d)] || {}).length;
+    ventas      += Object.keys(nuevas[iso(d)] || {}).length;
+    recurrentes += Object.keys(recur[iso(d)]  || {}).length;
   }
   const tasa = conversaciones > 0 ? Math.round(ventas / conversaciones * 1000) / 10 : null;
-  return { conversaciones, ventas, dias, tasa, multiplicador: _multiplicadorCierre(tasa) };
+  return { conversaciones, ventas, recurrentes, dias, tasa, multiplicador: _multiplicadorCierre(tasa) };
 }
 
 // Cierre de una quincena, o null si es anterior al multiplicador.
-function _cierreQuincena(datos, desde, hasta, conv) {
-  return desde >= INICIO_MULTIPLICADOR ? _tasaCierreRango(datos, desde, hasta, conv) : null;
+function _cierreQuincena(filas, desde, hasta, conv, primeras) {
+  return desde >= INICIO_MULTIPLICADOR ? _tasaCierreRango(filas, desde, hasta, conv, primeras) : null;
 }
 
 // ─── QUINCENAS FIJAS ─────────────────────────────────────────────────────────
@@ -1305,7 +1365,11 @@ function getComisiones(quincena, arrastresJson) {
 
   // Tasa de cierre de ESTA quincena (no de la anterior: el arrastre solo
   // cuenta para el tramo de %, no para el multiplicador).
-  const cierre = _cierreQuincena(datos, q.actual.desde, q.actual.hasta, _conversacionesGuardadas());
+  let cierre = null;
+  if (q.actual.desde >= INICIO_MULTIPLICADOR) {
+    const todas = _filasTodasLasHojas();
+    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, _conversacionesGuardadas(), _primerasCompras(todas));
+  }
   const mult   = cierre ? cierre.multiplicador : 1;
 
   const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres), ...Object.keys(joyas)]);
@@ -1392,6 +1456,7 @@ function getHistorialQuincenas() {
   const claveHoy = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0");
   const qHoy = hoy.getDate() >= 16 ? 2 : 1;
   const conv = _conversacionesGuardadas();
+  const primeras = _primerasCompras(filas);
 
   const lista = Object.keys(meses).sort().reverse().map(clave => {
     const m = meses[clave];
@@ -1403,7 +1468,7 @@ function getHistorialQuincenas() {
       // Un mes anterior siempre tiene ambas quincenas; el actual solo hasta la de hoy
       if (esMesActual && q > qHoy) return null;
       const r = q === 1 ? rangos.anterior : rangos.actual;
-      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv);
+      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv, primeras);
       const vendedoras = nombres.map(nombre => {
         const q1 = m.q[1][nombre] || 0;
         const pantsQuincena = m.q[q][nombre] || 0;
