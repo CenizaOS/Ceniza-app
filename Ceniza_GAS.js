@@ -1172,6 +1172,10 @@ const ESCALAS = [               // de menor a mayor; `conv`/`aud` = desde
   { n: 4, nombre: "Sobresaliente", pago: 1.75, conv: 6.1, aud: 95 },   // "más de 6,0 %"
 ];
 const ESCALA_SIN_DATOS = 2;    // sin conversaciones NI auditoría: ni premio ni castigo
+// Los pantalones de clientas RECURRENTES pagan un monto fijo, sin escala
+// (decisión de la dueña, 2026-11-02): con $0 tendría motivo para descuidarlas,
+// y son el 15–22 % de las ventas y van en aumento.
+const PAGO_RECURRENTE = 0.30;
 const INICIO_ESCALAS = new Date(2026, 10, 1);   // quincena 1–15 nov 2026
 
 function _escalaPor(valor, campo) {
@@ -1324,8 +1328,11 @@ function _ultimoDiaConConversaciones(filas, hoy, conv, primeras) {
 // Comisión de una vendedora con el esquema por escalas. ÚNICA fórmula.
 function _comisionEscala(cierre, nombre) {
   const v = cierre.porVendedora[nombre] || { nuevas: 0, recurrentes: 0 };
-  const comision = (v.nuevas * cierre.escala.pago).toFixed(2);
+  const comNuevas      = v.nuevas * cierre.escala.pago;
+  const comRecurrentes = v.recurrentes * PAGO_RECURRENTE;
+  const comision = (comNuevas + comRecurrentes).toFixed(2);
   return { pct: "Escala " + cierre.escala.n, comision, totalAPagar: (BASE_FIJA + parseFloat(comision)).toFixed(2),
+           comisionNuevas: comNuevas.toFixed(2), comisionRecurrentes: comRecurrentes.toFixed(2),
            pantsNuevas: v.nuevas, pantsRecurrentes: v.recurrentes, nivelSiguiente: null, faltanParaSiguiente: 0 };
 }
 
@@ -1443,7 +1450,7 @@ function getComisiones(quincena, arrastresJson, rol) {
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
   const res = { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose,
-                cierre, escalas: ESCALAS };
+                cierre, escalas: ESCALAS, pagoRecurrente: PAGO_RECURRENTE };
   // Solo la dueña recibe los montos por pantalón de cada escala
   return (cierre && rol !== "duena") ? _sinMontosPorPantalon(res) : res;
 }
@@ -1468,7 +1475,8 @@ function _sinMontosPorPantalon(res) {
   // Tampoco cuántas recurrentes hubo (decisión de la dueña: no tiene por qué saberlo)
   delete res.cierre.recurrentes;
   delete res.cierre.porVendedora;
-  res.vendedoras.forEach(v => { delete v.pantsRecurrentes; });
+  delete res.pagoRecurrente;
+  res.vendedoras.forEach(v => { delete v.pantsRecurrentes; delete v.comisionNuevas; delete v.comisionRecurrentes; });
   return res;
 }
 
