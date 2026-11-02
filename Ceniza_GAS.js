@@ -1307,6 +1307,20 @@ function _cierreQuincena(filas, desde, hasta, conv, primeras, auditorias) {
   return c;
 }
 
+// Tasa de cierre del día más reciente con conversaciones anotadas (hoy, o hasta
+// 7 días atrás: la dueña las anota al final del día). Es lo primero que ve la
+// vendedora en Comisiones, para que se enfoque en cerrar (decisión de la dueña).
+function _ultimoDiaConConversaciones(filas, hoy, conv, primeras) {
+  for (let k = 0; k < 7; k++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - k);
+    const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    if (conv[iso] === undefined || isNaN(conv[iso])) continue;
+    const r = _tasaCierreRango(filas, d, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1), conv, primeras);
+    return { fecha: iso, conversaciones: r.conversaciones, ventas: r.ventas, tasa: r.tasa };
+  }
+  return null;
+}
+
 // Comisión de una vendedora con el esquema por escalas. ÚNICA fórmula.
 function _comisionEscala(cierre, nombre) {
   const v = cierre.porVendedora[nombre] || { nuevas: 0, recurrentes: 0 };
@@ -1404,9 +1418,9 @@ function getComisiones(quincena, arrastresJson, rol) {
   // propia escala. El arrastre de la 1ª quincena ya no cuenta para nada.
   let cierre = null;
   if (q.actual.desde >= INICIO_ESCALAS) {
-    const todas = _filasTodasLasHojas();
-    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, _conversacionesGuardadas(),
-                             _primerasCompras(todas), _auditoriasGuardadas());
+    const todas = _filasTodasLasHojas(), conv = _conversacionesGuardadas(), primeras = _primerasCompras(todas);
+    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, conv, primeras, _auditoriasGuardadas());
+    cierre.ultimoDia = _ultimoDiaConConversaciones(todas, hoy, conv, primeras);
   }
 
   const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres), ...Object.keys(joyas)]);
