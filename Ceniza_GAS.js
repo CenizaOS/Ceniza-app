@@ -1135,54 +1135,49 @@ function contarJoyasPorVendedora(datos, desde, hasta) {
   return conteo;
 }
 
-// `mult` = multiplicador por tasa de cierre (1 si no aplica). Afecta SOLO a la
-// comisión de pantalones: la base fija de $100 y la joyería no se tocan.
-function _calcularComision(pants, mult) {
-  const m = (typeof mult === "number" && isFinite(mult)) ? mult : 1;
+// Esquema VIEJO (hasta el 31/10/2026): pantalones × $13 × tramo por volumen.
+// Se sigue usando para las quincenas anteriores en el historial.
+function _calcularComision(pants) {
   let pct = 0.08, nivelSiguiente = { pants: 150, pct: 9 };
   if      (pants >= 400) { pct = 0.15; nivelSiguiente = null; }
   else if (pants >= 300) { pct = 0.12; nivelSiguiente = { pants: 400, pct: 15 }; }
   else if (pants >= 200) { pct = 0.10; nivelSiguiente = { pants: 300, pct: 12 }; }
   else if (pants >= 150) { pct = 0.09; nivelSiguiente = { pants: 200, pct: 10 }; }
-  const sinMult     = pants * UTILIDAD_NETA * pct;
-  const comision    = (sinMult * m).toFixed(2);
+  const comision    = (pants * UTILIDAD_NETA * pct).toFixed(2);
   const totalAPagar = (BASE_FIJA + parseFloat(comision)).toFixed(2);
-  return { pct: (pct * 100).toFixed(0) + "%", comision, comisionSinMultiplicador: sinMult.toFixed(2),
-           multiplicador: m, totalAPagar, nivelSiguiente,
+  return { pct: (pct * 100).toFixed(0) + "%", comision, totalAPagar, nivelSiguiente,
            faltanParaSiguiente: nivelSiguiente ? nivelSiguiente.pants - pants : 0 };
 }
 
-// ─── TASA DE CIERRE → MULTIPLICADOR (aprobado por la dueña, 2026-11-02) ──────
-// La comisión de pantalones se multiplica según la tasa de cierre de la
-// QUINCENA: clientas ÷ conversaciones de Meta (las anota la dueña cada día en
-// Administración → 🎯 Cierre; se guardan en Config `ceniza_conversaciones`).
-// - Solo cuentan los días con conversaciones anotadas. Si la quincena no
-//   tiene ninguna, el multiplicador es 1: un olvido no puede bajar el pago.
-// - Es la tasa del EQUIPO (todas las ventas ÷ todas las conversaciones): las
-//   conversaciones no están asignadas a una vendedora. Hoy solo hay una.
-// - Solo cuentan las clientas NUEVAS (decisión de la dueña, 2026-11-02): una
-//   recurrente casi nunca llega por un anuncio, ya se le paga por pantalón, y
-//   con ella dentro la tasa subiría sola cada mes (pasaron del 14 % al 22 %
-//   de las ventas entre julio y octubre). Recurrente = su teléfono ya compró
-//   en un día ANTERIOR (_primerasCompras), no lo que diga la columna Origen.
-// - Calibrado con su historial de clientas nuevas: jul–oct 5,4 / 4,9 / 4,8 /
-//   4,3 % por mes; mediana por quincena 4,4 %. Con estos tramos, 7 de 9
-//   quincenas caen en × 1,00 y 2 en × 1,10.
-// - Se compara la tasa REDONDEADA a 1 decimal: la que se ve en pantalla es la
-//   que decide el tramo (un 4,96 % se ve "5,0 %" y paga × 1,00).
-const TRAMOS_CIERRE = [       // tasa en %, de mayor a menor (clientas nuevas)
-  { desde: 8, mult: 1.20 },
-  { desde: 6, mult: 1.10 },
-  { desde: 4, mult: 1.00 },
-  { desde: 3, mult: 0.95 },
-  { desde: 0, mult: 0.85 },
+// ─── ESQUEMA POR ESCALAS (Manual de pautas, vigente desde el 01/11/2026) ─────
+// Decidido por la dueña tras auditar el CRM ("23 de 23 conversaciones mal
+// gestionadas": se vende porque la clienta ya viene decidida, no por el cierre).
+// Por QUINCENA: $100 fijos + pantalones de clientas NUEVAS × el pago de la
+// escala. Los pantalones de clientas recurrentes NO pagan comisión.
+// La escala sale de DOS medidas, y SIEMPRE GANA LA MENOR:
+//  · Conversión = clientas nuevas ÷ conversaciones de Meta de la quincena (las
+//    anota la dueña cada día; solo cuentan los días anotados). Redondeada a 1
+//    decimal: la que se ve en pantalla es la que decide.
+//  · Auditoría CRM = promedio de las auditorías semanales (15 chats, 100 pts)
+//    cuya fecha cae en la quincena, redondeado a entero. Por debajo de 80 es
+//    Escala 1: ese es el "candado" del manual.
+// Si falta una de las dos, decide la otra; si faltan las dos, ESCALA_SIN_DATOS.
+// Recurrente = su teléfono ya compró un día ANTERIOR (_primerasCompras), no lo
+// que diga la columna Origen. La tasa es la del equipo (las conversaciones no
+// se asignan a una vendedora; hoy solo está Angi).
+const ESCALAS = [               // de menor a mayor; `conv`/`aud` = desde
+  { n: 1, nombre: "Deficiente",    pago: 0.50, conv: 0,   aud: 0  },
+  { n: 2, nombre: "Aceptable",     pago: 0.80, conv: 4.5, aud: 80 },
+  { n: 3, nombre: "Meta",          pago: 1.20, conv: 5.3, aud: 88 },
+  { n: 4, nombre: "Sobresaliente", pago: 1.75, conv: 6.1, aud: 95 },   // "más de 6,0 %"
 ];
-const INICIO_MULTIPLICADOR = new Date(2026, 10, 1);   // quincena 1–15 nov 2026
+const ESCALA_SIN_DATOS = 2;    // sin conversaciones NI auditoría: ni premio ni castigo
+const INICIO_ESCALAS = new Date(2026, 10, 1);   // quincena 1–15 nov 2026
 
-function _multiplicadorCierre(tasa) {
-  if (tasa === null || tasa === undefined) return 1;
-  for (const t of TRAMOS_CIERRE) if (tasa >= t.desde) return t.mult;
-  return 1;
+function _escalaPor(valor, campo) {
+  let e = ESCALAS[0];
+  ESCALAS.forEach(x => { if (valor >= x[campo]) e = x; });
+  return e;
 }
 
 // Una venta = una clienta en un día de registro. MISMA clave que getVentasPorDia.
@@ -1270,12 +1265,54 @@ function _tasaCierreRango(filas, desde, hasta, conv, primeras) {
     recurrentes += Object.keys(recur[iso(d)]  || {}).length;
   }
   const tasa = conversaciones > 0 ? Math.round(ventas / conversaciones * 1000) / 10 : null;
-  return { conversaciones, ventas, recurrentes, dias, tasa, multiplicador: _multiplicadorCierre(tasa) };
+  return { conversaciones, ventas, recurrentes, dias, tasa };
 }
 
-// Cierre de una quincena, o null si es anterior al multiplicador.
-function _cierreQuincena(filas, desde, hasta, conv, primeras) {
-  return desde >= INICIO_MULTIPLICADOR ? _tasaCierreRango(filas, desde, hasta, conv, primeras) : null;
+// [{fecha:'yyyy-mm-dd', chats, c:[5 cumplidos], puntos}]. `puntos` (0–100) lo
+// calcula el frontend al guardar (puntosAuditoria): aquí solo se promedia.
+function _auditoriasGuardadas() {
+  try {
+    const l = JSON.parse(leerConfig().ceniza_auditorias || "[]");
+    return Array.isArray(l) ? l.filter(a => a && a.fecha && !isNaN(Number(a.puntos))) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// Escala y comisión de una quincena, o null si es anterior al esquema nuevo.
+// `porVendedora[resp]` = pantalones de clientas nuevas / recurrentes de TODA la
+// quincena (el pago no depende de qué días se anotaron conversaciones).
+function _cierreQuincena(filas, desde, hasta, conv, primeras, auditorias) {
+  if (desde < INICIO_ESCALAS) return null;
+  const c = _tasaCierreRango(filas, desde, hasta, conv, primeras);
+  const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const semanas = (auditorias || []).filter(a => a.fecha >= iso(desde) && a.fecha < iso(hasta))
+    .sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+  c.auditoria = semanas.length
+    ? { pct: Math.round(semanas.reduce((s, a) => s + Number(a.puntos), 0) / semanas.length), semanas }
+    : null;
+  c.escalaConversion = c.tasa !== null ? _escalaPor(c.tasa, "conv") : null;
+  c.escalaAuditoria  = c.auditoria ? _escalaPor(c.auditoria.pct, "aud") : null;
+  const candidatas = [c.escalaConversion, c.escalaAuditoria].filter(Boolean);
+  c.escala = candidatas.length
+    ? candidatas.reduce((a, b) => b.n < a.n ? b : a)
+    : ESCALAS[ESCALA_SIN_DATOS - 1];
+  c.porVendedora = {};
+  for (let i = 1; i < filas.length; i++) {
+    const f = _filaComisionable(filas[i]);
+    if (!f || f.fecha < desde || f.fecha >= hasta) continue;
+    const v = c.porVendedora[f.resp] || (c.porVendedora[f.resp] = { nuevas: 0, recurrentes: 0 });
+    if (_esRecurrente(_claveClienta(filas[i]), f.fecha, primeras)) v.recurrentes++; else v.nuevas++;
+  }
+  return c;
+}
+
+// Comisión de una vendedora con el esquema por escalas. ÚNICA fórmula.
+function _comisionEscala(cierre, nombre) {
+  const v = cierre.porVendedora[nombre] || { nuevas: 0, recurrentes: 0 };
+  const comision = (v.nuevas * cierre.escala.pago).toFixed(2);
+  return { pct: "Escala " + cierre.escala.n, comision, totalAPagar: (BASE_FIJA + parseFloat(comision)).toFixed(2),
+           pantsNuevas: v.nuevas, pantsRecurrentes: v.recurrentes, nivelSiguiente: null, faltanParaSiguiente: 0 };
 }
 
 // ─── QUINCENAS FIJAS ─────────────────────────────────────────────────────────
@@ -1363,24 +1400,25 @@ function getComisiones(quincena, arrastresJson) {
   const d0 = q.actual.desde;
   const fechaInicioStr = String(d0.getDate()).padStart(2, "0") + "/" + String(d0.getMonth() + 1).padStart(2, "0") + "/" + d0.getFullYear();
 
-  // Tasa de cierre de ESTA quincena (no de la anterior: el arrastre solo
-  // cuenta para el tramo de %, no para el multiplicador).
+  // Esquema por escalas (desde nov 2026): cada quincena se paga sola, con su
+  // propia escala. El arrastre de la 1ª quincena ya no cuenta para nada.
   let cierre = null;
-  if (q.actual.desde >= INICIO_MULTIPLICADOR) {
+  if (q.actual.desde >= INICIO_ESCALAS) {
     const todas = _filasTodasLasHojas();
-    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, _conversacionesGuardadas(), _primerasCompras(todas));
+    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, _conversacionesGuardadas(),
+                             _primerasCompras(todas), _auditoriasGuardadas());
   }
-  const mult   = cierre ? cierre.multiplicador : 1;
 
   const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres), ...Object.keys(joyas)]);
   const vendedoras = Array.from(todosNombres).map(nombre => {
     const pantsQuincena = conteo[nombre] || 0;
     const pantsMes      = conteoMes[nombre] || 0;
-    const arrastre = parseInt(arrastres[nombre] || 0);
+    const arrastre = cierre ? 0 : parseInt(arrastres[nombre] || 0);
     const pants    = pantsQuincena + arrastre;
     const piezasJoya    = joyas[nombre] || 0;
     const comisionJoya  = +(piezasJoya * COMISION_JOYA).toFixed(2);
-    const base = Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA }, _calcularComision(pants, mult));
+    const base = Object.assign({ nombre, pants, pantsQuincena, pantsMes, arrastre, baseFija: BASE_FIJA },
+                               cierre ? _comisionEscala(cierre, nombre) : _calcularComision(pants));
     // El total a pagar incluye la joyería; `comision` sigue siendo solo la de
     // pantalones, para no romper lo que ya lee ese campo.
     base.piezasJoya   = piezasJoya;
@@ -1391,7 +1429,7 @@ function getComisiones(quincena, arrastresJson) {
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
   return { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose,
-           cierre, tramosCierre: TRAMOS_CIERRE };
+           cierre, escalas: ESCALAS };
 }
 
 // ─── AUDITORÍA DE CAMBIOS DE TALLA ───────────────────────────────────────────
@@ -1457,8 +1495,9 @@ function getHistorialQuincenas() {
   const qHoy = hoy.getDate() >= 16 ? 2 : 1;
   const conv = _conversacionesGuardadas();
   const primeras = _primerasCompras(filas);
+  const auditorias = _auditoriasGuardadas();
 
-  const lista = Object.keys(meses).sort().reverse().map(clave => {
+  const lista =Object.keys(meses).sort().reverse().map(clave => {
     const m = meses[clave];
     const rangos = _rangosQuincena(new Date(m.anio, m.mes, 16)); // fuerza Q2 para tener ambos rangos
     const nombres = Array.from(new Set([...Object.keys(m.q[1]), ...Object.keys(m.q[2])])).sort();
@@ -1468,12 +1507,14 @@ function getHistorialQuincenas() {
       // Un mes anterior siempre tiene ambas quincenas; el actual solo hasta la de hoy
       if (esMesActual && q > qHoy) return null;
       const r = q === 1 ? rangos.anterior : rangos.actual;
-      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv, primeras);
+      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv, primeras, auditorias);
       const vendedoras = nombres.map(nombre => {
         const q1 = m.q[1][nombre] || 0;
         const pantsQuincena = m.q[q][nombre] || 0;
+        // Con escalas cada quincena va sola; antes la 2ª usaba 1ª + 2ª
+        if (cierre) return Object.assign({ nombre, pantsQuincena, base: pantsQuincena }, _comisionEscala(cierre, nombre));
         const base = q === 1 ? q1 : q1 + pantsQuincena;
-        return Object.assign({ nombre, pantsQuincena, base }, _calcularComision(base, cierre ? cierre.multiplicador : 1));
+        return Object.assign({ nombre, pantsQuincena, base }, _calcularComision(base));
       }).filter(v => v.base > 0);
       const total = vendedoras.reduce((a, v) => a + v.pantsQuincena, 0);
       return { q, rango: _etiquetaRango(r), enCurso: esMesActual && q === qHoy, total, vendedoras, cierre };
