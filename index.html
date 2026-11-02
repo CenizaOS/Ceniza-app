@@ -4679,9 +4679,9 @@ function renderEstampados(lista, inicio, fin) {
 //   por día de REGISTRO, con la misma regla que la comisión.
 // - Un día sin conversaciones anotadas NO entra en los totales: sus ventas sin
 //   denominador inflarían el % sin que se note.
-// - Base de ventas: "Solo Ads" (origen Ads, las que nacen de la pauta) o
-//   "Todas". La elige la dueña; por defecto Ads, porque Meta solo reporta las
-//   conversaciones de los anuncios.
+// - Base de ventas: "Todas" (por defecto, decisión de la dueña 2026-11-02:
+//   no depende de que la vendedora marque bien el origen, así que no se puede
+//   maquillar) o "Solo Ads" (origen Ads), que queda para comparar.
 let _convLunes        = null;   // lunes de la semana en pantalla
 let _ventasDia        = {};     // 'dd/MM/yyyy' → { ventas, ventasAds, pantalones, pantalonesAds }
 let _ventasDiaRangos  = {};     // rangos ya consultados en esta visita
@@ -4695,10 +4695,10 @@ function getConversaciones() {
   try { return JSON.parse(localStorage.getItem('ceniza_conversaciones') || '{}') || {}; } catch (_) { return {}; }
 }
 function getCierreBase() {
-  return localStorage.getItem('ceniza_cierre_base') === 'todas' ? 'todas' : 'ads';
+  return localStorage.getItem('ceniza_cierre_base') === 'ads' ? 'ads' : 'todas';
 }
 function setCierreBase(b) {
-  cfgSet('ceniza_cierre_base', b === 'todas' ? 'todas' : 'ads');
+  cfgSet('ceniza_cierre_base', b === 'ads' ? 'ads' : 'todas');
   renderConversion(false);
 }
 function _lunesDe(d) {
@@ -4846,7 +4846,7 @@ function renderConversion(cargar) {
         Anota cada día las conversaciones que te reporta Meta. Las ventas las cuenta la app sola
         desde los pedidos: <strong>una clienta = una venta</strong>, aunque compre varios pantalones.</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:5px">Ventas que cuentan</div>
-      <div style="display:flex;gap:6px">${btnBase('ads', 'Solo origen Ads')}${btnBase('todas', 'Todas las ventas')}</div>
+      <div style="display:flex;gap:6px">${btnBase('todas', 'Todas las ventas')}${btnBase('ads', 'Solo origen Ads')}</div>
     </div>
 
     <div class="fin-card">
