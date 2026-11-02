@@ -841,9 +841,9 @@ function getHistorial(responsable, fecha, desde) {
 // conversación cerrada, no tres. La hoja tiene una fila por pantalón, así que
 // se agrupa por día de REGISTRO + cliente (teléfono, o el nombre si no hay).
 // Se usa `_filaComisionable`, la misma regla que el conteo de la comisión: sin
-// cancelados, cambios de talla ni joyería.
-// `ventasAds` cuenta aparte las de origen "Ads", que son las que nacen de las
-// conversaciones de la pauta; el frontend decide cuál usar.
+// cancelados, cambios de talla ni joyería. Cuentan TODOS los orígenes, no
+// solo "Ads" (decisión de la dueña): así no depende de que la vendedora marque
+// bien el origen.
 function getVentasPorDia(desde, hasta) {
   const d0 = _parseFechaVE(String(desde || "").trim());
   const d1 = _parseFechaVE(String(hasta || "").trim());
@@ -851,7 +851,7 @@ function getVentasPorDia(desde, hasta) {
   if (d1 < d0) return { error: "La fecha final es anterior a la inicial" };
   if ((d1 - d0) / 86400000 > 93) return { error: "Rango demasiado largo (máximo 3 meses)" };
 
-  const grupos = {};   // fecha → { todos:{clave:1}, ads:{clave:1}, pants, pantsAds }
+  const grupos = {};   // fecha → { clientes:{clave:1}, pants }
   const hojasP = hoja().getSheets().filter(h => h.getName().startsWith("Pedidos "));
   for (const ws of hojasP) {
     const datos = ws.getDataRange().getDisplayValues();
@@ -862,22 +862,14 @@ function getVentasPorDia(desde, hasta) {
       const dia = row[0];
       const cliente = String(row[2] || "").replace(/\D/g, "") ||
                       String(row[1]).trim().toLowerCase().replace(/\s+/g, " ");
-      const esAds = /ads/i.test(row[15] || "");
-      const g = grupos[dia] || (grupos[dia] = { todos: {}, ads: {}, pants: 0, pantsAds: 0 });
-      g.todos[cliente] = 1;
+      const g = grupos[dia] || (grupos[dia] = { clientes: {}, pants: 0 });
+      g.clientes[cliente] = 1;
       g.pants++;
-      if (esAds) { g.ads[cliente] = 1; g.pantsAds++; }
     }
   }
   const dias = {};
   Object.keys(grupos).forEach(dia => {
-    const g = grupos[dia];
-    dias[dia] = {
-      ventas:        Object.keys(g.todos).length,
-      ventasAds:     Object.keys(g.ads).length,
-      pantalones:    g.pants,
-      pantalonesAds: g.pantsAds,
-    };
+    dias[dia] = { ventas: Object.keys(grupos[dia].clientes).length, pantalones: grupos[dia].pants };
   });
   return { dias };
 }
