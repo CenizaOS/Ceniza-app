@@ -1437,13 +1437,16 @@ function getComisiones(quincena, arrastresJson, rol) {
 // La vendedora NO debe ver cuánto vale un pantalón en cada escala (decisión de
 // la dueña, 2026-11-02: esos montos cambian con el tiempo). No basta con no
 // pintarlos: si viajaran en la respuesta, se verían desde el navegador. Así que
-// se quitan aquí y en su lugar va su INGRESO ESTIMADO en cada escala.
+// se quitan aquí y en su lugar va un INGRESO ESTIMADO MENSUAL de referencia en
+// cada escala: REF_PANTS_MES pantalones al mes + el sueldo base del mes
+// (decisión de la dueña: 400 es la media que llevan ahora).
+const REF_PANTS_MES = 400;
 function _sinMontosPorPantalon(res) {
   const sinPago = e => e ? { n: e.n, nombre: e.nombre, conv: e.conv, aud: e.aud } : e;
-  res.vendedoras.forEach(v => {
-    const nuevas = v.pantsNuevas || 0, joya = parseFloat(v.comisionJoya) || 0;
-    v.ingresosPorEscala = ESCALAS.map(e => ({ n: e.n, total: (BASE_FIJA + nuevas * e.pago + joya).toFixed(2) }));
-  });
+  res.ingresosReferencia = {
+    pantalones: REF_PANTS_MES, base: BASE_FIJA * 2,
+    porEscala: ESCALAS.map(e => ({ n: e.n, total: (BASE_FIJA * 2 + REF_PANTS_MES * e.pago).toFixed(2) })),
+  };
   res.escalas = ESCALAS.map(sinPago);
   const c = res.cierre;
   res.cierre = Object.assign({}, c, { escala: sinPago(c.escala), escalaConversion: sinPago(c.escalaConversion),
