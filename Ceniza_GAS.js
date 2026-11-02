@@ -266,6 +266,7 @@ function doGet(e) {
     else if (accion === "historialQuincenas") data = getHistorialQuincenas();
     else if (accion === "auditarCambiosTalla") data = auditarCambiosTalla(e.parameter.desde);
     else if (accion === "joyeria")        data = getJoyeria();
+    else if (accion === "ventasPorDia")   data = getVentasPorDia(e.parameter.desde, e.parameter.hasta);
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "inventarioTelas") data = getInventarioTelas();
     else if (accion === "reiniciarQuincena") data = _quincenaFija();
@@ -830,6 +831,55 @@ function getHistorial(responsable, fecha, desde) {
     return fb.localeCompare(fa);
   });
   return { pedidos, total: pedidos.length, totalGeneral };
+}
+
+// ─── VENTAS POR DÍA (tasa de cierre, 2026-11-02) ─────────────────────────────
+// La dueña anota cada día cuántas conversaciones le dio Meta, y la app divide
+// las ventas entre esas conversaciones. Aquí solo se cuentan las ventas.
+//
+// Una VENTA es un PEDIDO, no un pantalón: una clienta que compra 3 es una
+// conversación cerrada, no tres. La hoja tiene una fila por pantalón, así que
+// se agrupa por día de REGISTRO + cliente (teléfono, o el nombre si no hay).
+// Se usa `_filaComisionable`, la misma regla que el conteo de la comisión: sin
+// cancelados, cambios de talla ni joyería.
+// `ventasAds` cuenta aparte las de origen "Ads", que son las que nacen de las
+// conversaciones de la pauta; el frontend decide cuál usar.
+function getVentasPorDia(desde, hasta) {
+  const d0 = _parseFechaVE(String(desde || "").trim());
+  const d1 = _parseFechaVE(String(hasta || "").trim());
+  if (!d0 || !d1) return { error: "Faltan las fechas desde y hasta (dd/MM/yyyy)" };
+  if (d1 < d0) return { error: "La fecha final es anterior a la inicial" };
+  if ((d1 - d0) / 86400000 > 93) return { error: "Rango demasiado largo (máximo 3 meses)" };
+
+  const grupos = {};   // fecha → { todos:{clave:1}, ads:{clave:1}, pants, pantsAds }
+  const hojasP = hoja().getSheets().filter(h => h.getName().startsWith("Pedidos "));
+  for (const ws of hojasP) {
+    const datos = ws.getDataRange().getDisplayValues();
+    for (let i = 1; i < datos.length; i++) {
+      const row = datos[i];
+      const f = _filaComisionable(row);
+      if (!f || f.fecha < d0 || f.fecha > d1) continue;
+      const dia = row[0];
+      const cliente = String(row[2] || "").replace(/\D/g, "") ||
+                      String(row[1]).trim().toLowerCase().replace(/\s+/g, " ");
+      const esAds = /ads/i.test(row[15] || "");
+      const g = grupos[dia] || (grupos[dia] = { todos: {}, ads: {}, pants: 0, pantsAds: 0 });
+      g.todos[cliente] = 1;
+      g.pants++;
+      if (esAds) { g.ads[cliente] = 1; g.pantsAds++; }
+    }
+  }
+  const dias = {};
+  Object.keys(grupos).forEach(dia => {
+    const g = grupos[dia];
+    dias[dia] = {
+      ventas:        Object.keys(g.todos).length,
+      ventasAds:     Object.keys(g.ads).length,
+      pantalones:    g.pants,
+      pantalonesAds: g.pantsAds,
+    };
+  });
+  return { dias };
 }
 
 // ─── LIMPIAR RESPONSABLE (renombrar en toda la data) ─────────────────────────

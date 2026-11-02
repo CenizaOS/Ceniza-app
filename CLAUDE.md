@@ -533,3 +533,12 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Decisión de la dueña**: `TOPE_DIARIO` pasa de 30 a **35**, sin fecha de fin, "para dejarlo listo para diciembre y no tocarlo más".
 - **De dónde sale**: la idea es que el taller entregue **lotes de ~200 pantalones por semana** (lunes a sábado = 33/día), y 35 deja algo de margen. Metas: noviembre 550–600, diciembre ≥1.000 (octubre real: 456).
 - **Pendiente de pensar cuando arranquen los lotes**: con stock por adelantado, el tope por FECHA DE ENTREGA deja de reflejar la realidad (la entrega ya no depende de lo que se cose ese día). Lo útil sería avisar del **stock disponible por color y talla**. Cambio grande; no hecho.
+
+## Tasa de cierre — pestaña 🎯 Cierre en Administración (2026-11-02)
+- **Petición de la dueña**: base para un esquema de comisión nuevo que mire unidades **y** tasa de cierre. Primero la medición; el multiplicador de comisión queda **pendiente** de que ella dé su tasa habitual y decida si puede restar.
+- **Conversaciones**: las anota ella por día (lunes a domingo) desde Meta. Config `ceniza_conversaciones` = `{ 'yyyy-mm-dd': n }`. Cada casilla **espera confirmación** (`pushConfigVerificado`) y, si falla, deshace esa cifra y avisa — mismo principio que `cargarMetros`. Los guardados van en cola (`_colaConv`) y mandan el mapa completo. Vacío = sin anotar (≠ 0). Días futuros bloqueados.
+- **Ventas**: ruta nueva **`ventasPorDia&desde&hasta`** (máx. 93 días). Una venta = un **pedido**, no un pantalón: agrupa por día de REGISTRO + cliente (teléfono, o nombre). Usa `_filaComisionable` (sin cancelados, cambios de talla ni joyería). Devuelve también `ventasAds` (origen contiene "Ads") y los pantalones.
+- **Base elegible** (`ceniza_cierre_base`): *Solo origen Ads* (por defecto, porque Meta solo reporta conversaciones de anuncios) o *Todas las ventas*. Ojo: con Ads, la tasa depende de que la vendedora marque bien el origen — si la comisión llega a depender de esto, tendría incentivo a marcar todo como Ads.
+- **Totales** (semana y quincena en curso) solo suman días **con conversaciones anotadas**; si un día tiene ventas sin conversaciones, se avisa en dorado. Si no, el % se inflaría sin que se note.
+- Verificado con datos simulados a 375 px: 4 ventas Ads / 20 = 20,0 %; quincena 12/60 = 20,0 % (16 con *Todas*); fallo al guardar → la cifra se borra y sale el aviso; 0 errores de consola.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.** Sin él la pestaña dice *"falta publicar la versión nueva del servidor"*; las conversaciones sí se guardan igual.
