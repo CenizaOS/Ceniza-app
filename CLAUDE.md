@@ -529,7 +529,7 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Tope diario**: sigue en 30. Con 600 al mes en 25 días de trabajo son ~24/día, cerca del tope; en diciembre, al doble, no alcanzaría con un solo taller. Pendiente de hablar con la dueña.
 - Verificado en el navegador: propuesta para cada día de la semana, aviso del sábado (normal) y del domingo (bloqueado), y la tarjeta muestra Lun–Sáb. `APP_VERSION` → `2026.11.02`.
 
-## Tope diario: 35 (2026-11-02)
+## Tope diario: 35 (2026-11-02) — ⚠️ VUELTO A 30 el mismo día, "por ahora" (decisión de la dueña)
 - **Decisión de la dueña**: `TOPE_DIARIO` pasa de 30 a **35**, sin fecha de fin, "para dejarlo listo para diciembre y no tocarlo más".
 - **De dónde sale**: la idea es que el taller entregue **lotes de ~200 pantalones por semana** (lunes a sábado = 33/día), y 35 deja algo de margen. Metas: noviembre 550–600, diciembre ≥1.000 (octubre real: 456).
 - **Pendiente de pensar cuando arranquen los lotes**: con stock por adelantado, el tope por FECHA DE ENTREGA deja de reflejar la realidad (la entrega ya no depende de lo que se cose ese día). Lo útil sería avisar del **stock disponible por color y talla**. Cambio grande; no hecho.
@@ -616,3 +616,6 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
   - Etiquetas de la dueña: *"$0.80 × pant. nuevas + $0.30 × recurrentes"* (de `window._pagoRecurrente`) y notas que dicen "recurrentes × monto fijo" sin cifra escrita a mano. La vendedora no ve nada de esto.
   - Verificado: 40 nuevas × $0,80 + 10 recurrentes × $0,30 = $35 igual en `comisiones`, historial y app; la respuesta de la vendedora no contiene "recurrente".
   - **ORDEN DE DESPLIEGUE: backend PRIMERO.**
+
+## Tope diario de vuelta a 30 (2026-11-02)
+- La dueña: *"vamos a quitar por ahora el tope de 35, vamos a ponerlo de nuevo en 30"*. `TOPE_DIARIO = 30`. Solo frontend: el aviso bajo la fecha de entrega y la tarjeta 📅 "Carga por día" leen esa constante.
