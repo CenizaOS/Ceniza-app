@@ -627,3 +627,10 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - La dueña sigue viendo en Administración los importes por quincena (`totalAPagar`, con $100).
 - Verificado con `Ceniza_GAS.js` real: 10/11 → $200 + $36 = $236; 20/11 → $200 + $36 (1ª, Escala 3) + $21,50 (2ª, Escala 1: 40 × 0,50 + 5 × 0,30) = $257,50.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO.**
+
+## Gasto diario en Meta y costo por clienta nueva (2026-11-02)
+- **Por qué**: la dueña quiere escalar la pauta (p. ej. de ~5.800 a 10.000 conversaciones/mes). El número que dice si sigue dejando dinero es el **costo por clienta nueva** = gasto en Meta ÷ clientas nuevas (octubre ≈ $8; con margen de ~$20 por pantalón × 1,42 pantalones/clienta, por debajo de ~$20 cada clienta sigue dejando dinero). Al escalar, lo normal es que la tasa baje y el costo suba: hay que subir la pauta por escalones mirando este número.
+- **Dónde**: pestaña 🎯 Cierre (solo Administración). Casilla **"💵 Gasto en Meta hoy"** bajo la de conversaciones (el botón Guardar guarda las dos con `guardarHoy`, que lee ambas ANTES de guardar porque cada guardado repinta); columna **"Gasto $"** en la tabla de la semana; *"Costo por clienta nueva"* en la tarjeta de hoy, en los totales de semana y quincena y bajo la tasa en el historial por quincena.
+- **Guardado**: Config `ceniza_gasto_pauta`, mismo formato por meses que las conversaciones (`_leerMapaDias` / `_guardarMapaDiasLocal` son ahora genéricas). `guardarGasto` acepta coma decimal, espera confirmación y se deshace si falla. El costo se calcula con los días que tienen gasto anotado (independiente de las conversaciones): `_totalesConversion` devuelve `gasto`, `vGasto` y `diasGasto`.
+- **Solo frontend**: el servidor no necesita el gasto (no afecta a la comisión).
+- **Pendiente si entra una 2ª vendedora**: la tasa es del equipo; habría que asignar chats por vendedora en Kommo y anotar conversaciones por vendedora.
