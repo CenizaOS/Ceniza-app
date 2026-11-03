@@ -1165,11 +1165,14 @@ function _calcularComision(pants) {
 // Recurrente = su teléfono ya compró un día ANTERIOR (_primerasCompras), no lo
 // que diga la columna Origen. La tasa es la del equipo (las conversaciones no
 // se asignan a una vendedora; hoy solo está Angi).
+// Cortes de conversión subidos el 2026-11-02 (antes 4,5 / 5,3 / 6,1): la dueña
+// vio que el 5,4 % de julio también se hizo SIN cumplir el checklist, así que
+// no es una tasa sana de referencia. Los irá revisando por quincena.
 const ESCALAS = [               // de menor a mayor; `conv`/`aud` = desde
   { n: 1, nombre: "Deficiente",    pago: 0.50, conv: 0,   aud: 0  },
-  { n: 2, nombre: "Aceptable",     pago: 0.80, conv: 4.5, aud: 80 },
-  { n: 3, nombre: "Meta",          pago: 1.20, conv: 5.3, aud: 88 },
-  { n: 4, nombre: "Sobresaliente", pago: 1.75, conv: 6.1, aud: 95 },   // "más de 6,0 %"
+  { n: 2, nombre: "Aceptable",     pago: 0.80, conv: 5.0, aud: 80 },
+  { n: 3, nombre: "Meta",          pago: 1.20, conv: 6.5, aud: 88 },
+  { n: 4, nombre: "Sobresaliente", pago: 1.75, conv: 8.0, aud: 95 },
 ];
 const ESCALA_SIN_DATOS = 2;    // sin conversaciones NI auditoría: ni premio ni castigo
 // Los pantalones de clientas RECURRENTES pagan un monto fijo, sin escala
