@@ -657,3 +657,13 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Manual PDF regenerado con la tabla nueva. La tabla "Cómo vamos" sigue usando el 5,4 % de julio como referencia de ventas perdidas (es su propio nivel, aunque ya no sea la meta).
 - Con estos cortes, la tasa de octubre (4,3 %) es Escala 1 y la de julio (5,4 %) sería Escala 2.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO** (los cortes viven solo en `Ceniza_GAS.js`).
+
+## Cortes de las escalas editables desde la app (2026-11-02)
+- **Por qué**: la dueña va a ajustar los cortes por quincena mientras descubre cuál es una tasa sana; cada cambio obligaba a tocar el código y redesplegar.
+- **Dónde**: Administración → 🎯 Cierre, tarjeta **"⚙️ Cortes de las escalas"** (debajo de la tabla de escalas): desde qué tasa y qué nota de auditoría empieza cada escala (2, 3 y 4; la 1 es lo que queda debajo). Valida que vayan de menor a mayor. Borrador en `window._cortesEnEdicion` (**otra vez el choque de nombres**: no puede llamarse como la función `_cortesDraft`, que ya es global).
+- **Guardado con fecha**: Config `ceniza_escalas_cortes` = `[{desde:'yyyy-mm-dd', conv:[e2,e3,e4], aud:[e2,e3,e4]}]`. Cada guardado rige **desde el inicio de la quincena en curso** (reemplaza la entrada de esa misma quincena si ya había). Las quincenas anteriores conservan sus cortes: **cambiar los cortes no recalcula lo ya pagado**.
+- **Backend**: `_cortesGuardados()` lee y valida; `_escalasPara(desde, cortes)` devuelve las escalas de una quincena (los `ESCALAS` del código con los cortes de la última entrada con `desde` ≤ inicio de quincena; sin entradas, los del código: 5,0 / 6,5 / 8,0 y 80 / 88 / 95). `_escalaPor(valor, campo, escalas)` y `_cierreQuincena(…, cortes)` los usan; `cierre.escalas` lleva las que regían. `comisiones.escalas` = las de la quincena actual. Nombres y montos por pantalón **siguen solo en el código**.
+- A la vendedora se le borra `cierre.escalas` (trae los pagos); `res.escalas` le llega sin `pago` y el ingreso de referencia se calcula con las escalas vigentes.
+- Verificado con `Ceniza_GAS.js` real y Config simulada (hoy = 20/11): tasa 6,0 % → Escala 2 con los cortes por defecto; al guardar 4 / 5,5 / 7 desde la app → la 2ª quincena pasa a Escala 3 y la 1ª **conserva** Escala 2; total del mes $260 = 200 + 30×0,80 + 30×1,20; historial igual; cortes desordenados se rechazan; la vendedora no recibe montos. 0 errores de consola.
+- El **manual PDF no se actualiza solo**: si cambian los cortes, hay que regenerarlo.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.**

@@ -1168,6 +1168,9 @@ function _calcularComision(pants) {
 // Cortes de conversión subidos el 2026-11-02 (antes 4,5 / 5,3 / 6,1): la dueña
 // vio que el 5,4 % de julio también se hizo SIN cumplir el checklist, así que
 // no es una tasa sana de referencia. Los irá revisando por quincena.
+// Estos son los cortes POR DEFECTO. La dueña los cambia desde la app
+// (Administración → 🎯 Cierre) y se guardan con fecha en Config
+// `ceniza_escalas_cortes`; ver _escalasPara. Nombres y pagos solo aquí.
 const ESCALAS = [               // de menor a mayor; `conv`/`aud` = desde
   { n: 1, nombre: "Deficiente",    pago: 0.50, conv: 0,   aud: 0  },
   { n: 2, nombre: "Aceptable",     pago: 0.80, conv: 5.0, aud: 80 },
@@ -1181,10 +1184,35 @@ const ESCALA_SIN_DATOS = 2;    // sin conversaciones NI auditoría: ni premio ni
 const PAGO_RECURRENTE = 0.30;
 const INICIO_ESCALAS = new Date(2026, 10, 1);   // quincena 1–15 nov 2026
 
-function _escalaPor(valor, campo) {
-  let e = ESCALAS[0];
-  ESCALAS.forEach(x => { if (valor >= x[campo]) e = x; });
+function _escalaPor(valor, campo, escalas) {
+  const lista = escalas || ESCALAS;
+  let e = lista[0];
+  lista.forEach(x => { if (valor >= x[campo]) e = x; });
   return e;
+}
+
+// Cortes editados por la dueña: [{desde:'yyyy-mm-dd', conv:[e2,e3,e4], aud:[e2,e3,e4]}].
+// Cada entrada rige desde su fecha (el inicio de la quincena en que se guardó),
+// así que cambiar los cortes NO recalcula quincenas ya cerradas.
+function _cortesGuardados() {
+  try {
+    const l = JSON.parse(leerConfig().ceniza_escalas_cortes || "[]");
+    return Array.isArray(l) ? l.filter(_cortesValidos) : [];
+  } catch (e) {
+    return [];
+  }
+}
+function _cortesValidos(c) {
+  const ok = a => Array.isArray(a) && a.length === ESCALAS.length - 1 &&
+    a.every((x, i) => isFinite(Number(x)) && Number(x) > 0 && Number(x) <= 100 && (i === 0 || Number(x) > Number(a[i - 1])));
+  return !!(c && /^\d{4}-\d{2}-\d{2}$/.test(c.desde) && ok(c.conv) && ok(c.aud));
+}
+// Escalas que rigen para una quincena que empieza en `desde`
+function _escalasPara(desde, cortes) {
+  const iso = desde.getFullYear() + "-" + String(desde.getMonth() + 1).padStart(2, "0") + "-" + String(desde.getDate()).padStart(2, "0");
+  const vig = (cortes || []).filter(c => c.desde <= iso).sort((a, b) => a.desde < b.desde ? -1 : 1).pop();
+  if (!vig) return ESCALAS;
+  return ESCALAS.map((e, i) => i === 0 ? e : Object.assign({}, e, { conv: Number(vig.conv[i - 1]), aud: Number(vig.aud[i - 1]) }));
 }
 
 // Una venta = una clienta en un día de registro. MISMA clave que getVentasPorDia.
@@ -1289,21 +1317,23 @@ function _auditoriasGuardadas() {
 // Escala y comisión de una quincena, o null si es anterior al esquema nuevo.
 // `porVendedora[resp]` = pantalones de clientas nuevas / recurrentes de TODA la
 // quincena (el pago no depende de qué días se anotaron conversaciones).
-function _cierreQuincena(filas, desde, hasta, conv, primeras, auditorias) {
+function _cierreQuincena(filas, desde, hasta, conv, primeras, auditorias, cortes) {
   if (desde < INICIO_ESCALAS) return null;
   const c = _tasaCierreRango(filas, desde, hasta, conv, primeras);
+  const escalas = _escalasPara(desde, cortes);   // los cortes que regían en ESA quincena
+  c.escalas = escalas;
   const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const semanas = (auditorias || []).filter(a => a.fecha >= iso(desde) && a.fecha < iso(hasta))
     .sort((a, b) => a.fecha < b.fecha ? -1 : 1);
   c.auditoria = semanas.length
     ? { pct: Math.round(semanas.reduce((s, a) => s + Number(a.puntos), 0) / semanas.length), semanas }
     : null;
-  c.escalaConversion = c.tasa !== null ? _escalaPor(c.tasa, "conv") : null;
-  c.escalaAuditoria  = c.auditoria ? _escalaPor(c.auditoria.pct, "aud") : null;
+  c.escalaConversion = c.tasa !== null ? _escalaPor(c.tasa, "conv", escalas) : null;
+  c.escalaAuditoria  = c.auditoria ? _escalaPor(c.auditoria.pct, "aud", escalas) : null;
   const candidatas = [c.escalaConversion, c.escalaAuditoria].filter(Boolean);
   c.escala = candidatas.length
     ? candidatas.reduce((a, b) => b.n < a.n ? b : a)
-    : ESCALAS[ESCALA_SIN_DATOS - 1];
+    : escalas[ESCALA_SIN_DATOS - 1];
   c.porVendedora = {};
   for (let i = 1; i < filas.length; i++) {
     const f = _filaComisionable(filas[i]);
@@ -1429,12 +1459,12 @@ function getComisiones(quincena, arrastresJson, rol) {
   let cierre = null, cierreAnt = null;
   if (q.actual.desde >= INICIO_ESCALAS) {
     const todas = _filasTodasLasHojas(), conv = _conversacionesGuardadas(), primeras = _primerasCompras(todas);
-    const auditorias = _auditoriasGuardadas();
-    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, conv, primeras, auditorias);
+    const auditorias = _auditoriasGuardadas(), cortes = _cortesGuardados();
+    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, conv, primeras, auditorias, cortes);
     cierre.ultimoDia = _ultimoDiaConConversaciones(todas, hoy, conv, primeras);
     // A la vendedora se le paga TODO a fin de mes (dueña, 2026-11-02): en la 2ª
     // quincena hace falta también lo ganado en la 1ª, con SU propia escala.
-    if (q.anterior) cierreAnt = _cierreQuincena(todas, q.anterior.desde, q.anterior.hasta, conv, primeras, auditorias);
+    if (q.anterior) cierreAnt = _cierreQuincena(todas, q.anterior.desde, q.anterior.hasta, conv, primeras, auditorias, cortes);
   }
   const joyasAnt = cierreAnt ? contarJoyasPorVendedora(datos, q.anterior.desde, q.anterior.hasta) : {};
 
@@ -1467,7 +1497,7 @@ function getComisiones(quincena, arrastresJson, rol) {
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
   const res = { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose,
-                cierre, escalas: ESCALAS, pagoRecurrente: PAGO_RECURRENTE, sueldoMes: BASE_FIJA * 2,
+                cierre, escalas: cierre ? cierre.escalas : ESCALAS, pagoRecurrente: PAGO_RECURRENTE, sueldoMes: BASE_FIJA * 2,
                 escalaAnterior: cierreAnt ? cierreAnt.escala : null };
   // Solo la dueña recibe los montos por pantalón de cada escala
   return (cierre && rol !== "duena") ? _sinMontosPorPantalon(res) : res;
@@ -1484,9 +1514,9 @@ function _sinMontosPorPantalon(res) {
   const sinPago = e => e ? { n: e.n, nombre: e.nombre, conv: e.conv, aud: e.aud } : e;
   res.ingresosReferencia = {
     pantalones: REF_PANTS_MES, base: BASE_FIJA * 2,
-    porEscala: ESCALAS.map(e => ({ n: e.n, total: (BASE_FIJA * 2 + REF_PANTS_MES * e.pago).toFixed(2) })),
+    porEscala: res.escalas.map(e => ({ n: e.n, total: (BASE_FIJA * 2 + REF_PANTS_MES * e.pago).toFixed(2) })),
   };
-  res.escalas = ESCALAS.map(sinPago);
+  res.escalas = res.escalas.map(sinPago);
   res.escalaAnterior = sinPago(res.escalaAnterior);
   const c = res.cierre;
   res.cierre = Object.assign({}, c, { escala: sinPago(c.escala), escalaConversion: sinPago(c.escalaConversion),
@@ -1494,6 +1524,7 @@ function _sinMontosPorPantalon(res) {
   // Tampoco cuántas recurrentes hubo (decisión de la dueña: no tiene por qué saberlo)
   delete res.cierre.recurrentes;
   delete res.cierre.porVendedora;
+  delete res.cierre.escalas;      // trae los pagos; ella ya tiene res.escalas sin ellos
   delete res.pagoRecurrente;
   res.vendedoras.forEach(v => { delete v.pantsRecurrentes; delete v.comisionNuevas; delete v.comisionRecurrentes; });
   return res;
@@ -1563,6 +1594,7 @@ function getHistorialQuincenas() {
   const conv = _conversacionesGuardadas();
   const primeras = _primerasCompras(filas);
   const auditorias = _auditoriasGuardadas();
+  const cortes = _cortesGuardados();
 
   const lista =Object.keys(meses).sort().reverse().map(clave => {
     const m = meses[clave];
@@ -1574,7 +1606,7 @@ function getHistorialQuincenas() {
       // Un mes anterior siempre tiene ambas quincenas; el actual solo hasta la de hoy
       if (esMesActual && q > qHoy) return null;
       const r = q === 1 ? rangos.anterior : rangos.actual;
-      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv, primeras, auditorias);
+      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv, primeras, auditorias, cortes);
       const vendedoras = nombres.map(nombre => {
         const q1 = m.q[1][nombre] || 0;
         const pantsQuincena = m.q[q][nombre] || 0;
