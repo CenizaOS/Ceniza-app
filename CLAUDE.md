@@ -619,3 +619,11 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 
 ## Tope diario de vuelta a 30 (2026-11-02)
 - La dueña: *"vamos a quitar por ahora el tope de 35, vamos a ponerlo de nuevo en 30"*. `TOPE_DIARIO = 30`. Solo frontend: el aviso bajo la fecha de entrega y la tarjeta 📅 "Carga por día" leen esa constante.
+
+## Tablero de la vendedora MENSUAL (2026-11-02)
+- La dueña: *"que refleje los $200 mensuales en vez de solo $100; a ella se le paga todo al final del mes"*. El cálculo sigue siendo **por quincena con su propia escala**; lo que cambia es la vista: se suman.
+- **Backend** (`getComisiones`, solo con escalas): en la 2ª quincena calcula también el cierre de la 1ª (`cierreAnt`, su propia escala) y añade a cada vendedora `comisionAnterior` (pantalones + joyería de la 1ª), `comisionMes` (1ª + esta, con joyería) y `totalMes` (= $200 + comisionMes); y en la respuesta `sueldoMes` y `escalaAnterior` (a la vendedora le llega sin `pago`).
+- **Pantalla de Angi**: tarjeta "Comisión · este mes"; tarjeta de escala (tasa, auditoría, tu escala); tarjeta de pago: "Sueldo fijo del mes $200" · "Comisión 1ª quincena · Escala N" (solo en la 2ª) · "Comisión 2ª/1ª quincena (en curso)" · **"Total estimado del mes"**. Un backend sin `totalMes` cae a la vista por quincena.
+- La dueña sigue viendo en Administración los importes por quincena (`totalAPagar`, con $100).
+- Verificado con `Ceniza_GAS.js` real: 10/11 → $200 + $36 = $236; 20/11 → $200 + $36 (1ª, Escala 3) + $21,50 (2ª, Escala 1: 40 × 0,50 + 5 × 0,30) = $257,50.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.**

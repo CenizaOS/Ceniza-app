@@ -1423,12 +1423,17 @@ function getComisiones(quincena, arrastresJson, rol) {
 
   // Esquema por escalas (desde nov 2026): cada quincena se paga sola, con su
   // propia escala. El arrastre de la 1ª quincena ya no cuenta para nada.
-  let cierre = null;
+  let cierre = null, cierreAnt = null;
   if (q.actual.desde >= INICIO_ESCALAS) {
     const todas = _filasTodasLasHojas(), conv = _conversacionesGuardadas(), primeras = _primerasCompras(todas);
-    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, conv, primeras, _auditoriasGuardadas());
+    const auditorias = _auditoriasGuardadas();
+    cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, conv, primeras, auditorias);
     cierre.ultimoDia = _ultimoDiaConConversaciones(todas, hoy, conv, primeras);
+    // A la vendedora se le paga TODO a fin de mes (dueña, 2026-11-02): en la 2ª
+    // quincena hace falta también lo ganado en la 1ª, con SU propia escala.
+    if (q.anterior) cierreAnt = _cierreQuincena(todas, q.anterior.desde, q.anterior.hasta, conv, primeras, auditorias);
   }
+  const joyasAnt = cierreAnt ? contarJoyasPorVendedora(datos, q.anterior.desde, q.anterior.hasta) : {};
 
   const todosNombres = new Set([...Object.keys(conteo), ...Object.keys(conteoMes), ...Object.keys(arrastres), ...Object.keys(joyas)]);
   const vendedoras = Array.from(todosNombres).map(nombre => {
@@ -1445,12 +1450,22 @@ function getComisiones(quincena, arrastresJson, rol) {
     base.piezasJoya   = piezasJoya;
     base.comisionJoya = comisionJoya.toFixed(2);
     base.totalAPagar  = (parseFloat(base.totalAPagar) + comisionJoya).toFixed(2);
+    // Vista MENSUAL (se le paga a fin de mes): sueldo del mes + comisión de la
+    // 1ª quincena (si ya pasó) + la de esta. Cada quincena con su escala.
+    if (cierre) {
+      const ant = cierreAnt ? _comisionEscala(cierreAnt, nombre) : null;
+      const comAnt = ant ? +(parseFloat(ant.comision) + (joyasAnt[nombre] || 0) * COMISION_JOYA).toFixed(2) : 0;
+      base.comisionAnterior = comAnt.toFixed(2);
+      base.comisionMes      = (comAnt + parseFloat(base.comision) + comisionJoya).toFixed(2);
+      base.totalMes         = (BASE_FIJA * 2 + parseFloat(base.comisionMes)).toFixed(2);
+    }
     return base;
   });
   const totalMes = Object.values(conteoMes).reduce((a, b) => a + b, 0);
   const desglose = desglosePorProductoColor(datos, q.actual.desde, q.actual.hasta);
   const res = { mes: mesActivo(), quincenaLabel, quincenaAnteriorLabel, fechaInicioStr, vendedoras, totalMes, desglose,
-                cierre, escalas: ESCALAS, pagoRecurrente: PAGO_RECURRENTE };
+                cierre, escalas: ESCALAS, pagoRecurrente: PAGO_RECURRENTE, sueldoMes: BASE_FIJA * 2,
+                escalaAnterior: cierreAnt ? cierreAnt.escala : null };
   // Solo la dueña recibe los montos por pantalón de cada escala
   return (cierre && rol !== "duena") ? _sinMontosPorPantalon(res) : res;
 }
@@ -1469,6 +1484,7 @@ function _sinMontosPorPantalon(res) {
     porEscala: ESCALAS.map(e => ({ n: e.n, total: (BASE_FIJA * 2 + REF_PANTS_MES * e.pago).toFixed(2) })),
   };
   res.escalas = ESCALAS.map(sinPago);
+  res.escalaAnterior = sinPago(res.escalaAnterior);
   const c = res.cierre;
   res.cierre = Object.assign({}, c, { escala: sinPago(c.escala), escalaConversion: sinPago(c.escalaConversion),
                                       escalaAuditoria: sinPago(c.escalaAuditoria) });
