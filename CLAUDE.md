@@ -667,3 +667,9 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado con `Ceniza_GAS.js` real y Config simulada (hoy = 20/11): tasa 6,0 % → Escala 2 con los cortes por defecto; al guardar 4 / 5,5 / 7 desde la app → la 2ª quincena pasa a Escala 3 y la 1ª **conserva** Escala 2; total del mes $260 = 200 + 30×0,80 + 30×1,20; historial igual; cortes desordenados se rechazan; la vendedora no recibe montos. 0 errores de consola.
 - El **manual PDF no se actualiza solo**: si cambian los cortes, hay que regenerarlo.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO.**
+
+## `Blanco` en el Pareo (2026-11-03)
+- **Petición de la dueña.** Tela **Cey Crush** (confirmado por ella), NO Laurent como el resto de lisos del Pareo: sale del **mismo rollo** que el Blanco del Clásico. Liso: $35, o $30 en efectivo/Binance; no va en `SUBLIMADO_COLORS_SET`. La previsión le asigna 3 m (sirve a los dos productos).
+- Verificado: 0 sin tela y 0 que preguntan. Catálogo: Clásico 19, Pareo 14, 33 entradas en `TELAS`.
+- **Fallo arreglado de paso**: la lista de telas de Insumos recorría `TELAS` sin quitar repetidos, así que cada tela que sirve a los dos productos (los 5 estampados) salía **dos veces** y el total de "Cey Crush … en total" la sumaba doble. Ahora va una fila por `claveTela`. El bloque 📊 no tenía el fallo (usa la respuesta del servidor, una fila por rollo).
+- Solo frontend. `APP_VERSION` → `2026.11.03`.
