@@ -673,3 +673,8 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado: 0 sin tela y 0 que preguntan. Catálogo: Clásico 19, Pareo 14, 33 entradas en `TELAS`.
 - **Fallo arreglado de paso**: la lista de telas de Insumos recorría `TELAS` sin quitar repetidos, así que cada tela que sirve a los dos productos (los 5 estampados) salía **dos veces** y el total de "Cey Crush … en total" la sumaba doble. Ahora va una fila por `claveTela`. El bloque 📊 no tenía el fallo (usa la respuesta del servidor, una fila por rollo).
 - Solo frontend. `APP_VERSION` → `2026.11.03`.
+
+## Estampados `Cebra`, `Cuadros` y `Selvático` en el Clásico (2026-11-03)
+- **Petición de la dueña**, solo Clásico. Los tres sitios: `COLORES_PRODUCTO`, **`SUBLIMADO_COLORS_SET`** y `TELAS` (Cey Crush sublimada, $5,50/m, como todos los estampados — supuesto, no dictado; corregir si alguno va en otra tela).
+- Nombres cortos (sin "Estampado de…"), igual que el resto del catálogo: en la tarjeta del pedido se lee *Clásico · Cebra · M*.
+- Verificado: proponen **$45**, o **$40** en efectivo/Binance · 2,7 m (solo Clásico) · 0 sin tela y 0 que preguntan. Catálogo: Clásico 22, Pareo 14, 36 entradas en `TELAS`. Solo frontend; `APP_VERSION` → `2026.11.03b`.
