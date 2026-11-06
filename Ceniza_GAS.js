@@ -360,10 +360,37 @@ function getProduccion() {
     if (!grupos[key]) grupos[key] = [];
     grupos[key].push(p);
   });
+
+  // ── Carga por día: cuántos PANTALONES hay comprometidos en cada fecha de
+  // entrega. Es el historial del taller, NO una lista de pendientes: un
+  // pantalón ya entregado al cliente sigue ocupando el día en que se trabajó.
+  //
+  // Por eso NO se puede calcular de `grupos`, que es lo que hacía el frontend:
+  // `estadosProduccion` deja fuera "Entregado a cliente", así que la cifra del
+  // día iba BAJANDO a medida que el delivery entregaba. Si el día llegó a 30,
+  // tiene que quedarse en 30.
+  //
+  // Se cuenta aquí y no en una ruta aparte porque esta función ya tiene la
+  // hoja entera leída: sale sin una sola petición más, y la lentitud de Apps
+  // Script es el dolor recurrente de este proyecto.
+  const estadosCarga = estadosProduccion.concat(["Entregado a cliente"]);
+  const cargaPorDia = {};
+  for (let i = 1; i < datos.length; i++) {
+    const row = datos[i];
+    if (!row[1] || row[1] === "") continue;
+    if (!estadosCarga.includes(row[11] || "")) continue;
+    // La joyería no se cose: no ocupa capacidad del taller.
+    if (_esJoya(row[3])) continue;
+    const f = row[12] || "";
+    if (!f) continue;
+    cargaPorDia[f] = (cargaPorDia[f] || 0) + 1;
+  }
+
   return {
     mes:    mesActivo(),
     total:  pedidos.length,
-    grupos: Object.entries(grupos).map(([fecha, items]) => ({ fecha, items }))
+    grupos: Object.entries(grupos).map(([fecha, items]) => ({ fecha, items })),
+    cargaPorDia: cargaPorDia
   };
 }
 

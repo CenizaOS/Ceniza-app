@@ -678,3 +678,13 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Petición de la dueña**, solo Clásico. Los tres sitios: `COLORES_PRODUCTO`, **`SUBLIMADO_COLORS_SET`** y `TELAS` (Cey Crush sublimada, $5,50/m, como todos los estampados — supuesto, no dictado; corregir si alguno va en otra tela).
 - Nombres cortos (sin "Estampado de…"), igual que el resto del catálogo: en la tarjeta del pedido se lee *Clásico · Cebra · M*.
 - Verificado: proponen **$45**, o **$40** en efectivo/Binance · 2,7 m (solo Clásico) · 0 sin tela y 0 que preguntan. Catálogo: Clásico 22, Pareo 14, 36 entradas en `TELAS`. Solo frontend; `APP_VERSION` → `2026.11.03b`.
+
+## La carga por día bajaba sola al entregar (2026-11-05)
+- **Lo que vio la dueña**: *"normalmente se van restando cuando el delivery los va entregando… eso es simplemente un check para saber cuánto se vendió cada día, no debería disminuir. Si llegó al tope, se queda en el tope"*.
+- **Causa**: `_cargaPorDia` se calculaba de `d.grupos`, o sea de la ruta `produccion`, y `estadosProduccion` **no incluye "Entregado a cliente"**. No es que la cifra se restara: el pantalón entregado **dejaba de existir** para esa pantalla. Un día que llegó a 30 podía amanecer en 12.
+- **Por qué importa más de lo que parece**: el aviso bajo la fecha de entrega decide si la vendedora promete o no una entrega para ese día. Con la cifra cayendo sola, un día lleno volvía a parecer libre y se podía pasar del tope del taller sin que nada avisara.
+- **Arreglo en el BACKEND**: `getProduccion` devuelve `cargaPorDia` = `{fecha: nPantalones}` contando `estadosProduccion + "Entregado a cliente"`, sin joyería y sin cancelados. **Sin una sola petición extra**: esa función ya tiene la hoja entera leída. Misma idea que `desglosePorProductoColor` en `getComisiones`.
+- **Frontend**: `_calcularCargaPorDia` usa `d.cargaPorDia` si viene y **cae a la cuenta de antes** si el backend es viejo (sigue bajando al entregar, pero es mejor que quedarse sin aviso de tope).
+- **La nota de la tarjeta decía "pendientes de entregar"** y con esto habría pasado a mentir: ahora dice que cuenta todos los del día y **que no baja cuando el delivery entrega**.
+- Verificado con hoja simulada: un día con 3 pantalones, uno ya "Entregado a cliente" → **3** (la cuenta vieja daba 2); otro día con 1 pantalón + joyería + un cancelado → **1**. Y en la app: con backend nuevo usa su cifra e ignora `grupos`; con backend viejo cae a la cuenta de antes; el aviso de día lleno sigue saliendo. 0 errores de consola.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.**
