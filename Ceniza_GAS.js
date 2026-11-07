@@ -266,6 +266,7 @@ function doGet(e) {
     else if (accion === "historialQuincenas") data = getHistorialQuincenas();
     else if (accion === "auditarCambiosTalla") data = auditarCambiosTalla(e.parameter.desde);
     else if (accion === "joyeria")        data = getJoyeria();
+    else if (accion === "pagoDelivery")   data = getPagoDelivery(e.parameter.desde, e.parameter.hasta);
     else if (accion === "ventasPorDia")   data = getVentasPorDia(e.parameter.desde, e.parameter.hasta);
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "inventarioTelas") data = getInventarioTelas();
@@ -940,6 +941,101 @@ function limpiarResponsable(p) {
 // (todo lo que no esté ya entregado al cliente), con los códigos que la
 // vendedora dejó en las notas.
 // Solo lee la hoja activa: el piloto es de la quincena en curso.
+// ══════════════════════════════════════════════════════════
+// PAGO AL DELIVERY — por día
+// ══════════════════════════════════════════════════════════
+// Lo pidió la dueña el 2026-11-06: además de cuánto efectivo se cobró cada día,
+// quiere ver cuánto hay que pagarle a él por el trabajo de ese día.
+//
+// Reglas, dictadas por ella:
+//  · Cada entrega a domicilio (tipo "Delivery") se paga con el MONTO DELIVERY
+//    del pedido — el mismo que se le cobra a la clienta, lo confirmó — sin que
+//    importe si pagó en efectivo, en bolívares o por transferencia.
+//  · Los retiros personales y los envíos MRW/ZOOM van en una TARIFA FIJA de $10
+//    al día: da igual que haya uno o cincuenta. Se suma solo los días que hubo
+//    al menos uno; un día sin ninguno no suma nada.
+//  · Solo cuentan los pedidos YA ENTREGADOS: se le paga por el trabajo hecho.
+//
+// Se agrupa por CLIENTE y día, NO por fila, por dos razones:
+//  1) un pedido de 3 pantalones escribe el MISMO `montoDelivery` en sus 3
+//     filas, así que sumar filas lo multiplicaría por tres;
+//  2) un mismo cliente puede tener dos pedidos el mismo día (los pantalones y
+//     la joyería se registran por separado) y el delivery los lleva en UN solo
+//     viaje — así los agrupa también su propia pantalla.
+//
+// El mismo recorrido devuelve el EFECTIVO QUE HABÍA QUE COBRAR, con la misma
+// regla que pinta "Cobrar $X" en las tarjetas del delivery. Sale de la hoja, no
+// del teléfono de nadie, que es lo que ella quiere para comparar.
+const TARIFA_FIJA_DIA = 10;
+const TIPO_DOMICILIO  = "Delivery";
+
+function getPagoDelivery(desde, hasta) {
+  const desdeObj = desde ? _parseFechaVE(String(desde).trim()) : null;
+  const hastaObj = hasta ? _parseFechaVE(String(hasta).trim()) : null;
+  if (!desdeObj || !hastaObj) return { error: "Faltan las fechas desde y hasta (dd/MM/yyyy)" };
+  if (hastaObj < desdeObj)    return { error: "La fecha 'hasta' es anterior a 'desde'" };
+  // Tope de 93 días, igual que ventasPorDia: la respuesta es una fila por día,
+  // pero el recorrido no tiene por qué ser ilimitado.
+  if ((hastaObj - desdeObj) / 86400000 > 93) return { error: "El rango no puede pasar de 93 días" };
+
+  // grupos[fecha][clave de cliente] = { montoDelivery, productos, tipo, efectivo }
+  const grupos = {};
+  const hojasP = hoja().getSheets().filter(h => h.getName().indexOf("Pedidos ") === 0);
+
+  for (const ws of hojasP) {
+    const datos = ws.getDataRange().getDisplayValues();
+    for (let i = 1; i < datos.length; i++) {
+      const row = datos[i];
+      if (!row[1] || row[1] === "") continue;
+      if ((row[11] || "") !== "Entregado a cliente") continue;   // solo lo entregado
+
+      const fecha = row[12] || row[0] || "";
+      const fObj  = _parseFechaVE(fecha);
+      if (!fObj || fObj < desdeObj || fObj > hastaObj) continue;
+
+      const clave = _claveClienta(row) || String(row[1] || "").trim().toLowerCase();
+      if (!grupos[fecha]) grupos[fecha] = {};
+      const g = grupos[fecha][clave] || (grupos[fecha][clave] = {
+        tipo: "", montoDelivery: 0, productos: 0, efectivo: false
+      });
+
+      // El tipo y el método de pago son del pedido, iguales en todas sus filas.
+      if (!g.tipo) g.tipo = (row[7] || "").trim();
+      // Si el cliente tiene dos pedidos el mismo día y los dos traen monto de
+      // delivery, se paga el mayor UNA vez: es un solo viaje.
+      g.montoDelivery = Math.max(g.montoDelivery, parseFloat(row[10]) || 0);
+      g.productos    += parseFloat(row[9]) || 0;
+      if (String(row[16] || "").toLowerCase().indexOf("efectivo") >= 0) g.efectivo = true;
+    }
+  }
+
+  const dias = {};
+  Object.keys(grupos).forEach(function (fecha) {
+    let domicilios = 0, montoDomicilios = 0, otros = 0, efectivo = 0;
+    Object.keys(grupos[fecha]).forEach(function (clave) {
+      const g = grupos[fecha][clave];
+      if (g.tipo === TIPO_DOMICILIO) {
+        domicilios++;
+        montoDomicilios += g.montoDelivery;
+      } else {
+        otros++;   // retiro personal, MRW, ZOOM: van en la tarifa fija
+      }
+      if (g.efectivo) efectivo += g.productos + g.montoDelivery;
+    });
+    const fijo = otros > 0 ? TARIFA_FIJA_DIA : 0;
+    dias[fecha] = {
+      domicilios:      domicilios,
+      montoDomicilios: Math.round(montoDomicilios * 100) / 100,
+      otros:           otros,
+      fijo:            fijo,
+      total:           Math.round((montoDomicilios + fijo) * 100) / 100,
+      efectivo:        Math.round(efectivo * 100) / 100
+    };
+  });
+
+  return { dias: dias, tarifaFija: TARIFA_FIJA_DIA };
+}
+
 function getJoyeria() {
   const ws = hoja().getSheetByName("Pedidos " + mesActivo());
   if (!ws) return { error: "Hoja no encontrada" };
