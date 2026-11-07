@@ -145,6 +145,92 @@ function _leerPines() {
 // puede recibir su PIN desde la app sin tocar código.
 const ROLES = ["vendedora", "costurera", "delivery", "produccion", "duena"];
 
+// ══════════════════════════════════════════════════════════
+// PERMISOS POR PERFIL (2026-11-06)
+// ══════════════════════════════════════════════════════════
+// Hasta ahora el token solo decía QUE había sesión, no de quién: cualquier
+// perfil podía pedir cualquier ruta, y `leerConfig` devolvía la hoja Config
+// ENTERA a todo el mundo. En el teléfono de la vendedora acababan guardadas
+// las auditorías con su nota por criterio, el gasto diario en Meta, las
+// conversaciones, los cortes de las escalas y la caja del delivery; y el
+// modelo de costos de la dueña le llegaba en la respuesta aunque no se
+// guardara. Eso contradice la decisión del 2026-11-02 de que la vendedora no
+// viera los montos por pantalón: se tapaba la puerta y quedaba la ventana.
+//
+// Dos candados:
+//   1) `RUTAS_ROL` — qué puede pedir cada perfil.
+//   2) `CONFIG_POR_ROL` — qué claves de Config ve y puede escribir cada uno.
+//
+// **Lo que no esté en `RUTAS_ROL` es solo de la dueña**, a propósito: así una
+// ruta nueva nace cerrada y no se escapa por un olvido. Es justo el fallo que
+// se quiere evitar, y en este proyecto las listas que hay que acordarse de
+// actualizar ya han costado caro dos veces (`SUBLIMADO_COLORS_SET`).
+const TODOS_LOS_ROLES = ["vendedora", "costurera", "delivery", "produccion", "duena"];
+
+const RUTAS_ROL = {
+  // Públicas (no llegan hasta aquí, pero se listan para que se lean juntas)
+  ping:  TODOS_LOS_ROLES,
+  login: TODOS_LOS_ROLES,
+
+  // Config: la piden todos al abrir la app, pero va filtrada por perfil
+  leerConfig:    TODOS_LOS_ROLES,
+  guardarConfig: TODOS_LOS_ROLES,   // la clave se valida aparte, en guardarConfig
+
+  // Arreglos: los crea la vendedora, los repara la costurera y los lleva el delivery
+  getArreglos: ["vendedora", "costurera", "delivery", "duena"],
+  setArreglos: ["vendedora", "costurera", "delivery", "duena"],
+
+  // Pedidos
+  produccion:       ["vendedora", "costurera", "duena"],   // sus pedidos / la cola
+  historial:        ["vendedora", "costurera", "delivery", "duena"],
+  entregas:         ["delivery", "duena"],
+  semana:           ["costurera", "duena"],
+  joyeria:          ["produccion", "duena"],
+  cambiarEstado:    ["costurera", "delivery", "produccion", "duena"],
+  registrarPedidos: ["vendedora", "duena"],
+  editarPedido:     ["vendedora", "duena"],
+  eliminarPedido:   ["vendedora", "duena"],
+  getClientes:      ["vendedora", "duena"],
+
+  // Su propia comisión. `getComisiones` ya recorta los montos por pantalón
+  // cuando quien pregunta no es la dueña.
+  comisiones: ["vendedora", "duena"]
+
+  // Todo lo demás —finanzas, inventarioTelas, ventasPorDia, pagoDelivery,
+  // historialQuincenas, auditarCambiosTalla, encargos, cambiarPin…— solo la dueña.
+};
+
+// Claves de Config que ve (y puede escribir) cada perfil. La dueña las ve
+// todas. Un perfil que no esté aquí no ve ninguna.
+const CONFIG_POR_ROL = {
+  vendedora:  ["ceniza_arreglos"],                            // pestaña Recogidas
+  costurera:  ["ceniza_arreglos"],                            // pestaña Arreglos
+  delivery:   ["ceniza_arreglos", "ceniza_caja_delivery"],    // arreglos + su caja
+  produccion: []                                              // solo la ruta joyeria
+};
+
+function _permisosEstrictos() { return _props().getProperty("PERMISOS_ESTRICTOS") !== "false"; }
+
+// Salida de emergencia SIN redesplegar: las ScriptProperties son compartidas,
+// así que la web app ya publicada lo nota en la siguiente petición. Si algún
+// perfil se queda fuera de una pantalla, ejecutar `desactivarPermisos()` desde
+// el editor y avisar.
+function desactivarPermisos() { _props().setProperty("PERMISOS_ESTRICTOS", "false"); return "Permisos por perfil DESACTIVADOS"; }
+function activarPermisos()    { _props().deleteProperty("PERMISOS_ESTRICTOS");       return "Permisos por perfil ACTIVOS"; }
+
+function _puedeRuta(accion, rol) {
+  if (!rol) return false;
+  if (rol === "duena") return true;          // la dueña llega a todo
+  const permitidos = RUTAS_ROL[accion];
+  return !!permitidos && permitidos.indexOf(rol) !== -1;
+}
+
+function _clavesDeRol(rol) {
+  if (rol === "duena") return null;          // null = todas
+  return CONFIG_POR_ROL[rol] || [];
+}
+
+
 function instalarPines() {
   _guardarPines({
     vendedora:  "",
@@ -252,6 +338,16 @@ function doGet(e) {
     }
   }
 
+
+  // Segundo candado: el perfil del token tiene que poder pedir ESTA ruta.
+  // Sin esto, el token de la vendedora servía igual para pedir `finanzas`.
+  if (RUTAS_PUBLICAS.indexOf(accion) === -1 && rolToken &&
+      _permisosEstrictos() && !_puedeRuta(accion, rolToken)) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: "Este perfil no puede hacer eso (SIN_PERMISO)" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   try {
     if      (accion === "login")          data = login(e.parameter);
     else if (accion === "cambiarPin")     data = cambiarPin(e.parameter, rolToken);
@@ -280,8 +376,8 @@ function doGet(e) {
     else if (accion === "setArreglos")     data = _conLock(() => setArreglosData(e.parameter));
     else if (accion === "getArrastres")    data = getArrastresData();
     else if (accion === "setArrastres")    data = _quincenaFija();
-    else if (accion === "leerConfig")      data = leerConfig();
-    else if (accion === "guardarConfig")   data = _conLock(() => guardarConfig(e.parameter.clave, e.parameter.valor));
+    else if (accion === "leerConfig")      data = leerConfig(rolToken);
+    else if (accion === "guardarConfig")   data = _conLock(() => guardarConfig(e.parameter.clave, e.parameter.valor, rolToken));
     else if (accion === "limpiarResponsable") data = limpiarResponsable(e.parameter);
     else if (accion === "ping")            data = { ok: true, ts: Date.now() };
     else if (accion === "corregirQuincena")    data = _quincenaFija();
@@ -1895,21 +1991,35 @@ function _filasConfig(sheet, clave) {
   return filas;
 }
 
-function leerConfig() {
+// Devuelve la hoja Config, FILTRADA por perfil. Antes la mandaba entera a
+// cualquiera con sesión: en el teléfono de la vendedora acababan las
+// auditorías, el gasto en Meta y los cortes de las escalas, y los costos de la
+// dueña viajaban en la respuesta. Ver CONFIG_POR_ROL.
+function leerConfig(rol) {
   const sheet = getConfigSheet();
   const data = sheet.getDataRange().getValues();
+  const permitidas = _permisosEstrictos() ? _clavesDeRol(rol) : null;   // null = todas
   const config = {};
   for (let i = 1; i < data.length; i++) {
     const clave = String(data[i][0]).trim();
-    const valor = data[i][1];
-    if (clave) config[clave] = valor;
+    if (!clave) continue;
+    if (permitidas && permitidas.indexOf(clave) === -1) continue;
+    config[clave] = data[i][1];
   }
   return config;
 }
 
-function guardarConfig(clave, valor) {
+function guardarConfig(clave, valor, rol) {
   clave = String(clave || "").trim();
   if (!clave) return { ok: false, error: "Falta la clave" };
+  // Un perfil solo puede escribir las claves que puede leer. Si no, el
+  // teléfono de la vendedora podría pisar los costos o las auditorías.
+  if (_permisosEstrictos()) {
+    const permitidas = _clavesDeRol(rol);
+    if (permitidas && permitidas.indexOf(clave) === -1) {
+      return { ok: false, error: "Este perfil no puede guardar " + clave + " (SIN_PERMISO)" };
+    }
+  }
   const sheet = getConfigSheet();
   const filas = _filasConfig(sheet, clave);
   if (!filas.length) {
