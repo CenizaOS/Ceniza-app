@@ -1240,6 +1240,16 @@ function getPagosPorVerificar() {
       const fReg = _parseFechaVE(row[0]);
       if (!fReg || (desdeObj && fReg < desdeObj)) continue;
 
+      // EL DÍA DEL ARRANQUE solo cuentan los pedidos que YA traen referencia.
+      // La dueña pidió que esto empezara a la 1 de la tarde, y la hoja guarda
+      // la fecha pero NO la hora (col 1 = dd/MM/yyyy), así que no se puede
+      // cortar por hora. Pero el campo de referencia no existía esa mañana: un
+      // pedido de ese día que la traiga es, forzosamente, de después del
+      // arranque. A partir del día siguiente sí se listan también los que
+      // vengan sin ella, que son los que hay que perseguir.
+      const _ref = String(row[COL_REFERENCIA] || "").trim();
+      if (!_ref && desdeObj && fReg.getTime() === desdeObj.getTime()) continue;
+
       const clave = _clavePago(row);
       const p = pedidos[clave] || (pedidos[clave] = {
         clave:      clave,
