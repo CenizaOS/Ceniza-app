@@ -363,6 +363,8 @@ function doGet(e) {
     else if (accion === "auditarCambiosTalla") data = auditarCambiosTalla(e.parameter.desde);
     else if (accion === "joyeria")        data = getJoyeria();
     else if (accion === "pagoDelivery")   data = getPagoDelivery(e.parameter.desde, e.parameter.hasta);
+    else if (accion === "pagosPorVerificar") data = getPagosPorVerificar();
+    else if (accion === "verificarPago")  data = verificarPago(e.parameter);
     else if (accion === "ventasPorDia")   data = getVentasPorDia(e.parameter.desde, e.parameter.hasta);
     else if (accion === "semana")          data = getSemanaCosturera();
     else if (accion === "inventarioTelas") data = getInventarioTelas();
@@ -446,6 +448,10 @@ function getProduccion() {
       vuelto:         row[20] || "0",
       // Se normaliza aquí para que el frontend siga comparando con 'true'
       cambioDeTalla:  _esCambioDeTalla(row[21]) ? "true" : "",
+      referencia:     row[24] || "",
+      // Verificado = celda NO vacia, nunca === "true": Sheets reinterpreta lo
+      // que parece logico o fecha segun el idioma de la hoja.
+      verificado:     String(row[25] || "").trim(),
       // Piezas de joyería (col 24). Vacío en los pantalones.
       piezas:  _esJoya(row[3]) ? _piezasDe(row) : "",
     });
@@ -749,6 +755,16 @@ function registrarPedidos(p) {
       }
     }
 
+    // Referencia del pago obligatoria salvo en efectivo (decisión de la dueña,
+    // 2026-11-09). Se repite aquí por si un teléfono tiene la app vieja, y va
+    // ANTES de `_estadoReqId` por el mismo motivo que la fecha de entrega: si
+    // consumiera el `reqId`, al corregirlo y reintentar el pedido se daría por
+    // registrado sin escribirse.
+    if (_requiereReferencia(p.metodoPago) && !String(p.referencia || "").trim()) {
+      return { success: false,
+               error: "Falta la referencia del pago. Es obligatoria salvo cuando se paga en efectivo." };
+    }
+
     // Anti-duplicado. Ya no basta con "¿he visto este id?": hay que mirar si el
     // contenido es el mismo. Un reintento idéntico (el teléfono se pasó de
     // tiempo esperando, pero aquí sí se escribió) se ignora en silencio; uno
@@ -774,6 +790,9 @@ function registrarPedidos(p) {
     if (!ws.getRange(1, 21).getValue()) ws.getRange(1, 21).setValue("Vuelto");
     if (!ws.getRange(1, 22).getValue()) ws.getRange(1, 22).setValue("Cambio de talla");
     if (!ws.getRange(1, 23).getValue()) ws.getRange(1, 23).setValue("Tipo de tela");
+    if (!ws.getRange(1, 24).getValue()) ws.getRange(1, 24).setValue("Piezas");
+    if (!ws.getRange(1, 25).getValue()) ws.getRange(1, 25).setValue("Referencia");
+    if (!ws.getRange(1, 26).getValue()) ws.getRange(1, 26).setValue("Verificado");
 
     const colB = ws.getRange(1, 2, ws.getLastRow() || 1, 1).getValues();
     let ultimaFila = 1;
@@ -822,7 +841,10 @@ function registrarPedidos(p) {
         (item.tipoTela || "").trim(),
         // Col 24. Piezas: solo la joyería la usa. Una fila de joyería es una
         // venta de N piezas con su total, no N filas.
-        _esJoya(item.producto) ? (parseInt(item.piezas, 10) || 1) : ""
+        _esJoya(item.producto) ? (parseInt(item.piezas, 10) || 1) : "",
+        // Col 25. Referencia del pago, por pedido. La col 26 (Verificado) la
+        // escribe solo la duena al cotejar, asi que nace vacia.
+        (p.referencia || "").trim()
       ];
       ws.getRange(nextRowNum, 1, 1, fila.length).setValues([fila]);
       filas.push(nextRowNum);
@@ -895,6 +917,9 @@ function editarPedido(p) {
     // Columna 22: permite corregir un pedido que se registró mal marcado
     if (p.cambioDeTalla !== undefined) ws.getRange(fila, 22).setValue(p.cambioDeTalla === 'true' ? 'true' : '');
     if (p.tipoTela      !== undefined) ws.getRange(fila, 23).setValue((p.tipoTela     || "").trim());
+    // La referencia se puede corregir; la VERIFICACION no se toca desde aqui:
+    // esa columna la escribe solo la duena al cotejar con su banco.
+    if (p.referencia    !== undefined) ws.getRange(fila, 25).setValue((p.referencia   || "").trim());
 
     return { success: true, fila };
   } catch(err) {
@@ -1130,6 +1155,147 @@ function getPagoDelivery(desde, hasta) {
   });
 
   return { dias: dias, tarifaFija: TARIFA_FIJA_DIA };
+}
+
+// ══════════════════════════════════════════════════════════
+// VERIFICACIÓN DE PAGOS (2026-11-09)
+// ══════════════════════════════════════════════════════════
+// Petición de la dueña: la vendedora registra el pedido cuando ya se pagó, así
+// que al registrarlo anota la REFERENCIA del pago; la dueña la coteja con su
+// banco y la marca verificada, y entonces la vendedora ve el pedido como
+// «pago verificado».
+//
+// Columnas nuevas, las dos POR PEDIDO (se repiten en todas sus filas, igual
+// que `montoDelivery`):
+//   Col 25 (índice 24) — Referencia
+//   Col 26 (índice 25) — Verificado: la fecha en que se verificó, o vacío.
+//
+// **Verificado = celda NO vacía**, nunca `=== "true"`. Es la lección de
+// `cambioDeTalla`: Sheets reinterpreta lo que parece lógico o fecha y lo
+// devuelve según el idioma de la hoja (`TRUE`, `VERDADERO`…). Mirar si está
+// vacía no depende de cómo lo reformatee.
+const COL_REFERENCIA = 24;
+const COL_VERIFICADO = 25;
+
+// Desde cuándo se piden referencias. Los pedidos anteriores no tienen ninguna
+// y aparecerían TODOS como pendientes para siempre, tapando lo único que
+// importa — que es justo el fallo de "1313 pantalones sin tela anotada".
+const INICIO_VERIFICACION = "09/11/2026";
+
+// Los pagos en efectivo no llevan referencia: ese dinero se controla con la
+// caja del delivery (decisión de la dueña). Un pago mixto SÍ, porque tiene una
+// parte que entra por el banco.
+function _requiereReferencia(metodo) {
+  const m = String(metodo || "").trim();
+  if (!m) return false;
+  if (/mixto/i.test(m)) return true;       // antes que efectivo: el texto lo contiene
+  if (/efectivo/i.test(m)) return false;
+  return true;                              // transferencia, pago móvil, Binance, PayPal
+}
+
+// Clave de un PEDIDO dentro de la hoja. No vale solo cliente+fecha: la dueña
+// registra los pantalones y la joyería como pedidos separados el mismo día y
+// cada uno lleva su propia referencia. Incluyéndola, cada pago va por su lado.
+function _clavePago(row) {
+  return [String(row[0] || "").trim(),
+          _claveCliente(row[1]),
+          String(row[COL_REFERENCIA] || "").trim().toUpperCase()].join("|");
+}
+
+function getPagosPorVerificar() {
+  const desdeObj = _parseFechaVE(INICIO_VERIFICACION);
+  const pedidos = {};
+  const vistas  = {};   // referencia → [claves de pedido] para detectar repetidas
+  const hojasP  = hoja().getSheets().filter(h => h.getName().indexOf("Pedidos ") === 0);
+
+  for (const ws of hojasP) {
+    const datos = ws.getDataRange().getDisplayValues();
+    for (let i = 1; i < datos.length; i++) {
+      const row = datos[i];
+      if (!row[1] || row[1] === "") continue;
+      const estado = row[11] || "";
+      if (estado === "Cancelado") continue;              // un pedido anulado no se cobra
+      if (!_requiereReferencia(row[16])) continue;       // efectivo: no hay nada que cotejar
+      const fReg = _parseFechaVE(row[0]);
+      if (!fReg || (desdeObj && fReg < desdeObj)) continue;
+
+      const clave = _clavePago(row);
+      const p = pedidos[clave] || (pedidos[clave] = {
+        clave:      clave,
+        hoja:       ws.getName(),
+        filas:      [],
+        fecha:      row[0]  || "",
+        cliente:    row[1],
+        telefono:   row[2]  || "",
+        metodoPago: row[16] || "",
+        referencia: String(row[COL_REFERENCIA] || "").trim(),
+        verificado: String(row[COL_VERIFICADO] || "").trim(),
+        monto:      0,
+        responsable: normalizarResponsable(row[14]),
+        pantalones: 0, piezas: 0
+      });
+      p.filas.push(i + 1);
+      p.monto += parseFloat(row[9]) || 0;
+      // El delivery se cobra una vez por pedido, no por fila.
+      p.montoDelivery = Math.max(p.montoDelivery || 0, parseFloat(row[10]) || 0);
+      if (_esJoya(row[3])) p.piezas += _piezasDe(row); else p.pantalones++;
+    }
+  }
+
+  const lista = [];
+  Object.keys(pedidos).forEach(function (k) {
+    const p = pedidos[k];
+    p.monto = Math.round((p.monto + (p.montoDelivery || 0)) * 100) / 100;
+    delete p.montoDelivery;
+    if (p.referencia) {
+      const r = p.referencia.toUpperCase();
+      (vistas[r] = vistas[r] || []).push(k);
+    }
+    lista.push(p);
+  });
+
+  // Una misma referencia en dos pedidos distintos es un error de tecleo o algo
+  // peor: se marca para que se mire, no se decide nada por ella.
+  const repetidas = {};
+  Object.keys(vistas).forEach(function (r) { if (vistas[r].length > 1) repetidas[r] = vistas[r].length; });
+  lista.forEach(function (p) {
+    p.repetida = !!(p.referencia && repetidas[p.referencia.toUpperCase()]);
+  });
+
+  // Lo pendiente primero y, dentro, lo más viejo arriba: eso es lo que lleva
+  // más tiempo sin cotejarse.
+  lista.sort(function (a, b) {
+    if (!a.verificado !== !b.verificado) return a.verificado ? 1 : -1;
+    const fa = a.fecha.split("/").reverse().join("");
+    const fb = b.fecha.split("/").reverse().join("");
+    return fa.localeCompare(fb);
+  });
+
+  const pend = lista.filter(function (p) { return !p.verificado; });
+  return {
+    pedidos:    lista,
+    pendientes: pend.length,
+    sinReferencia: pend.filter(function (p) { return !p.referencia; }).length,
+    montoPendiente: Math.round(pend.reduce(function (s, p) { return s + p.monto; }, 0) * 100) / 100,
+    desde: INICIO_VERIFICACION
+  };
+}
+
+// Marca (o desmarca) un pedido como verificado. Escribe en TODAS sus filas,
+// porque la columna es por pedido y la lista lo lee de cualquiera de ellas.
+// `filas` llega del propio listado, así que no hay que volver a agrupar.
+function verificarPago(p) {
+  const filas = String(p.filas || "").split(",")
+    .map(function (x) { return parseInt(x, 10); })
+    .filter(function (n) { return n > 0; });
+  if (!filas.length) return { error: "Faltan las filas del pedido" };
+  const nombreHoja = String(p.hoja || "").trim();
+  const ws = nombreHoja ? hoja().getSheetByName(nombreHoja) : hoja().getSheetByName("Pedidos " + mesActivo());
+  if (!ws) return { error: "No encontré la hoja " + nombreHoja };
+
+  const valor = (String(p.valor || "") === "false") ? "" : Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy");
+  filas.forEach(function (f) { ws.getRange(f, COL_VERIFICADO + 1).setValue(valor); });
+  return { ok: true, verificado: valor, filas: filas.length };
 }
 
 function getJoyeria() {
