@@ -448,6 +448,7 @@ function getProduccion() {
       vuelto:         row[20] || "0",
       // Se normaliza aquí para que el frontend siga comparando con 'true'
       cambioDeTalla:  _esCambioDeTalla(row[21]) ? "true" : "",
+      deliveryGratis: _esCambioDeTalla(row[26]) ? "true" : "",
       referencia:     row[24] || "",
       // Verificado = celda NO vacia, nunca === "true": Sheets reinterpreta lo
       // que parece logico o fecha segun el idioma de la hoja.
@@ -543,6 +544,7 @@ function getEntregas(fechaParam) {
       // Sin esto, editar un pedido desde Delivery/Historial lo devolvía sin
       // la marca y al guardar la BORRABA en silencio.
       cambioDeTalla: _esCambioDeTalla(row[21]) ? "true" : "",
+      deliveryGratis: _esCambioDeTalla(row[26]) ? "true" : "",
       // Piezas de joyería (col 24). Vacío en los pantalones.
       piezas: _esJoya(row[3]) ? _piezasDe(row) : "",
       talla:         row[6]  || "",
@@ -793,6 +795,7 @@ function registrarPedidos(p) {
     if (!ws.getRange(1, 24).getValue()) ws.getRange(1, 24).setValue("Piezas");
     if (!ws.getRange(1, 25).getValue()) ws.getRange(1, 25).setValue("Referencia");
     if (!ws.getRange(1, 26).getValue()) ws.getRange(1, 26).setValue("Verificado");
+    if (!ws.getRange(1, 27).getValue()) ws.getRange(1, 27).setValue("Delivery gratis");
 
     const colB = ws.getRange(1, 2, ws.getLastRow() || 1, 1).getValues();
     let ultimaFila = 1;
@@ -844,7 +847,11 @@ function registrarPedidos(p) {
         _esJoya(item.producto) ? (parseInt(item.piezas, 10) || 1) : "",
         // Col 25. Referencia del pago, por pedido. La col 26 (Verificado) la
         // escribe solo la duena al cotejar, asi que nace vacia.
-        (p.referencia || "").trim()
+        (p.referencia || "").trim(),
+        // Col 26 (Verificado) la escribe solo la duena: va vacia.
+        "",
+        // Col 27. Delivery gratis.
+        (p.deliveryGratis === "true") ? "true" : ""
       ];
       ws.getRange(nextRowNum, 1, 1, fila.length).setValues([fila]);
       filas.push(nextRowNum);
@@ -920,6 +927,7 @@ function editarPedido(p) {
     // La referencia se puede corregir; la VERIFICACION no se toca desde aqui:
     // esa columna la escribe solo la duena al cotejar con su banco.
     if (p.referencia    !== undefined) ws.getRange(fila, 25).setValue((p.referencia   || "").trim());
+    if (p.deliveryGratis !== undefined) ws.getRange(fila, 27).setValue(p.deliveryGratis === "true" ? "true" : "");
 
     return { success: true, fila };
   } catch(err) {
@@ -975,6 +983,7 @@ function getHistorial(responsable, fecha, desde) {
         color:         row[4]  || "",
         tipoTela:      row[22] || "",
         cambioDeTalla: _esCambioDeTalla(row[21]) ? "true" : "",
+      deliveryGratis: _esCambioDeTalla(row[26]) ? "true" : "",
         // Piezas de joyería (col 24). Vacío en los pantalones.
         piezas: _esJoya(row[3]) ? _piezasDe(row) : "",
         talla:         row[6]  || "",
@@ -1117,7 +1126,7 @@ function getPagoDelivery(desde, hasta) {
       const clave = _claveClienta(row) || String(row[1] || "").trim().toLowerCase();
       if (!grupos[fecha]) grupos[fecha] = {};
       const g = grupos[fecha][clave] || (grupos[fecha][clave] = {
-        tipo: "", montoDelivery: 0, productos: 0, efectivo: false
+        tipo: "", montoDelivery: 0, productos: 0, efectivo: false, gratis: false
       });
 
       // El tipo y el método de pago son del pedido, iguales en todas sus filas.
@@ -1127,21 +1136,26 @@ function getPagoDelivery(desde, hasta) {
       g.montoDelivery = Math.max(g.montoDelivery, parseFloat(row[10]) || 0);
       g.productos    += parseFloat(row[9]) || 0;
       if (String(row[16] || "").toLowerCase().indexOf("efectivo") >= 0) g.efectivo = true;
+      // Delivery regalado (2+ pantalones): la clienta no lo paga, pero el
+      // repartidor SI cobra su parte. La diferencia la cubre la duena.
+      if (_esCambioDeTalla(row[COL_GRATIS])) g.gratis = true;
     }
   }
 
   const dias = {};
   Object.keys(grupos).forEach(function (fecha) {
-    let domicilios = 0, montoDomicilios = 0, otros = 0, efectivo = 0;
+    let domicilios = 0, montoDomicilios = 0, otros = 0, efectivo = 0, gratis = 0, montoGratis = 0;
     Object.keys(grupos[fecha]).forEach(function (clave) {
       const g = grupos[fecha][clave];
       if (g.tipo === TIPO_DOMICILIO) {
         domicilios++;
+        // Se le paga igual, lo cobre o no la clienta.
         montoDomicilios += g.montoDelivery;
+        if (g.gratis) { gratis++; montoGratis += g.montoDelivery; }
       } else {
         otros++;   // retiro personal, MRW, ZOOM: van en la tarifa fija
       }
-      if (g.efectivo) efectivo += g.productos + g.montoDelivery;
+      if (g.efectivo) efectivo += g.productos + (g.gratis ? 0 : g.montoDelivery);
     });
     const fijo = otros > 0 ? TARIFA_FIJA_DIA : 0;
     dias[fecha] = {
@@ -1150,7 +1164,9 @@ function getPagoDelivery(desde, hasta) {
       otros:           otros,
       fijo:            fijo,
       total:           Math.round((montoDomicilios + fijo) * 100) / 100,
-      efectivo:        Math.round(efectivo * 100) / 100
+      efectivo:        Math.round(efectivo * 100) / 100,
+      gratis:          gratis,
+      montoGratis:     Math.round(montoGratis * 100) / 100
     };
   });
 
@@ -1175,6 +1191,11 @@ function getPagoDelivery(desde, hasta) {
 // devuelve según el idioma de la hoja (`TRUE`, `VERDADERO`…). Mirar si está
 // vacía no depende de cómo lo reformatee.
 const COL_REFERENCIA = 24;
+// Col 27. Delivery gratis: la clienta no lo paga pero la duena SI se lo paga
+// al repartidor. La regla es 2+ pantalones, pero se guarda como marca explicita
+// y no se deduce del conteo: deducirla cambiaria lo que al repartidor se le dice
+// que cobre en un pedido viejo o en una excepcion.
+const COL_GRATIS = 26;
 const COL_VERIFICADO = 25;
 
 // Desde cuándo se piden referencias. Los pedidos anteriores no tienen ninguna
