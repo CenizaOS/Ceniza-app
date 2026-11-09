@@ -803,3 +803,15 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado a 375 px: las 6 pestañas abren sin error, Ajustes trae las tres cosas, 🎯 Cierre ya **no** trae los cortes, y solo una pestaña queda resaltada al cambiar. 0 errores de consola.
 - **PARTES PENDIENTES**: (2) juntar Proyección + Insumos + Estampados + Joyería en **📦 Taller**; (3) mover la Caja del delivery del Resumen a **💳 Pagos**; (4) renombrar 🎯 Cierre a **Angi** y dejar el Resumen solo con dinero e histórico.
 - **Solo frontend.** `APP_VERSION` → `2026.11.09c`.
+
+## Reorganización de Administración — parte 2 (2026-11-09)
+- **📦 Taller** junta lo que estaba repartido en dos pestañas y dos tarjetas sueltas del Resumen: **Joyería por empaquetar** · **Inventario del taller** (telas, insumos, etiquetas) · **Proyección** · **Estampados de la quincena**. Se van las pestañas Insumos y Proyección; quedan **5**: Resumen · Pagos · Cierre · Taller · Ajustes.
+- **EL PROBLEMA QUE HABÍA QUE RESOLVER ANTES DE JUNTARLAS**: `renderCostInsumos` pide `inventarioTelas` y `renderFinProyeccion` pedía `produccion` + `historial`, las dos **nada más abrirse**. Juntarlas tal cual habría disparado **TRES consultas a la vez** — y Apps Script atiende de una en una y devuelve un 404 cuando se le lanzan varias (el dolor recurrente del proyecto).
+  - **Arreglo**: el avance de la proyección pasa a cargarse **a petición**, con el botón *«📊 Ver cuánto llevo vendido»*, como ya hacían Estampados, Joyería e Historial. El estimado sigue saliendo solo, porque es local y no cuesta nada.
+  - **Verificado contando las consultas por pestaña**: Resumen 1 (`comisiones`) · Pagos 1 · Cierre 2 · **Taller 1** (`inventarioTelas`) · Ajustes 0.
+- Las tarjetas de Joyería y Estampados se sacaron a `htmlCardJoyeria()` y `htmlCardEstampados()` para que el botón y el contenedor no vivan duplicados en dos sitios.
+- La pantalla conserva los ids `cost-insumos-content` y `fin-proyeccion-content`: son los dos bloques de render más largos de la app y no hacía falta tocarlos.
+- **FALLO QUE ME COMÍ Y CÓMO**: puse un comentario HTML con **comillas invertidas** (`` `produccion` ``) **dentro de una plantilla de JavaScript**, y eso corta la cadena: la app entera dejó de cargar. **REGLA: ningún comentario dentro de un template literal puede llevar comillas invertidas.** Se detecta al instante en la consola (*Uncaught SyntaxError*), pero **ojo: `read_console_messages` conserva los errores de cargas anteriores de esa pestaña** — para confirmar que está arreglado hay que abrir una pestaña nueva, si no parece que el fallo sigue.
+- **Visto de paso, sin arreglar**: la pestaña 🎯 Cierre pide `ventasPorDia` **dos veces** al abrirse. Es anterior a esto y solo es desperdicio, pero conviene mirarlo.
+- **PARTES PENDIENTES**: (3) mover la Caja del delivery del Resumen a 💳 Pagos; (4) renombrar 🎯 Cierre a **Angi** y dejar el Resumen solo con dinero e histórico.
+- **Solo frontend.** `APP_VERSION` → `2026.11.09d`.
