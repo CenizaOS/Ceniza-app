@@ -784,11 +784,9 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado con hoja simulada: Ana (2 pants, delivery $4 gratis) + Bea (1 pant, $3 cobrado) → **se le pagan los $7 a él** (antes habrían sido $3) y el efectivo esperado es **$93** (los $4 regalados no se cobran) · un pedido de 3 pantalones con $5 gratis cuenta 1 viaje y $5 · `gratis` y `montoGratis` por día. En la app: la casilla se marca sola con 2 y no con 1, la joyería no la dispara, quitada a mano se queda quitada, un pedido nuevo la vuelve a marcar, editando manda lo guardado; la pantalla del delivery **no menciona nada** y cobra $60 en vez de $64. 0 errores de consola.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO.** `APP_VERSION` → `2026.11.09b`.
 
-## El arranque de la verificación de pagos: por referencia, no por hora (2026-11-09)
-- **Petición de la dueña**: que la verificación entrara en vigencia **a partir de la 1 de la tarde** de ese mismo día, no desde las 00:00.
-- **No se puede cortar por hora: la hoja no guarda la hora.** La columna 1 es `dd/MM/yyyy` a secas (`Utilities.formatDate(..., "dd/MM/yyyy")` en `registrarPedidos`), así que un pedido de esa mañana y uno de esa tarde son indistinguibles por fecha.
-- **Se consigue lo mismo por otra vía**: **el día del arranque solo se listan los pedidos que YA traen referencia**. El campo no existía esa mañana, así que un pedido de ese día con referencia es forzosamente posterior al arranque. A partir del día siguiente se listan también los que vengan **sin** ella, que son justo los que hay que perseguir.
-- **No hizo falta una columna de hora**: habría sido un cambio mayor y, además, no habría servido para los pedidos de esa mañana, que es el problema que había que resolver.
-- El texto de la tarjeta lo dice: *"Se listan los pedidos registrados desde el 09/11/2026; de ese primer día, solo los que ya traen referencia."*
-- Verificado con hoja simulada: 2 pedidos de esa mañana sin referencia **no salen**, los 2 de la tarde con referencia **sí**, y los del día siguiente salen con y sin referencia (el que no la trae, marcado).
-- **ORDEN DE DESPLIEGUE: backend PRIMERO.** `APP_VERSION` → `2026.11.09c`.
+## Se probó arrancar la verificación "a la 1 de la tarde" y se revirtió (2026-11-09)
+- La dueña pidió que la verificación de pagos empezara **a partir de la 1 de la tarde** de ese día. **La hoja no guarda la hora** (col 1 = `dd/MM/yyyy` a secas), así que no se puede cortar por hora. Se implementó por otra vía —**el día del arranque solo los pedidos que ya traían referencia**, porque el campo no existía esa mañana— y se verificó.
+- **Revertido el mismo día, a petición suya**: *"eso simplemente era para no confundirme hoy… empezamos rústico hoy y ya mañana te digo, cuentan a partir de este cliente y lo acomodamos"*. Prefiere ver los de la mañana marcados como «sin referencia» y decidir a mano cuáles cuentan.
+- **Queda como estaba**: `INICIO_VERIFICACION` = 09/11/2026 por fecha, sin excepciones. Los de esa mañana salen en la lista marcados en rojo.
+- **Pendiente para el 10/11**: ella dirá a partir de qué cliente cuenta de verdad, y se ajusta entonces.
+- **Si vuelve a hacer falta cortar por hora**, el camino de la referencia funciona y está en el historial de git (commit `dff950f`, revertido). Añadir una columna de hora **no** habría servido para los pedidos ya escritos.
