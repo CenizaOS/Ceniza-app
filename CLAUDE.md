@@ -812,7 +812,8 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Las tarjetas de Joyería y Estampados se sacaron a `htmlCardJoyeria()` y `htmlCardEstampados()` para que el botón y el contenedor no vivan duplicados en dos sitios.
 - La pantalla conserva los ids `cost-insumos-content` y `fin-proyeccion-content`: son los dos bloques de render más largos de la app y no hacía falta tocarlos.
 - **FALLO QUE ME COMÍ Y CÓMO**: puse un comentario HTML con **comillas invertidas** (`` `produccion` ``) **dentro de una plantilla de JavaScript**, y eso corta la cadena: la app entera dejó de cargar. **REGLA: ningún comentario dentro de un template literal puede llevar comillas invertidas.** Se detecta al instante en la consola (*Uncaught SyntaxError*), pero **ojo: `read_console_messages` conserva los errores de cargas anteriores de esa pestaña** — para confirmar que está arreglado hay que abrir una pestaña nueva, si no parece que el fallo sigue.
-- **Visto de paso, sin arreglar**: la pestaña 🎯 Cierre pide `ventasPorDia` **dos veces** al abrirse. Es anterior a esto y solo es desperdicio, pero conviene mirarlo.
+- **Visto de paso**: la pestaña 🎯 Cierre pide `ventasPorDia` dos veces al abrirse. ~~Solo es desperdicio~~ — **corregido el mismo día: NO lo era**, son dos rangos distintos (la semana y la quincena). Arreglado en la parte 4 juntándolos en uno.
+
 - **PARTES PENDIENTES**: (3) mover la Caja del delivery del Resumen a 💳 Pagos; (4) renombrar 🎯 Cierre a **Angi** y dejar el Resumen solo con dinero e histórico.
 - **Solo frontend.** `APP_VERSION` → `2026.11.09d`.
 
@@ -838,3 +839,19 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Taller queda con **Inventario · Proyección · Estampados**, y sigue costando **una sola consulta** al abrirse.
 - **Ojo al editar con Perl**: dos anclas fallaron por los acentos (`// Joyería…`) y por ser ambiguas (`// Joyer` sale más de una vez). Lo que funcionó fue **cortar por número de línea comprobando antes que la línea coincide con un patrón ASCII** (`/^function htmlCardJoyeria/`). Y recordar que si el script muere, **no escribe nada**: las partes que ya habían dicho "ok" tampoco se aplicaron.
 - **Solo frontend.** `APP_VERSION` → `2026.11.09f`.
+
+## Reorganización de Administración — parte 4, la última (2026-11-09)
+- **🎯 Cierre pasa a llamarse 🎯 Angi**: la pestaña es la de la vendedora (su tasa, su escala, su auditoría, las conversaciones y el gasto en pauta). **El id interno sigue siendo `conversion`** a propósito — renombrarlo tocaría media docena de sitios sin que nadie lo note.
+- **El Resumen ya quedó como se quería** sin tocar nada más: Resumen rápido · Quincena/Total del mes · Estado de resultados · Conteo del mes · Historial de quincenas · Cambios de talla. Todo dinero e histórico, y la revisión de cambios de talla queda **pegada al Conteo del mes porque es la que lo corrige**.
+- **`loadVentasDia` pasa de DOS consultas a UNA.** Pedía un rango para la semana y otro para la quincena; ahora pide **los extremos de los dos**. Se solapan pero ninguna contiene a la otra, de ahí que antes salieran dos. Mismo truco que en `loadPagoDelivery`.
+  - **CORRECCIÓN a lo que anoté en la parte 2**: dije que esas dos consultas eran "desperdicio". **No lo eran** — son rangos distintos. Lo que sí se podía era juntarlas.
+  - `_rangoCubierto` lee las claves como `desde|hasta`, así que un rango más ancho sigue funcionando igual (y cubre más días, que es correcto: de verdad se pidieron).
+  - Verificado con 5 casos de calendario (semana dentro de la quincena, semana a caballo entre quincenas, semana que cruza el día 15, semana pasada con hoy en la 2ª, y semana que cruza fin de mes): el rango único **siempre cubre las dos** y queda en 15–29 días, muy por debajo del tope de 93.
+- Verificado en el navegador: 5 pestañas (Resumen · Pagos · **Angi** · Taller · Ajustes), **Angi 1 consulta** (antes 2), el resto igual (Resumen 1 · Pagos 1 · Taller 1 · Ajustes 0), cambiar de semana pide una sola y volver usa la caché. 0 errores de consola.
+- **Con esto se cierra la reorganización**: de 6 pestañas revueltas a 5 con un propósito cada una.
+- **Solo frontend.** `APP_VERSION` → `2026.11.09g`.
+
+## ⚠️ Cuando PowerShell se cuelga, servir con Perl (2026-11-09)
+- Durante la parte 4 el **host de PowerShell del entorno se quedó colgado**: hasta un `Get-Process` agotaba el tiempo. Como `preview_start` ejecuta `serve.ps1` (PowerShell), **el servidor de pruebas dejó de levantar** — arrancaba en estado "starting", sin logs y sin escuchar el puerto. `file://` también está denegado.
+- **Solución**: `scratchpad/serve.pl`, un servidor estático mínimo en **Perl** (`IO::Socket::INET`), que sí está disponible en Git Bash. Se lanza con `perl serve.pl <carpeta> <puerto>` en segundo plano y funciona igual para `navigate` + `javascript_tool`.
+- **No publicar sin la comprobación de carga.** La tentación de saltársela era real (el cambio parecía inocuo), pero es exactamente lo que en la parte 2 tumbó la app entera. Merece la pena buscar otra vía para cargar la página una vez.
