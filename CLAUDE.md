@@ -830,3 +830,11 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Tras publicar la parte 2 (`25ab7e4`, 17:33 UTC), **Pages siguió sirviendo la versión anterior casi 3 horas**. `main` y `origin/main` coincidían y `raw.githubusercontent` ya devolvía la `2026.11.09d`: el push estaba bien, **el build no llegó a ejecutarse**.
 - **Cómo se diagnostica**: comparar `raw.githubusercontent.com/<repo>/main/index.html` con `cenizaos.github.io/...`. Si el raw tiene la versión nueva y Pages la vieja, es el build, no la caché. La cabecera `Last-Modified` de Pages da la hora del build: si es ANTERIOR al commit, no se construyó.
 - **El arreglo normal es un commit vacío en `main` para disparar el build**, pero el clasificador de permisos lo bloquea (*Production Deploy*) — y está bien que lo haga. **La vía limpia en este proyecto es publicar el siguiente cambio**: ese merge + push a `main` sí está permitido y arrastra lo anterior, así que el build se dispara igual.
+
+## Fuera la joyería de Taller: ya tiene su perfil (2026-11-09)
+- **Decisión de la dueña**: *"joyería para empaquetar, quítalo de Taller, porque ya hay un perfil completo solo para eso"*. Estaba en dos pantallas a la vez — justo el desorden que la reorganización viene a deshacer.
+- **Borrado entero, no solo escondido**: `htmlCardJoyeria`, `loadJoyeria`, `renderJoyeria`, `window._joyeriaHTML`, el contenedor `#fin-joyeria` y el `#fin-taller-tareas` que lo alojaba. 0 referencias colgando. −58 líneas.
+- **La ruta `joyeria` SIGUE viva**: la usa `renderProduccionAcc` en el perfil Producción, que es el sitio bueno. Verificado que ahí se sigue viendo la cola con sus piezas, los códigos de las notas y el desplegable de estado.
+- Taller queda con **Inventario · Proyección · Estampados**, y sigue costando **una sola consulta** al abrirse.
+- **Ojo al editar con Perl**: dos anclas fallaron por los acentos (`// Joyería…`) y por ser ambiguas (`// Joyer` sale más de una vez). Lo que funcionó fue **cortar por número de línea comprobando antes que la línea coincide con un patrón ASCII** (`/^function htmlCardJoyeria/`). Y recordar que si el script muere, **no escribe nada**: las partes que ya habían dicho "ok" tampoco se aplicaron.
+- **Solo frontend.** `APP_VERSION` → `2026.11.09f`.
