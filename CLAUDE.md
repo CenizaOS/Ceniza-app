@@ -790,3 +790,16 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Queda como estaba**: `INICIO_VERIFICACION` = 09/11/2026 por fecha, sin excepciones. Los de esa mañana salen en la lista marcados en rojo.
 - **Pendiente para el 10/11**: ella dirá a partir de qué cliente cuenta de verdad, y se ajusta entonces.
 - **Si vuelve a hacer falta cortar por hora**, el camino de la referencia funciona y está en el historial de git (commit `dff950f`, revertido). Añadir una columna de hora **no** habría servido para los pedidos ya escritos.
+
+## Reorganización de Administración — parte 1 (2026-11-09)
+- **Diagnóstico de la dueña**: *"todo tiene una organización un poco rudimentaria… están como revueltas… todos los botones son muy chiquiticos y están unos al lado del otro, siento que está todo aglomerado"*.
+- **La causa**: cada cosa nueva entró **en la primera pestaña donde cabía**. Resumen acabó con 10 tarjetas de cuatro tipos distintos mezclados — lo que se MIRA (estado de resultados), lo que se HACE cada día (joyería por empaquetar), lo que se REVISA de vez en cuando (cambios de talla) y lo que se CONFIGURA (los PIN). Y 🎯 Cierre tenía el mismo problema: anotar conversaciones (diario), la escala de Angi (resultado) y los cortes de las escalas (configuración).
+- **Plan acordado, en 4 pestañas finales**: 🏠 Inicio (cómo voy) · 💳 Pagos (dinero que entra y sale) · 🎯 Angi · 📦 Taller · ⚙️ Ajustes. **Se hace por partes**, decisión suya, para no romper de golpe algo que usa a diario.
+- **PARTE 1 (hecha)**:
+  - **Botones en cuadrícula de 3×2** con el icono encima del nombre (`.fin-subtabs` pasa de `flex` a `grid`, `.fin-subtab-ico`). Antes eran 6 botones diminutos en una fila.
+  - **Pestaña ⚙️ Ajustes nueva**, que se queda con lo que se configura: **Costos** (deja de tener pestaña propia; la pantalla conserva el id `fin-costos-content` para no tocar `renderFinCostos`), **Cortes de las escalas** (sale de 🎯 Cierre) y **Seguridad / PIN** (sale del final del Resumen).
+  - `renderFinAjustes()` llama a `renderFinCostos()` y pinta el resto en `#fin-ajustes-extra`.
+- **Orden de los botones pensado por uso**: Resumen · Pagos · Cierre / Insumos · Proyección · Ajustes — lo diario arriba, lo esporádico abajo.
+- Verificado a 375 px: las 6 pestañas abren sin error, Ajustes trae las tres cosas, 🎯 Cierre ya **no** trae los cortes, y solo una pestaña queda resaltada al cambiar. 0 errores de consola.
+- **PARTES PENDIENTES**: (2) juntar Proyección + Insumos + Estampados + Joyería en **📦 Taller**; (3) mover la Caja del delivery del Resumen a **💳 Pagos**; (4) renombrar 🎯 Cierre a **Angi** y dejar el Resumen solo con dinero e histórico.
+- **Solo frontend.** `APP_VERSION` → `2026.11.09c`.
