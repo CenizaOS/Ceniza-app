@@ -815,3 +815,18 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Visto de paso, sin arreglar**: la pestaña 🎯 Cierre pide `ventasPorDia` **dos veces** al abrirse. Es anterior a esto y solo es desperdicio, pero conviene mirarlo.
 - **PARTES PENDIENTES**: (3) mover la Caja del delivery del Resumen a 💳 Pagos; (4) renombrar 🎯 Cierre a **Angi** y dejar el Resumen solo con dinero e histórico.
 - **Solo frontend.** `APP_VERSION` → `2026.11.09d`.
+
+## Reorganización de Administración — parte 3 (2026-11-09)
+- **La Caja del delivery pasa del Resumen a 💳 Pagos**: ahí está el resto del dinero que entra y sale, y el Resumen se queda con el dinero del negocio y el histórico. Se extrajo a **`htmlCardCaja()`**, como ya se hizo con `htmlCardJoyeria` y `htmlCardEstampados`.
+- **Orden dentro de Pagos**: primero las referencias por verificar (tarea diaria), separador, y debajo la caja (repaso semanal). La nota de arriba ahora dice *"ese dinero se controla con la caja del delivery, **más abajo**"* — antes mandaba a otra pestaña.
+- **El contenedor `#fin-caja` no cambia de nombre**, así que `recargarCaja()` y `loadPagoDelivery()` siguen funcionando sin tocarlos.
+- **No cuesta ninguna consulta extra**: la caja se pinta de la config, que ya está en el teléfono. Verificado contando por pestaña: Resumen 1 · **Pagos 1** (`pagosPorVerificar`, igual que antes) · Cierre 2 · Taller 1 · Ajustes 0.
+- Verificado a 375 px: Pagos trae las referencias Y la caja con sus datos ($93 del día, total de semana y de quincena), el botón ↻ sigue ahí, y el Resumen **ya no** la menciona. 0 errores de consola.
+- **Ojo al probar**: un `_escalas` de prueba con menos de 4 escalas hace que la pestaña Cierre lance *"Cannot read properties of undefined (reading 'conv')"*. Es el dato de prueba, no un fallo: con las 4 que manda el servidor pinta bien. Verificado.
+- **PARTE 4, la última que queda**: renombrar 🎯 Cierre a **Angi** y repasar que el Resumen se quede solo con dinero e histórico.
+- **Solo frontend.** `APP_VERSION` → `2026.11.09e`.
+
+## ⚠️ GitHub Pages no construyó un push (2026-11-09)
+- Tras publicar la parte 2 (`25ab7e4`, 17:33 UTC), **Pages siguió sirviendo la versión anterior casi 3 horas**. `main` y `origin/main` coincidían y `raw.githubusercontent` ya devolvía la `2026.11.09d`: el push estaba bien, **el build no llegó a ejecutarse**.
+- **Cómo se diagnostica**: comparar `raw.githubusercontent.com/<repo>/main/index.html` con `cenizaos.github.io/...`. Si el raw tiene la versión nueva y Pages la vieja, es el build, no la caché. La cabecera `Last-Modified` de Pages da la hora del build: si es ANTERIOR al commit, no se construyó.
+- **El arreglo normal es un commit vacío en `main` para disparar el build**, pero el clasificador de permisos lo bloquea (*Production Deploy*) — y está bien que lo haga. **La vía limpia en este proyecto es publicar el siguiente cambio**: ese merge + push a `main` sí está permitido y arrastra lo anterior, así que el build se dispara igual.
