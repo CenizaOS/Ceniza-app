@@ -839,7 +839,14 @@ function registrarPedidos(p) {
         (p.cedula             || "").trim(),
         parseFloat(p.montoEfectivo) || 0,
         parseFloat(p.vuelto)        || 0,
-        (p.cambioDeTalla === 'true') ? 'true' : '',
+        // Col 22. Va por PANTALÓN, no por pedido (regla de la dueña,
+        // 2026-11-10): en un pedido de 3 pantalones puede que solo uno sea el
+        // cambio, y marcando los tres las otras dos ventas no contaban.
+        // Si el ítem no trae la marca es que el teléfono tiene la app vieja:
+        // entonces vale la del pedido, que es como funcionaba antes.
+        ((item.cambioDeTalla === undefined || item.cambioDeTalla === null)
+          ? (p.cambioDeTalla === 'true')
+          : _esCambioDeTalla(item.cambioDeTalla)) ? 'true' : '',
         // Col 23. Va por ítem, no por pedido: cada pantalón puede llevar su tela.
         (item.tipoTela || "").trim(),
         // Col 24. Piezas: solo la joyería la usa. Una fila de joyería es una
@@ -1203,6 +1210,56 @@ const COL_VERIFICADO = 25;
 // importa — que es justo el fallo de "1313 pantalones sin tela anotada".
 const INICIO_VERIFICACION = "09/11/2026";
 
+// ── El corte: desde el PRIMER pago que la dueña marcó ─────────────────────
+// Regla suya (2026-11-10): *"empieza a contar desde el primer check; las
+// anteriores quítales el rojo porque no entran en vigencia"*.
+// La hoja NO guarda la hora, así que el corte no puede ser una fecha: los
+// pedidos que quiere dejar fuera son del mismo día que el primero que marcó.
+// Se ordena por fecha y, dentro del día, por fila — que es el orden en que se
+// registraron. Es el mismo problema que ya se topó el 09/11 con "a partir de
+// la 1 de la tarde", y esta vez sí tiene solución porque el check es un punto
+// concreto de la hoja, no una hora.
+function _ordenPago(p) {
+  const f = String(p.fecha || "").split("/");
+  const ymd = (f[2] || "0000") + (f[1] || "00") + (f[0] || "00");
+  const filas = (p.filas && p.filas.length) ? p.filas : [0];
+  const fila = Math.min.apply(null, filas);
+  return ymd + ("000000" + fila).slice(-6);
+}
+
+// El corte se GUARDA en una propiedad del script. Si se calculara siempre en
+// vivo, deshacer el check más viejo lo movería hacia adelante y ese mismo
+// pedido desaparecería de la lista en vez de volver a pendiente. Solo se mueve
+// hacia atrás, que es cuando la dueña marca a propósito uno más antiguo.
+function _corteDePagos(pedidos) {
+  let vivo = null;
+  Object.keys(pedidos).forEach(function (k) {
+    const p = pedidos[k];
+    if (!p.verificado) return;
+    const o = _ordenPago(p);
+    if (!vivo || o < vivo) vivo = o;
+  });
+  const props = PropertiesService.getScriptProperties();
+  const guardado = props.getProperty("PAGOS_CORTE") || null;
+  let corte = guardado;
+  if (vivo && (!guardado || vivo < guardado)) {
+    corte = vivo;
+    props.setProperty("PAGOS_CORTE", vivo);
+  }
+  return corte;
+}
+
+function _corteLegible(corte) {
+  if (!corte) return "";
+  return corte.slice(6, 8) + "/" + corte.slice(4, 6) + "/" + corte.slice(0, 4);
+}
+
+// Para el editor: borra el corte y la lista vuelve a empezar en la fecha fija.
+function reiniciarCortePagos() {
+  PropertiesService.getScriptProperties().deleteProperty("PAGOS_CORTE");
+  return "Corte borrado: la lista vuelve a empezar el " + INICIO_VERIFICACION;
+}
+
 // Los pagos en efectivo no llevan referencia: ese dinero se controla con la
 // caja del delivery (decisión de la dueña). Un pago mixto SÍ, porque tiene una
 // parte que entra por el banco.
@@ -1263,9 +1320,14 @@ function getPagosPorVerificar() {
     }
   }
 
+  // Todo lo anterior al primer check queda fuera: no entra en vigencia. Se
+  // filtra ANTES de buscar referencias repetidas y de sumar lo pendiente, para
+  // que ningún aviso venga de un pedido que ya no cuenta.
+  const corte = _corteDePagos(pedidos);
   const lista = [];
   Object.keys(pedidos).forEach(function (k) {
     const p = pedidos[k];
+    if (corte && _ordenPago(p) < corte) return;
     p.monto = Math.round((p.monto + (p.montoDelivery || 0)) * 100) / 100;
     delete p.montoDelivery;
     if (p.referencia) {
@@ -1298,7 +1360,8 @@ function getPagosPorVerificar() {
     pendientes: pend.length,
     sinReferencia: pend.filter(function (p) { return !p.referencia; }).length,
     montoPendiente: Math.round(pend.reduce(function (s, p) { return s + p.monto; }, 0) * 100) / 100,
-    desde: INICIO_VERIFICACION
+    desde: INICIO_VERIFICACION,
+    corte: _corteLegible(corte)
   };
 }
 

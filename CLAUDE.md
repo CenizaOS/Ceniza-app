@@ -864,3 +864,25 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Cómo se comprobó**: se reprodujo el estado roto moviendo `#fin-pagos` fuera de `.fin-body` en el DOM vivo y midiendo las dos posiciones en la misma carga.
 - **REGLA para los scripts que mueven bloques de HTML**: después de tocar la estructura, comprobar **a quién pertenece cada pantalla** (`[...document.querySelector('.fin-body').children].map(e=>e.id)`), no solo que la pestaña abra. Un `</div>` suelto no da error en ningún sitio.
 - Solo frontend. `APP_VERSION` → `2026.11.10`.
+
+## La verificación de pagos empieza en el primer check (2026-11-10)
+- **Regla de la dueña**: *"simplemente empieza a contar desde el primer check. Las demás, anteriores, quítales el rojo porque no entran en vigencia"*. Los pedidos de la mañana del 09/11 (registrados antes de que existiera el campo) salían marcados en rojo como "sin referencia" y habrían seguido ahí para siempre.
+- **El corte NO puede ser una fecha**: la hoja no guarda la hora y los pedidos que quiere dejar fuera son **del mismo día** que el primero que marcó. Es el mismo muro con el que ya se chocó el 09/11 al pedir "a partir de la 1 de la tarde" — y esta vez sí hay solución, porque el check es un punto concreto de la hoja, no una hora.
+- **`_ordenPago(p)`** ordena por fecha y, dentro del día, por **fila** (el orden en que se registraron): `yyyymmdd` + fila a 6 dígitos. **`_corteDePagos(pedidos)`** busca el menor entre los pedidos ya verificados.
+- **El corte se GUARDA** en la ScriptProperty `PAGOS_CORTE`. Si se calculara siempre en vivo, **deshacer el check más viejo movería el corte hacia adelante y ese mismo pedido desaparecería de la lista** en vez de volver a pendiente. Solo se mueve **hacia atrás**, que es cuando la dueña marca a propósito uno más antiguo. `reiniciarCortePagos()` lo borra desde el editor.
+- **El filtro va ANTES** de buscar referencias repetidas y de sumar lo pendiente, para que ningún aviso venga de un pedido que ya no cuenta.
+- **Sin ningún check todavía** no hay corte: se sigue listando desde `INICIO_VERIFICACION` (09/11/2026), que es lo que permite dar el primero.
+- La pantalla lo dice: *"La cuenta empieza en el primer pago que marcaste (dd/mm/yyyy). Lo de antes no entra."*
+- Verificado con `Ceniza_GAS.js` real y hoja simulada, 6 casos: con Ana como primer check, Maria (mismo día, fila anterior) sale de la lista y quedan 2 pendientes por $75 · **deshacer el check de Ana la devuelve a pendiente sin mover el corte** · marcar a Maria mueve el corte hacia atrás · sin ningún check se listan los 4 del 09/11 en adelante · dar el primer check recorta · marcar otro más nuevo no mueve nada.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.** `APP_VERSION` → `2026.11.10b`.
+
+## El cambio de talla pasa a ser por PANTALÓN (2026-11-10)
+- **Regla de la dueña**: *"la marca es por pedido; la idea es que sea por pantalón, porque si una persona pidió 3 pantalones, capaz uno es el que necesita el cambio"*. Marcando el pedido entero, las otras dos ventas **nuevas** no contaban: una comisión pagada de menos, invisible.
+- **La casilla se mudó del pedido al pantalón**: estaba junto a las Notas (`#f-cambio-talla`) y ahora vive dentro del cuadro *Nuevo pantalón* (`#ai-cambio-talla`), debajo del monto. Cada ítem del carrito lleva su `cambioDeTalla` y viaja dentro de `items`.
+- **Se limpia en `mostrarAddItem`**, o sea cada vez que se abre el cuadro — es la lección del 25/09: la casilla se quedaba pegada de un pedido al siguiente. `editarItem` la vuelve a poner **después** de `mostrarAddItem`, con el valor de ese pantalón.
+- **En el carrito sale el distintivo** 🔄 en la línea del pantalón marcado, y el aviso al registrar dice *"1 de 3 pantalones son CAMBIO DE TALLA · esos no suman"*.
+- **El pedido sigue mandando su `cambioDeTalla`** (true si hay alguno) a propósito: si el backend desplegado fuera el viejo, marcaría las 3 filas como antes. Quitarlo habría hecho que no se marcara **ninguna**, que es peor.
+- **Backend**: la col 22 se escribe por ítem. Si el ítem **no trae la clave** es que el teléfono tiene la app vieja, y entonces vale la marca del pedido. `_huellaPedido` ya incluye `items`, así que el anti-duplicado detecta solo el cambio de una casilla.
+- **No hizo falta tocar nada más**: `_filaComisionable`, `getProduccion` (el distintivo de la costurera) y `auditarCambiosTalla` + su botón «Marcar como cambio de talla» **ya eran por fila**. La costurera pasa a ver la marca solo en el pantalón que toca, no en los tres.
+- Verificado en el navegador (3 pantalones con solo el 2º marcado): el carrito marca uno, `items` viaja con la marca por pantalón, editar el marcado recupera su casilla y editar uno normal no la hereda, el aviso dice "1 de 3". Y con `Ceniza_GAS.js` real y hoja simulada, 6 casos de escritura: app nueva 1 de 3 · app vieja marcada → las 2 filas · app vieja normal → ninguna · app nueva sin marcar → ninguna · app nueva todos → las 2 · joyería nunca se marca.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.**
