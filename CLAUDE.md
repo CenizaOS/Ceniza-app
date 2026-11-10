@@ -908,3 +908,16 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - `renderFinCierre` y `autoFillCierre` también usan `FIN_SUBLIMADO.precio`, pero son pantallas **sin botón que las abra**.
 - Verificado: Selvático propone **$55**, o **$50** en efectivo/Binance, con su explicación debajo; en mixto dice el rango 55/50; Cebra y Cuadros siguen en 45/40; Negro 30/25 y Pareo 35/30. En la tarjeta de Estampados, con 8 ventas: marca **2** (un Selvático a $45 y una Cebra a $35) y deja pasar los de $50 y $40 con descuento; ingresos $320 cuadrados a mano. 0 errores de consola.
 - Solo frontend (el backend nunca ha sabido de precios). `APP_VERSION` → `2026.11.10d`.
+
+## El Clásico sube a $35 (2026-11-10)
+- **Decisión de la dueña**: *"el clásico ahora costará $35"*. Era la subida que ya estaba prevista en el manual de la vendedora (*"avisar si el precio va a subir, p. ej. de $30 a $35"*).
+- **⚠️ EL LITERAL NO ES LO QUE MANDA.** `FIN.precio` en el código solo rige en un teléfono que arranca de cero: el precio real vive en **`ceniza_costos_v2`** (hoja Config) y `_aplicarCostosAlFIN` lo escribe encima al cargar. **Hay que cambiarlo también en la app** (Administración → ⚙️ Ajustes → Costos → Pantalón Clásico → Precio de venta), o el 30 guardado sigue ganando. No se puede hacer desde aquí: con `AUTH_ESTRICTA` activo no hay forma de escribir en su Config.
+- **Literales derivados puestos en la misma base que `_recalcFIN`** (la regla del 2026-10-14): `utilNeta` 16,14 → **21,14** (35 − 9,86 − 4,00) y `costoTotal` se queda en 13,86 (no depende del precio). Verificado que correr `_recalcFIN(FIN)` **no cambia nada**.
+- **La marca de agua del campo de monto deja de ser un literal**: `proponerPrecio` la pone desde el precio sugerido. Estaba escrita a mano como `placeholder="30"` y se habría quedado desfasada — el mismo fallo de las etiquetas del Estado de resultados.
+- **La comisión no se mueve**: con el esquema por escalas se paga por pantalón de clienta nueva ($0,50–$1,75), no por un porcentaje del precio.
+- **Punto de equilibrio: baja de 39 a 30 pantalones/quincena** (616 ÷ 21,14).
+- **Clásico y Pareo quedan los dos en $35** (avisado a la dueña por si el Pareo también sube).
+- Precios al día: Clásico **35/30** · Pareo **35/30** · estampados **45/40** · Selvático **55/50** (el segundo número, con el descuento de $5 por efectivo o Binance).
+- Quedan tres `$30` escritos a mano en `PROD_COSTOS_DEFAULT`, `renderFinProduccion` y `renderFinLote`: los tres son **código inalcanzable** y van con la decisión pendiente sobre los módulos huérfanos.
+- Verificado con `localStorage` vacío: Clásico liso 35/30, Pareo 35/30, estampados 45/40, Selvático 55/50; la marca de agua dice 35,00 y la nota del descuento *"En efectivo: $35,00 − $5,00"*. 0 errores de consola.
+- Solo frontend. `APP_VERSION` → `2026.11.10e`.
