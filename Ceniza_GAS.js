@@ -1813,11 +1813,16 @@ function _cierreQuincena(filas, desde, hasta, conv, primeras, auditorias, cortes
   return c;
 }
 
-// Tasa de cierre del día más reciente con conversaciones anotadas (hoy, o hasta
-// 7 días atrás: la dueña las anota al final del día). Es lo primero que ve la
-// vendedora en Comisiones, para que se enfoque en cerrar (decisión de la dueña).
+// Tasa de cierre del último día CERRADO con conversaciones anotadas. Es lo
+// primero que ve la vendedora en Comisiones, para que se enfoque en cerrar
+// (decisión de la dueña).
+// **Empieza en AYER, nunca en hoy** (regla de la dueña, 2026-11-11): *"la del
+// día es imposible que le aparezca porque siempre se cierra el día en la noche;
+// la idea es que le salga la del día anterior"*. Si la dueña anota las
+// conversaciones de hoy a media tarde, la tasa de hoy sale con el día a medias
+// y engaña. Se mira hasta 7 días hacia atrás por si no se anotó alguno.
 function _ultimoDiaConConversaciones(filas, hoy, conv, primeras) {
-  for (let k = 0; k < 7; k++) {
+  for (let k = 1; k <= 7; k++) {
     const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - k);
     const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     if (conv[iso] === undefined || isNaN(conv[iso])) continue;

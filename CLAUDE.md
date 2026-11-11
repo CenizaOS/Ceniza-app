@@ -921,3 +921,16 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Quedan tres `$30` escritos a mano en `PROD_COSTOS_DEFAULT`, `renderFinProduccion` y `renderFinLote`: los tres son **código inalcanzable** y van con la decisión pendiente sobre los módulos huérfanos.
 - Verificado con `localStorage` vacío: Clásico liso 35/30, Pareo 35/30, estampados 45/40, Selvático 55/50; la marca de agua dice 35,00 y la nota del descuento *"En efectivo: $35,00 − $5,00"*. 0 errores de consola.
 - Solo frontend. `APP_VERSION` → `2026.11.10e`.
+
+## La vendedora ve la tasa del DÍA ANTERIOR, nunca la de hoy (2026-11-11)
+- **Regla de la dueña**: *"me gustaría que en sus comisiones le aparezca la tasa de cierre del día anterior… la del día es imposible que le aparezca porque siempre se cierra el día en la noche"*.
+- **Lo que fallaba**: `_ultimoDiaConConversaciones` empezaba el bucle en **hoy** (`k = 0`). Si la dueña anotaba las conversaciones de hoy a media tarde, Angi veía la tasa de un día **a medias** — ventas que aún no han entrado sobre conversaciones que ya están contadas. No es una aproximación, es una cifra que engaña hacia abajo.
+- **Arreglo**: el bucle empieza en **ayer** (`k = 1`) y mira hasta 7 días atrás por si algún día quedó sin anotar. Hoy **nunca** se usa.
+- **El rótulo sale de la fecha que manda el servidor**, no de una suposición: *"Tasa de cierre ayer"*, *"Tasa de cierre del 08/11"* si hubo que retroceder, y *"ayer — aún sin datos"* si no hay ninguno. Con un backend viejo (que todavía puede mandar hoy) el texto sigue diciendo *"hoy"*, así que no miente mientras se despliega.
+- **Solo afecta a la pantalla de la vendedora**: la dueña tiene su propia tarjeta *"Conversaciones de hoy"* en 🎯 Angi, que se pinta de la config y no pasa por aquí.
+- Verificado con `Ceniza_GAS.js` real, 5 casos: hoy y ayer anotados → devuelve **ayer** (4/80 = 5 %, no el 5/100 de hoy) · solo hoy anotado → **nada** · falta ayer → retrocede al antepenúltimo · nada anotado → nada · solo ayer → ayer. Y en la app, los 4 rótulos. 0 errores de consola.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.** `APP_VERSION` → `2026.11.11`.
+
+## El Pareo se mantiene en $35 y se va a descontinuar (2026-11-11)
+- La dueña: *"el pareo se mantiene como está porque no se va a seguir vendiendo luego; estamos esperando que se acabe y ya no existirá más"*.
+- **No se toca nada por ahora**: sigue en $35 (o $30 con descuento) y con sus 14 colores. Cuando se agote habrá que decidir si se retira de `COLORES_PRODUCTO` y de `PRECIO_PRODUCTO` — **sin borrar `FIN_PAREO`**, porque el Estado de resultados y el historial necesitan su modelo de costos para los pedidos ya vendidos (misma lógica que los colores retirados, que siguen en `SUBLIMADO_COLORS_SET`).
