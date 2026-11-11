@@ -945,3 +945,14 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Un día con conversaciones y 0 ventas sí sale** (0,0 % en rojo): es información, y esconderlo dejaría huecos sin explicar.
 - Verificado con `Ceniza_GAS.js` real: 4 días anotados (uno con 0 ventas) → `porDia` correcto y la quincena 12/290 = 4,1 %. En la app a 375 px: sale sin hoy, de más reciente a más antiguo, días de la semana correctos (10/11 → Mar), 5,0 % en dorado y 0,0 % en rojo; con un backend viejo sin `porDia` **la sección simplemente no aparece**; 0 desbordes horizontales y 0 errores de consola.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO.** `APP_VERSION` → `2026.11.11b`.
+
+## Repasar los cambios de talla viejos marcados en bloque (2026-11-11)
+- **De dónde viene**: al pasar la marca a por-pantalón (2026-11-10) quedó pendiente revisar los pedidos **ya escritos**, que llevan marcados TODOS sus pantalones. Si en uno de 3 solo uno era el cambio, las otras dos ventas nuevas no contaron **ni se pagaron**.
+- **No hizo falta backend**: `auditarCambiosTalla` ya devuelve los `marcados` **por fila** (fila, fecha, cliente, color, talla) y `editarPedido` ya sabe escribir la columna 22. Todo el repaso es frontend.
+- **Los marcados ahora se agrupan POR PEDIDO** (fecha + cliente) y los grupos de **2 o más salen primero y resaltados**: son exactamente los que hay que mirar. Los de un solo pantalón se listan después, sin botón, como referencia.
+- **`quitarCambioTalla(fila)`** es la vuelta atrás de `marcarCambioTalla`: manda **solo** `fila` y `cambioDeTalla=false`, así que `editarPedido` no puede pisar cliente, color ni monto. Pide confirmación y recarga la tarjeta **conservando el alcance** que se estuviera revisando.
+- **Botón «🔎 Revisar todo el año»**: `auditarCambiosTalla` sin `desde` recorre la hoja activa entera (`Pedidos 2026`). La tarjeta sigue abriendo por la quincena, que es el uso diario.
+- **El botón de quitar solo sale en los grupos de 2+**, a propósito: en un pedido de un solo pantalón marcado no hay nada que repasar, y dejarlo invitaría a desmarcar por error. (Para ese caso sigue estando la edición del pedido, que es más deliberada.)
+- **`_auditTallaTodo` es un `let` de ámbito de script**: `window._auditTallaTodo` es OTRA variable. Al probarlo desde la consola hay que tocarla por nombre, o el caso de prueba miente — pasó en la primera pasada.
+- Verificado a 375 px con 6 marcados (un pedido de 3, uno de 2 y uno suelto) y 1 sospechoso: los grupos salen ordenados 3 → 2 → 1, con 5 botones de quitar y ninguno en el suelto; la URL que se envía es exactamente `accion=editarPedido&fila=121&cambioDeTalla=false`; tras quitar, recarga con todo=true si estaba revisando el año y con todo=false si estaba en la quincena. 0 desbordes horizontales y 0 errores de consola. `fetch` interceptado antes de llamar: **no se tocó producción**.
+- Solo frontend. `APP_VERSION` → `2026.11.11c`.
