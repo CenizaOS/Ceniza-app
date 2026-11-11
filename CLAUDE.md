@@ -934,3 +934,14 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 ## El Pareo se mantiene en $35 y se va a descontinuar (2026-11-11)
 - La dueña: *"el pareo se mantiene como está porque no se va a seguir vendiendo luego; estamos esperando que se acabe y ya no existirá más"*.
 - **No se toca nada por ahora**: sigue en $35 (o $30 con descuento) y con sus 14 colores. Cuando se agote habrá que decidir si se retira de `COLORES_PRODUCTO` y de `PRECIO_PRODUCTO` — **sin borrar `FIN_PAREO`**, porque el Estado de resultados y el historial necesitan su modelo de costos para los pedidos ya vendidos (misma lógica que los colores retirados, que siguen en `SUBLIMADO_COLORS_SET`).
+
+## Historial de tasas día a día para la vendedora (2026-11-11)
+- **Petición de la dueña**: *"un apartado donde ella pueda ver el historial de tasas de cierre de esa quincena"*. Va justo debajo de la tarjeta de su escala, en Comisiones.
+- **Ninguna consulta nueva**: `_tasaCierreRango` ya recorría día a día para calcular la tasa de la quincena; ahora devuelve también **`porDia`**. Misma idea que `desglosePorProductoColor` y `cargaPorDia`: sacar el dato del recorrido que ya se hacía, porque la lentitud de Apps Script es el dolor recurrente del proyecto.
+- **Solo lo que ella puede ver**: cada día lleva `{fecha, conversaciones, ventas, tasa}` y **`ventas` son clientas NUEVAS**. Ni dinero ni recurrentes — las dos decisiones de la dueña del 2026-11-02. `_sinMontosPorPantalon` no tiene que tocarlo.
+- **Hoy tampoco sale aquí**: `getComisiones` lo filtra con la misma regla que `ultimoDia`. El pie lo dice: *"Solo los días cerrados con conversaciones anotadas. El de hoy aparece mañana."*
+- **Los colores salen de `d.escalas`, NO de `cierre.escalas`**: al llegar a la vendedora, `_sinMontosPorPantalon` **borra `cierre.escalas`** (trae los pagos). Usarla habría dejado todas las barras grises sin ningún error visible. Verde si ese día habría caído en Escala 3+, dorado en la 2, rojo en la 1.
+- **La barra se mide contra el mejor día de la quincena**, no contra el 100 %: con tasas del 4–8 % una barra sobre 100 no se vería.
+- **Un día con conversaciones y 0 ventas sí sale** (0,0 % en rojo): es información, y esconderlo dejaría huecos sin explicar.
+- Verificado con `Ceniza_GAS.js` real: 4 días anotados (uno con 0 ventas) → `porDia` correcto y la quincena 12/290 = 4,1 %. En la app a 375 px: sale sin hoy, de más reciente a más antiguo, días de la semana correctos (10/11 → Mar), 5,0 % en dorado y 0,0 % en rojo; con un backend viejo sin `porDia` **la sección simplemente no aparece**; 0 desbordes horizontales y 0 errores de consola.
+- **ORDEN DE DESPLIEGUE: backend PRIMERO.** `APP_VERSION` → `2026.11.11b`.

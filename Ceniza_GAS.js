@@ -1761,15 +1761,23 @@ function _tasaCierreRango(filas, desde, hasta, conv, primeras) {
     (destino[iso(f.fecha)] = destino[iso(f.fecha)] || {})[k] = 1;
   }
   let conversaciones = 0, ventas = 0, recurrentes = 0, dias = 0;
+  const porDia = [];
   for (let d = new Date(desde); d < hasta; d.setDate(d.getDate() + 1)) {
     const n = conv[iso(d)];
     if (n === undefined || isNaN(n)) continue;
     conversaciones += n; dias++;
-    ventas      += Object.keys(nuevas[iso(d)] || {}).length;
+    const vNuevas = Object.keys(nuevas[iso(d)] || {}).length;
+    ventas      += vNuevas;
     recurrentes += Object.keys(recur[iso(d)]  || {}).length;
+    // Día a día, para el historial que ve la vendedora (dueña, 2026-11-11).
+    // Sale del mismo recorrido que ya se hacía, así que NO cuesta ninguna
+    // consulta extra. Lleva solo clientas nuevas y ningún dato de dinero: es
+    // lo único que ella puede ver (decisiones de la dueña del 2026-11-02).
+    porDia.push({ fecha: iso(d), conversaciones: n, ventas: vNuevas,
+                  tasa: n > 0 ? Math.round(vNuevas / n * 1000) / 10 : null });
   }
   const tasa = conversaciones > 0 ? Math.round(ventas / conversaciones * 1000) / 10 : null;
-  return { conversaciones, ventas, recurrentes, dias, tasa };
+  return { conversaciones, ventas, recurrentes, dias, tasa, porDia };
 }
 
 // [{fecha:'yyyy-mm-dd', chats, c:[5 cumplidos], puntos}]. `puntos` (0–100) lo
@@ -1936,6 +1944,10 @@ function getComisiones(quincena, arrastresJson, rol) {
     const auditorias = _auditoriasGuardadas(), cortes = _cortesGuardados();
     cierre = _cierreQuincena(todas, q.actual.desde, q.actual.hasta, conv, primeras, auditorias, cortes);
     cierre.ultimoDia = _ultimoDiaConConversaciones(todas, hoy, conv, primeras);
+    // El día de hoy fuera también del historial: se cierra de noche, y una
+    // tasa a medias en la lista confundiría igual que en la tarjeta.
+    const _isoHoy = hoy.getFullYear() + "-" + String(hoy.getMonth() + 1).padStart(2, "0") + "-" + String(hoy.getDate()).padStart(2, "0");
+    cierre.porDia = (cierre.porDia || []).filter(function (x) { return x.fecha !== _isoHoy; });
     // A la vendedora se le paga TODO a fin de mes (dueña, 2026-11-02): en la 2ª
     // quincena hace falta también lo ganado en la 1ª, con SU propia escala.
     if (q.anterior) cierreAnt = _cierreQuincena(todas, q.anterior.desde, q.anterior.hasta, conv, primeras, auditorias, cortes);
