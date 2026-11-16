@@ -1,3 +1,14 @@
+// ⚠️ SUBIR ESTA FECHA EN CADA DESPLIEGUE QUE CAMBIE EL COMPORTAMIENTO.
+// Es la única forma de saber, desde fuera, qué versión del servidor está viva:
+// `?accion=ping` es pública (no pide token), así que devolverla aquí permite
+// comprobar un despliegue sin el PIN de nadie.
+// Hace falta porque el desplegable de Apps Script vuelve a publicar la versión
+// ANTERIOR si no se elige "Nueva versión", y eso ya ha pasado cuatro veces: el
+// código queda pegado en el editor pero la web app sigue sirviendo el viejo,
+// sin ningún aviso. El síntoma es siempre el mismo —"publiqué el arreglo y no
+// funciona"— y hasta ahora solo se podía diagnosticar a base de capturas.
+const VERSION_BACKEND = "2026.11.16";
+
 const SHEET_ID = "1xWtQo2E4supdMs0vpHMvMQNXxEsiCI53j399qJzV8RE";
 // La hoja y el mes activo se abren SOLO cuando una consulta los necesita.
 // Antes se abrían al cargar el script, es decir en CADA petición, incluidas
@@ -381,7 +392,7 @@ function doGet(e) {
     else if (accion === "leerConfig")      data = leerConfig(rolToken);
     else if (accion === "guardarConfig")   data = _conLock(() => guardarConfig(e.parameter.clave, e.parameter.valor, rolToken));
     else if (accion === "limpiarResponsable") data = limpiarResponsable(e.parameter);
-    else if (accion === "ping")            data = { ok: true, ts: Date.now() };
+    else if (accion === "ping")            data = { ok: true, ts: Date.now(), version: VERSION_BACKEND };
     else if (accion === "corregirQuincena")    data = _quincenaFija();
     else if (accion === "setFechaQuincena")   data = _quincenaFija();
     else data = { error: "Accion no reconocida" };

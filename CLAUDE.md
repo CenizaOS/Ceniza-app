@@ -989,3 +989,11 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - Verificado con `Ceniza_GAS.js` real y hoja simulada (hoy = 16/11): el período es `01/11 – 30/11`, `anterior` null, **200 pantalones del mes entero** (con la regla vieja habrían sido los de la 2ª quincena); 800 conv → 6,7 % → Escala 3 → comisión $240 y total **$440 = $200 + $240**; dueña y vendedora ven el mismo total y la vendedora **sigue sin recibir ningún `pago` ni la palabra "recurrente"**; historial con UNA fila `MES 01/11 – 30/11`; Estado de resultados con **Gastos fijos del mes −$1.232,00** y utilidad bruta $2.996 cuadrada a mano. Las 5 pestañas abren sin error, mismas consultas que antes y 0 desbordes a 375 px.
 - **ORDEN DE DESPLIEGUE: backend PRIMERO.** Con el backend viejo y la app nueva, la app pediría rangos mensuales pero el servidor seguiría contando por quincena.
 - `APP_VERSION` → `2026.11.16`.
+
+## `ping` devuelve la versión del servidor (2026-11-16)
+- **Por qué**: el despliegue de Apps Script vuelve a publicar la versión ANTERIOR si no se elige **"Nueva versión"** en el desplegable, y eso ya ha pasado **cuatro veces**. El código queda pegado en el editor pero la web app sirve el viejo, **sin ningún aviso**. Y desde aquí no había forma de comprobarlo: con `AUTH_ESTRICTA` activo todas las rutas piden token menos `ping`, que solo respondía `{ok, ts}`. El diagnóstico se hacía a base de capturas de la dueña.
+- **`VERSION_BACKEND`** (constante al principio de `Ceniza_GAS.js`) viaja ahora en la respuesta de `ping`, que es **pública**. Comprobar un despliegue pasa a ser una consulta:
+  `curl -s "<URL de la web app>?accion=ping"` → `{"ok":true,"ts":…,"version":"2026.11.16"}`
+- **REGLA: subir `VERSION_BACKEND` en CADA despliegue que cambie el comportamiento**, igual que `APP_VERSION` en `index.html`. Son dos marcadores independientes a propósito: el de la app dice qué tiene el teléfono, el del servidor qué tiene Apps Script, y el fallo típico es justo que no coincidan.
+- **No abre ningún agujero**: verificado con `AUTH_ESTRICTA='true'` (como en producción) que `ping` responde con la versión pero `comisiones`, `leerConfig` y `pagosPorVerificar` siguen devolviendo `NO_AUTORIZADO` sin token. Lo único que se expone es una fecha.
+- **Solo backend.** `index.html` no cambia.
