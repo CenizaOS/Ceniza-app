@@ -997,3 +997,14 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **REGLA: subir `VERSION_BACKEND` en CADA despliegue que cambie el comportamiento**, igual que `APP_VERSION` en `index.html`. Son dos marcadores independientes a propósito: el de la app dice qué tiene el teléfono, el del servidor qué tiene Apps Script, y el fallo típico es justo que no coincidan.
 - **No abre ningún agujero**: verificado con `AUTH_ESTRICTA='true'` (como en producción) que `ping` responde con la versión pero `comisiones`, `leerConfig` y `pagosPorVerificar` siguen devolviendo `NO_AUTORIZADO` sin token. Lo único que se expone es una fecha.
 - **Solo backend.** `index.html` no cambia.
+
+## Tasa acumulada en la pantalla de Angi (2026-11-16)
+- **Petición de la dueña**: *"no solo la lista de tasas de cierre por día, sino cuánto sería la tasa… cómo está en este momento presente. Si yo llevo día 1, día 2, día 3, ¿cuál sería la tasa según esos días?, y que se vaya actualizando según al pasar de los días"*.
+- **Dos cosas, las dos en `htmlTasasPorDia`**:
+  - **Titular «Así vas en \<mes\>»** encima de la lista, con la tasa del mes en grande y el `N de M conversaciones` debajo.
+  - **`· acumulado X%` en cada día**: cómo iba el mes hasta ESE día. Se calcula recorriendo `porDia` en orden cronológico y la lista se pinta al revés, así que la fila de arriba (la más reciente) lleva el acumulado de todo el mes.
+- **El titular usa `cierre.tasa` TAL CUAL, no lo recalcula.** Es la misma cifra que decide su escala y que ya sale arriba en "Tasa de cierre del mes": dos cuentas del mismo número acaban separándose (ya pasó dos veces con la comisión). Lo único que puede quedar a una décima es el acumulado de la fila más reciente, si la dueña ya anotó hoy — porque hoy no se lista.
+- **Ninguna consulta nueva ni backend**: `porDia` ya traía `{fecha, conversaciones, ventas, tasa}` desde el 2026-11-11.
+- **Sin explicaciones del esquema**, respetando la decisión del 2026-11-02: solo números y una leyenda de qué es cada uno. Nada de "te falta X para la Escala 4".
+- Verificado a 375 px con 4 días de distinta tasa (10,0 · 0,0 · 5,0 · 20,0 %): acumulados **10,0 → 5,0 → 5,0 → 8,0 %**, titular 8,0 % con `4 de 50`, y coincide con "Tasa de cierre del mes 8,0 %" y con la comisión ($7,00 = 4 × $1,75 de Escala 4). 0 desbordes y 0 errores de consola.
+- Solo frontend. `APP_VERSION` → `2026.11.16b`.
