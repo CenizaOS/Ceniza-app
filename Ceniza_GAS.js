@@ -1547,6 +1547,11 @@ function contarPantsPorVendedora(datos, desde, hasta) {
 const UTILIDAD_COMISION = 13;
 const UTILIDAD_NETA = UTILIDAD_COMISION;   // nombre antiguo, para no tocar los usos
 const BASE_FIJA     = 100;
+// Sueldo fijo del PERÍODO. Desde el 2026-11-16 el período es el mes, así que
+// son los $200 que ella paga a fin de mes y no los $100 de media quincena.
+// `BASE_FIJA` se queda para `_calcularComision`, que solo calcula quincenas
+// anteriores a noviembre en el historial: ésas se pagaron de dos en dos.
+const SUELDO_MES    = BASE_FIJA * 2;
 
 // ─── JOYERÍA (lote piloto, 2026-10-29) ──────────────────────────────────────
 // Acero inoxidable: brazaletes, anillos, collares y zarcillos. NO es un color
@@ -1665,7 +1670,7 @@ function _escalaPor(valor, campo, escalas) {
 // así que cambiar los cortes NO recalcula quincenas ya cerradas.
 function _cortesGuardados() {
   try {
-    const l = JSON.parse(leerConfig().ceniza_escalas_cortes || "[]");
+    const l = JSON.parse(_configInterna().ceniza_escalas_cortes || "[]");
     return Array.isArray(l) ? l.filter(_cortesValidos) : [];
   } catch (e) {
     return [];
@@ -1731,7 +1736,7 @@ const ORIGEN_NUEVA      = "Cliente nueva";
 // que quepa en la URL; ver getConversaciones() en el frontend.
 function _conversacionesGuardadas() {
   try {
-    const raw = JSON.parse(leerConfig().ceniza_conversaciones || "{}") || {};
+    const raw = JSON.parse(_configInterna().ceniza_conversaciones || "{}") || {};
     const mapa = {};
     Object.keys(raw).forEach(k => {
       const v = raw[k];
@@ -1784,7 +1789,7 @@ function _tasaCierreRango(filas, desde, hasta, conv, primeras) {
 // calcula el frontend al guardar (puntosAuditoria): aquí solo se promedia.
 function _auditoriasGuardadas() {
   try {
-    const l = JSON.parse(leerConfig().ceniza_auditorias || "[]");
+    const l = JSON.parse(_configInterna().ceniza_auditorias || "[]");
     return Array.isArray(l) ? l.filter(a => a && a.fecha && !isNaN(Number(a.puntos))) : [];
   } catch (e) {
     return [];
@@ -1846,28 +1851,35 @@ function _comisionEscala(cierre, nombre) {
   const comNuevas      = v.nuevas * cierre.escala.pago;
   const comRecurrentes = v.recurrentes * PAGO_RECURRENTE;
   const comision = (comNuevas + comRecurrentes).toFixed(2);
-  return { pct: "Escala " + cierre.escala.n, comision, totalAPagar: (BASE_FIJA + parseFloat(comision)).toFixed(2),
+  return { pct: "Escala " + cierre.escala.n, comision, totalAPagar: (SUELDO_MES + parseFloat(comision)).toFixed(2),
            comisionNuevas: comNuevas.toFixed(2), comisionRecurrentes: comRecurrentes.toFixed(2),
            pantsNuevas: v.nuevas, pantsRecurrentes: v.recurrentes, nivelSiguiente: null, faltanParaSiguiente: 0 };
 }
 
-// ─── QUINCENAS FIJAS ─────────────────────────────────────────────────────────
-// Q1 = del 1 al 15 · Q2 = del 16 al último día del mes. Todo se deduce de la
-// fecha de hoy en Caracas: no hay fecha de inicio guardada ni reinicio manual.
-// Arrastre: solo en Q2, y es lo vendido en la Q1 del mismo mes. En Q1 se
-// empieza desde cero (cada mes arranca en 0).
-// Los rangos son [desde, hasta): `hasta` es el primer día de la siguiente.
+// ─── EL PERÍODO ES EL MES ────────────────────────────────────────────────────
+// Hasta el 2026-11-15 el período era la QUINCENA (1–15 y 16–fin de mes) y todo
+// se ponía a cero el día 16. La dueña lo quitó el 2026-11-16: *"quita la regla
+// de que todo se reinicia el 16 de cada mes, para yo poder tener acceso a todos
+// los datos… deja todo lo que se ha hecho en noviembre"*.
+// Ahora el período va del día 1 al último día del mes, y con él se mueven TODOS
+// los números que antes se reiniciaban: conteo de pantalones, Estado de
+// resultados, tasa de cierre, auditoría, escala y el pago de la vendedora.
+// Ella ya pagaba a fin de mes, así que el mes es también la unidad de pago.
+//
+// Se conservan a propósito el nombre de la función y la forma de lo que
+// devuelve (`actual`, `anterior`, `esQ2`) para no tocar a sus llamadores.
+// `anterior` es SIEMPRE null — que es justo lo que ya devolvía en Q1 — así que
+// el arrastre se apaga solo y `getArrastresData` sigue respondiendo vacío.
+// Los rangos son [desde, hasta): `hasta` es el primer día del mes siguiente.
 function _hoyCaracas() {
   return _parseFechaVE(Utilities.formatDate(new Date(), "America/Caracas", "dd/MM/yyyy"));
 }
 
 function _rangosQuincena(hoy) {
   const y = hoy.getFullYear(), m = hoy.getMonth();
-  const esQ2 = hoy.getDate() >= 16;
-  const actual   = esQ2 ? { desde: new Date(y, m, 16), hasta: new Date(y, m + 1, 1) }
-                        : { desde: new Date(y, m, 1),  hasta: new Date(y, m, 16) };
-  const anterior = esQ2 ? { desde: new Date(y, m, 1),  hasta: new Date(y, m, 16) } : null;
-  return { esQ2, actual, anterior };
+  return { esQ2: false,
+           actual:   { desde: new Date(y, m, 1), hasta: new Date(y, m + 1, 1) },
+           anterior: null };
 }
 
 // "16/09 – 30/09" (hasta es exclusivo, así que se resta un día)
@@ -1931,8 +1943,11 @@ function getComisiones(quincena, arrastresJson, rol) {
   const arrastres = q.anterior ? contarPantsPorVendedora(datos, q.anterior.desde, q.anterior.hasta) : {};
   const conteoMes = contarPantsPorVendedora(datos, mesInicio, null);
 
-  const quincenaLabel         = (q.esQ2 ? "Q2 · " : "Q1 · ") + _etiquetaRango(q.actual);
-  const quincenaAnteriorLabel = q.anterior ? "Q1 · " + _etiquetaRango(q.anterior) : "";
+  // El período es el MES (2026-11-16). La clave se sigue llamando
+  // `quincenaLabel` para no romper a un teléfono que aún no se haya
+  // actualizado: lo que cambia es el texto, que ahora nombra el mes.
+  const quincenaLabel         = MESES_ES[hoy.getMonth()] + " · " + _etiquetaRango(q.actual);
+  const quincenaAnteriorLabel = "";
   const d0 = q.actual.desde;
   const fechaInicioStr = String(d0.getDate()).padStart(2, "0") + "/" + String(d0.getMonth() + 1).padStart(2, "0") + "/" + d0.getFullYear();
 
@@ -2084,26 +2099,40 @@ function getHistorialQuincenas() {
 
   const lista =Object.keys(meses).sort().reverse().map(clave => {
     const m = meses[clave];
-    const rangos = _rangosQuincena(new Date(m.anio, m.mes, 16)); // fuerza Q2 para tener ambos rangos
     const nombres = Array.from(new Set([...Object.keys(m.q[1]), ...Object.keys(m.q[2])])).sort();
     const esMesActual = clave === claveHoy;
+    const mesDesde = new Date(m.anio, m.mes, 1), mesHasta = new Date(m.anio, m.mes + 1, 1);
 
-    const quincenas = [1, 2].map(q => {
-      // Un mes anterior siempre tiene ambas quincenas; el actual solo hasta la de hoy
-      if (esMesActual && q > qHoy) return null;
-      const r = q === 1 ? rangos.anterior : rangos.actual;
-      const cierre = _cierreQuincena(filas, r.desde, r.hasta, conv, primeras, auditorias, cortes);
+    // Desde el 2026-11-16 el período es el mes: UNA fila por mes.
+    // Los meses anteriores conservan sus DOS quincenas a propósito, porque así
+    // se calcularon y se pagaron en su momento — recalcularlas aquí
+    // reescribiría el histórico de lo ya cobrado.
+    let quincenas;
+    if (mesDesde >= INICIO_ESCALAS) {
+      const cierre = _cierreQuincena(filas, mesDesde, mesHasta, conv, primeras, auditorias, cortes);
       const vendedoras = nombres.map(nombre => {
-        const q1 = m.q[1][nombre] || 0;
-        const pantsQuincena = m.q[q][nombre] || 0;
-        // Con escalas cada quincena va sola; antes la 2ª usaba 1ª + 2ª
-        if (cierre) return Object.assign({ nombre, pantsQuincena, base: pantsQuincena }, _comisionEscala(cierre, nombre));
-        const base = q === 1 ? q1 : q1 + pantsQuincena;
-        return Object.assign({ nombre, pantsQuincena, base }, _calcularComision(base));
+        const pants = (m.q[1][nombre] || 0) + (m.q[2][nombre] || 0);
+        return Object.assign({ nombre, pantsQuincena: pants, base: pants }, _comisionEscala(cierre, nombre));
       }).filter(v => v.base > 0);
-      const total = vendedoras.reduce((a, v) => a + v.pantsQuincena, 0);
-      return { q, rango: _etiquetaRango(r), enCurso: esMesActual && q === qHoy, total, vendedoras, cierre };
-    }).filter(Boolean);
+      quincenas = [{ q: 0, rango: _etiquetaRango({ desde: mesDesde, hasta: mesHasta }), enCurso: esMesActual,
+                     total: vendedoras.reduce((a, v) => a + v.pantsQuincena, 0), vendedoras, cierre }];
+    } else {
+      const rangos = { 1: { desde: mesDesde,                      hasta: new Date(m.anio, m.mes, 16) },
+                       2: { desde: new Date(m.anio, m.mes, 16),   hasta: mesHasta } };
+      quincenas = [1, 2].map(q => {
+        // Un mes anterior siempre tiene ambas quincenas; el actual solo hasta la de hoy
+        if (esMesActual && q > qHoy) return null;
+        const r = rangos[q];
+        const vendedoras = nombres.map(nombre => {
+          const q1 = m.q[1][nombre] || 0;
+          const pantsQuincena = m.q[q][nombre] || 0;
+          const base = q === 1 ? q1 : q1 + pantsQuincena;
+          return Object.assign({ nombre, pantsQuincena, base }, _calcularComision(base));
+        }).filter(v => v.base > 0);
+        return { q, rango: _etiquetaRango(r), enCurso: esMesActual && q === qHoy,
+                 total: vendedoras.reduce((a, v) => a + v.pantsQuincena, 0), vendedoras, cierre: null };
+      }).filter(Boolean);
+    }
 
     const total = quincenas.reduce((a, qq) => a + qq.total, 0);
     return { clave, anio: m.anio, mes: m.mes + 1, nombre: MESES_ES[m.mes] + " " + m.anio, esMesActual, total, quincenas };
@@ -2262,6 +2291,17 @@ function _filasConfig(sheet, clave) {
 // cualquiera con sesión: en el teléfono de la vendedora acababan las
 // auditorías, el gasto en Meta y los cortes de las escalas, y los costos de la
 // dueña viajaban en la respuesta. Ver CONFIG_POR_ROL.
+// Lectura INTERNA del servidor: no es la respuesta a ningún teléfono, así que
+// NO se le aplica el filtro por perfil.
+// ⚠️ Sin esto había un fallo serio, introducido con los permisos por perfil el
+// 2026-11-06 y encontrado el 2026-11-16: `leerConfig()` sin rol pasa por
+// `_clavesDeRol(undefined)` → `[]`, así que con `PERMISOS_ESTRICTOS` en su
+// valor POR DEFECTO (activo) devolvía **{}**. El servidor se quedaba sin
+// conversaciones, sin auditorías, sin los cortes de las escalas y sin las
+// cargas de tela — o sea, tasa de cierre 0, escala por defecto e inventario
+// sin descontar, sin un solo error en pantalla.
+function _configInterna() { return leerConfig("duena"); }
+
 function leerConfig(rol) {
   const sheet = getConfigSheet();
   const data = sheet.getDataRange().getValues();
@@ -2353,7 +2393,7 @@ function _filaConsumeTela(row) {
 }
 
 function getInventarioTelas() {
-  const cargas = _leerConfigJSON(leerConfig(), "ceniza_tela_cargas", []);
+  const cargas = _leerConfigJSON(_configInterna(), "ceniza_tela_cargas", []);
 
   // Cada tela empieza a descontar desde SU primera carga. Antes había una fecha
   // de arranque global que la costurera tenía que poner a mano; sobra: si una
