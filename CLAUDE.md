@@ -1008,3 +1008,17 @@ Building and maintaining the **Ceniza** app — a Venezuelan women's clothing br
 - **Sin explicaciones del esquema**, respetando la decisión del 2026-11-02: solo números y una leyenda de qué es cada uno. Nada de "te falta X para la Escala 4".
 - Verificado a 375 px con 4 días de distinta tasa (10,0 · 0,0 · 5,0 · 20,0 %): acumulados **10,0 → 5,0 → 5,0 → 8,0 %**, titular 8,0 % con `4 de 50`, y coincide con "Tasa de cierre del mes 8,0 %" y con la comisión ($7,00 = 4 × $1,75 de Escala 4). 0 desbordes y 0 errores de consola.
 - Solo frontend. `APP_VERSION` → `2026.11.16b`.
+
+## La auditoría "no llegaba a 100" (2026-11-18)
+- **Lo que vio la dueña**: *"el conteo se supone que dice que tiene que sumar 100, pero al final, como son 15 chats los que se revisan, el conteo no llega a 100"*.
+- **Eran DOS cosas distintas, y las dos reales**:
+  1. **Confusión de unidades, culpa del formulario.** En cada fila ponía el peso del bloque entre paréntesis —`1. Atender (20)`— justo al lado de una casilla donde lo que se escribe son **chats** (0 a 15). Sumando lo escrito salen como mucho 75, nunca 100, así que parecía que faltaba algo. El peso y lo que se teclea estaban pegados y en la misma tipografía, sin nada que dijera que son magnitudes distintas.
+  2. **Los puntos NO cuadraban de verdad, por redondeo.** `puntosAuditoria` sumaba los cinco términos **sin redondear** y redondeaba solo al final. Cada bloque a 1 decimal puede desviarse hasta 0,033, así que la nota podía quedar **hasta 0,2 por encima** de lo que suman los cinco bloques. Con 15 chats y un 1 en cada bloque: filas 1,3 × 5 = 6,5 pero la nota decía **6,7**.
+- **Arreglo**:
+  - **`puntosBloque(chats, n, pts)`** es ahora la cuenta de UN bloque y **se redondea a 1 decimal antes de sumar**, así que la nota es exactamente la suma de lo que se ve. Solo cambia auditorías **nuevas**: las guardadas conservan su `puntos`, que es lo único que promedia el servidor.
+  - **Cada fila muestra sus puntos en dorado**: `1. Atender → 16,0 de 20 pts`. El peso deja de ser un paréntesis mudo y pasa a ser una cifra viva.
+  - **Recuadro explicativo** arriba: *"Lo que escribes son chats, no puntos… no suman 100. Cada bloque vale 20 y se lleva la parte que le toca."* Y bajo "Nota de la semana", *"suma de los puntos en dorado"*.
+  - **`_audPintarPuntos`** repinta filas, máximos y nota **sin redibujar el formulario** (si se redibujara se perdería el cursor). De paso arregla que **el "/ 15" se quedaba congelado**: al cambiar "Chats revisados" seguía mostrando el máximo viejo.
+- **REGLA: si una pantalla enseña un total y sus partes, el total tiene que ser la suma de las partes TAL COMO SE VEN.** Redondear solo al final es correcto en aritmética y falso en pantalla; quien lo lee suma lo que ve.
+- Verificado a 375 px: en **10 combinaciones** (incluidas 15/15 → 100, todo a 0, y chats distintos de 15) la suma de las filas es **idéntica** a la nota, sin una sola discrepancia. En vivo: subir un bloque a 15 → `20,0 de 20` y la nota pasa de 61,3 a 65,3; cambiar los chats de 15 a 10 → los cinco "/ 10" se actualizan, los valores se recortan y la nota queda en 88,0 = suma de las filas. 0 desbordes y 0 errores de consola.
+- Solo frontend. `APP_VERSION` → `2026.11.18`.
