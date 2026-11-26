@@ -17,6 +17,8 @@ crear_sheets.py
 
 # Configuración local de herramientas
 .claude/
+.clasp-dist/
+.clasp.json
 
 # Artefactos de OneDrive
 *.tmp
