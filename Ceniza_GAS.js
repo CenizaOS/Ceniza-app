@@ -7,7 +7,7 @@
 // código queda pegado en el editor pero la web app sigue sirviendo el viejo,
 // sin ningún aviso. El síntoma es siempre el mismo —"publiqué el arreglo y no
 // funciona"— y hasta ahora solo se podía diagnosticar a base de capturas.
-const VERSION_BACKEND = "2026.11.16";
+const VERSION_BACKEND = "2026.11.27";
 
 const SHEET_ID = "1xWtQo2E4supdMs0vpHMvMQNXxEsiCI53j399qJzV8RE";
 // La hoja y el mes activo se abren SOLO cuando una consulta los necesita.
@@ -1476,11 +1476,11 @@ function getSemanaCosturera() {
     .slice(0, 8)
     .map(([k, count]) => {
       const [y, m, d] = k.split("-").map(Number);
-      const lunes  = new Date(y, m - 1, d);
-      const sabado = new Date(lunes);
-      sabado.setDate(lunes.getDate() + 5);
+      const lunes   = new Date(y, m - 1, d);
+      const domingo = new Date(lunes);
+      domingo.setDate(lunes.getDate() + 6);
       return {
-        semana:   "Lun " + fmt(lunes) + " – Sáb " + fmt(sabado),
+        semana:   "Lun " + fmt(lunes) + " – Dom " + fmt(domingo),
         keyLunes: k,
         total:    count,
         esActual: k === keyHoy
