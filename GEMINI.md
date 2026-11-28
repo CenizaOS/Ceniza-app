@@ -1,7 +1,7 @@
 # Ceniza — manual de traspaso
 
 Contexto completo del proyecto para un agente que lo retoma de cero.
-Estado al **28 de noviembre de 2026** · app `2026.11.28` · servidor `2026.11.28`.
+Estado al **28 de noviembre de 2026** · app `2026.11.28b` · servidor `2026.11.28`.
 
 > **Lee esto antes que `CLAUDE.md`.** `CLAUDE.md` es el registro **histórico** (un bloque
 > fechado por cada cambio, ~200 KB) y **su encabezado está desactualizado a propósito**:
@@ -508,7 +508,7 @@ No hay suite de tests. El método que funciona:
 |---|---|
 | `vendedora` | Registrar pedidos · Mis pedidos (con carga por día y tope de 30) · Comisiones · Historial · Recogidas |
 | `ruedo` | Ajuste de ruedo: cola por día (check `En producción` → `Ruedo listo`) · Semana · Historial · Arreglos |
-| `empaque` | Empaquetado: cola por día (`Ruedo listo` → `Empaquetado` → `Entregado a delivery`) · Semana · Historial |
+| `empaque` | Control y empaquetado: cola por día (`Ruedo listo` → `Empaquetado` → `Entregado a delivery`) · Semana · Historial |
 | `delivery` | Entregas del día (por fecha de entrega) · Caja |
 | `produccion` | Cola de accesorios por empaquetar (joyería) |
 | `duena` | Administración, 5 pestañas: **Resumen** (estado de resultados, conteo, historial) · **Pagos** (verificación de referencias + caja del delivery) · **Angi** (tasa de cierre, escalas, auditoría, gasto en pauta) · **Taller** (inventario, proyección, estampados) · **Ajustes** (costos, cortes de escalas, PIN) |
