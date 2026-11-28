@@ -1,7 +1,7 @@
 # Ceniza — manual de traspaso
 
 Contexto completo del proyecto para un agente que lo retoma de cero.
-Estado al **26 de noviembre de 2026** · app `2026.11.18` · servidor `2026.11.16`.
+Estado al **28 de noviembre de 2026** · app `2026.11.28` · servidor `2026.11.28`.
 
 > **Lee esto antes que `CLAUDE.md`.** `CLAUDE.md` es el registro **histórico** (un bloque
 > fechado por cada cambio, ~200 KB) y **su encabezado está desactualizado a propósito**:
@@ -121,8 +121,8 @@ repiten los datos de cabecera (cliente, dirección, delivery, referencia…).
 | 9 | Dirección | pedido | |
 | 10 | Monto del producto | ítem | Lo **realmente cobrado**, no un precio de catálogo. |
 | 11 | Monto delivery | pedido | Lo que **CUESTA** el delivery (lo que se le paga al repartidor), se le cobre o no a la clienta. Se **repite** en todas las filas del pedido. |
-| 12 | Estado | fila | `En producción` · `Empaquetado` · `Entregado a delivery` · `Entregado a cliente` · `Cancelado` · `Cambio` · `Arreglo` · `Pagado` (antiguo) |
-| 13 | Fecha de entrega | pedido | `dd/MM/yyyy`. Es la fecha por la que trabaja la costurera y por la que Delivery agrupa. |
+| 12 | Estado | fila | `En producción` · `Ruedo listo` · `Empaquetado` · `Entregado a delivery` · `Entregado a cliente` · `Cancelado` · `Cambio` · `Arreglo` · `Pagado` (antiguo) |
+| 13 | Fecha de entrega | pedido | `dd/MM/yyyy`. Es la fecha por la que trabaja el taller (`ruedo` / `empaque`) y por la que Delivery agrupa. |
 | 14 | Resumen | fila | Texto libre, se escribe vacío. Prácticamente sin uso. |
 | 15 | Responsable | pedido | Nombre de la vendedora. **Si está vacío la fila no cuenta.** Se normaliza con `normalizarResponsable()` / `ALIAS_RESPONSABLES`. |
 | 16 | Origen | pedido | **Lo escribe el servidor**, no el teléfono: `Cliente nueva` / `Cliente recurrente`. Los pedidos viejos conservan `Orgánico`/`Ads`. |
@@ -507,7 +507,8 @@ No hay suite de tests. El método que funciona:
 | Perfil | Pantallas |
 |---|---|
 | `vendedora` | Registrar pedidos · Mis pedidos (con carga por día y tope de 30) · Comisiones · Historial · Recogidas |
-| `costurera` | Cola de producción · Semana · Historial · Arreglos |
+| `ruedo` | Ajuste de ruedo: cola por día (check `En producción` → `Ruedo listo`) · Semana · Historial · Arreglos |
+| `empaque` | Empaquetado: cola por día (`Ruedo listo` → `Empaquetado` → `Entregado a delivery`) · Semana · Historial |
 | `delivery` | Entregas del día (por fecha de entrega) · Caja |
 | `produccion` | Cola de accesorios por empaquetar (joyería) |
 | `duena` | Administración, 5 pestañas: **Resumen** (estado de resultados, conteo, historial) · **Pagos** (verificación de referencias + caja del delivery) · **Angi** (tasa de cierre, escalas, auditoría, gasto en pauta) · **Taller** (inventario, proyección, estampados) · **Ajustes** (costos, cortes de escalas, PIN) |

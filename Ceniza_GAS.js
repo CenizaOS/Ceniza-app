@@ -7,7 +7,7 @@
 // código queda pegado en el editor pero la web app sigue sirviendo el viejo,
 // sin ningún aviso. El síntoma es siempre el mismo —"publiqué el arreglo y no
 // funciona"— y hasta ahora solo se podía diagnosticar a base de capturas.
-const VERSION_BACKEND = "2026.11.27";
+const VERSION_BACKEND = "2026.11.28";
 
 const SHEET_ID = "1xWtQo2E4supdMs0vpHMvMQNXxEsiCI53j399qJzV8RE";
 // La hoja y el mes activo se abren SOLO cuando una consulta los necesita.
@@ -139,8 +139,20 @@ function _rolDelToken(token) {
 }
 
 function _leerPines() {
-  try { return JSON.parse(_props().getProperty("PINES") || "{}"); }
-  catch(e) { return {}; }
+  let pines;
+  try { pines = JSON.parse(_props().getProperty("PINES") || "{}"); }
+  catch(e) { pines = {}; }
+  // El 2026-11-28 el perfil `costurera` (Taller de costura) se dividió en
+  // `ruedo` (Ajuste de ruedo) y `empaque` (Empaquetado). Mientras la dueña no
+  // les ponga PIN propio desde Ajustes, los dos heredan el PIN que tenía el
+  // taller: así nadie se queda fuera el día del cambio. Al guardar cualquier
+  // PIN desde la app, `_limpiarRolesViejos` borra `costurera` y lo heredado
+  // queda escrito como PIN propio de cada perfil.
+  if (pines.costurera) {
+    if (!pines.ruedo)   pines.ruedo   = pines.costurera;
+    if (!pines.empaque) pines.empaque = pines.costurera;
+  }
+  return pines;
 }
 
 // ── Instalar los PIN (ejecutar UNA vez desde el editor) ──
@@ -151,10 +163,12 @@ function _leerPines() {
 // cambiarlos: dalos por conocidos.
 // Después, para cambiarlos se usa la app: Administración → Seguridad.
 // Los perfiles que existen. `compras` se eliminó el 2026-10-29 (no se usaba) y
-// entró `produccion`, que es quien empaqueta la joyería.
+// entró `produccion`, que es quien empaqueta la joyería. El 2026-11-28
+// `costurera` (Taller de costura) se dividió en `ruedo` (Ajuste de ruedo) y
+// `empaque` (Empaquetado de pantalones).
 // Es la ÚNICA lista: `cambiarPin` valida contra ella, así que un perfil nuevo
 // puede recibir su PIN desde la app sin tocar código.
-const ROLES = ["vendedora", "costurera", "delivery", "produccion", "duena"];
+const ROLES = ["vendedora", "ruedo", "empaque", "delivery", "produccion", "duena"];
 
 // ══════════════════════════════════════════════════════════
 // PERMISOS POR PERFIL (2026-11-06)
@@ -176,7 +190,7 @@ const ROLES = ["vendedora", "costurera", "delivery", "produccion", "duena"];
 // ruta nueva nace cerrada y no se escapa por un olvido. Es justo el fallo que
 // se quiere evitar, y en este proyecto las listas que hay que acordarse de
 // actualizar ya han costado caro dos veces (`SUBLIMADO_COLORS_SET`).
-const TODOS_LOS_ROLES = ["vendedora", "costurera", "delivery", "produccion", "duena"];
+const TODOS_LOS_ROLES = ["vendedora", "ruedo", "empaque", "delivery", "produccion", "duena"];
 
 const RUTAS_ROL = {
   // Públicas (no llegan hasta aquí, pero se listan para que se lean juntas)
@@ -187,17 +201,18 @@ const RUTAS_ROL = {
   leerConfig:    TODOS_LOS_ROLES,
   guardarConfig: TODOS_LOS_ROLES,   // la clave se valida aparte, en guardarConfig
 
-  // Arreglos: los crea la vendedora, los repara la costurera y los lleva el delivery
-  getArreglos: ["vendedora", "costurera", "delivery", "duena"],
-  setArreglos: ["vendedora", "costurera", "delivery", "duena"],
+  // Arreglos: los crea la vendedora, los repara Ajuste de ruedo y los lleva el delivery
+  getArreglos: ["vendedora", "ruedo", "delivery", "duena"],
+  setArreglos: ["vendedora", "ruedo", "delivery", "duena"],
 
   // Pedidos
-  produccion:       ["vendedora", "costurera", "duena"],   // sus pedidos / la cola
-  historial:        ["vendedora", "costurera", "delivery", "duena"],
+  produccion:       ["vendedora", "ruedo", "empaque", "duena"],   // sus pedidos / la cola
+  historial:        ["vendedora", "ruedo", "empaque", "delivery", "duena"],
   entregas:         ["delivery", "duena"],
-  semana:           ["costurera", "duena"],
+  semana:           ["ruedo", "empaque", "duena"],
   joyeria:          ["produccion", "duena"],
-  cambiarEstado:    ["costurera", "delivery", "produccion", "duena"],
+  // Qué estatus puede poner cada perfil del taller lo decide `cambiarEstado`
+  cambiarEstado:    ["ruedo", "empaque", "delivery", "produccion", "duena"],
   registrarPedidos: ["vendedora", "duena"],
   editarPedido:     ["vendedora", "duena"],
   eliminarPedido:   ["vendedora", "duena"],
@@ -215,7 +230,8 @@ const RUTAS_ROL = {
 // todas. Un perfil que no esté aquí no ve ninguna.
 const CONFIG_POR_ROL = {
   vendedora:  ["ceniza_arreglos"],                            // pestaña Recogidas
-  costurera:  ["ceniza_arreglos"],                            // pestaña Arreglos
+  ruedo:      ["ceniza_arreglos"],                            // pestaña Arreglos
+  empaque:    [],                                             // solo su cola
   delivery:   ["ceniza_arreglos", "ceniza_caja_delivery"],    // arreglos + su caja
   produccion: []                                              // solo la ruta joyeria
 };
@@ -245,7 +261,8 @@ function _clavesDeRol(rol) {
 function instalarPines() {
   _guardarPines({
     vendedora:  "",
-    costurera:  "",
+    ruedo:      "",
+    empaque:    "",
     delivery:   "",
     produccion: "",
     duena:      ""
@@ -366,7 +383,7 @@ function doGet(e) {
     else if (accion === "entregas")        data = getEntregas(e.parameter.fecha);
     else if (accion === "comisiones")      data = getComisiones(e.parameter.quincena, e.parameter.arrastres, rolToken);
     else if (accion === "registrarPedidos") data = _conLock(() => registrarPedidos(e.parameter));
-    else if (accion === "cambiarEstado")   data = cambiarEstado(e.parameter);
+    else if (accion === "cambiarEstado")   data = cambiarEstado(e.parameter, rolToken);
     else if (accion === "editarPedido")    data = editarPedido(e.parameter);
     else if (accion === "eliminarPedido")  data = eliminarPedido(e.parameter);
     else if (accion === "historial")       data = getHistorial(e.parameter.responsable, e.parameter.fecha, e.parameter.desde);
@@ -405,14 +422,38 @@ function doGet(e) {
 }
 
 // ─── CAMBIAR ESTADO ───────────────────────────────────────────────────────────
-function cambiarEstado(p) {
+// Flujo del taller desde el 2026-11-28 (el antiguo Taller de costura se dividió):
+//   En producción ──(Ajuste de ruedo ✓)──► Ruedo listo
+//   Ruedo listo ──(Empaquetado)──► Empaquetado ──► Entregado a delivery
+// Cada perfil del taller solo mueve el pantalón dentro de SU tramo: Ajuste de
+// ruedo no puede tocar uno que ya está empaquetado, ni Empaquetado uno que
+// todavía no salió de ruedo. Así un toque equivocado no salta etapas.
+const ESTADO_RUEDO_LISTO = "Ruedo listo";
+const TRAMO_TALLER = {
+  ruedo:   { desde: ["En producción", "Pagado", ESTADO_RUEDO_LISTO],
+             hacia: ["En producción", ESTADO_RUEDO_LISTO] },
+  empaque: { desde: [ESTADO_RUEDO_LISTO, "Empaquetado", "Entregado a delivery"],
+             hacia: [ESTADO_RUEDO_LISTO, "Empaquetado", "Entregado a delivery"] }
+};
+
+function cambiarEstado(p, rol) {
   try {
     const ws = hoja().getSheetByName("Pedidos " + mesActivo());
     if (!ws) throw new Error("Hoja no encontrada");
     const fila = parseInt(p.fila);
     if (!fila || fila < 2) return { success: false, error: "Fila inválida" };
-    const estadosValidos = ["En producción","Pagado","Empaquetado","Entregado a delivery","Entregado a cliente","Cambio","Arreglo"];
+    const estadosValidos = ["En producción","Pagado",ESTADO_RUEDO_LISTO,"Empaquetado","Entregado a delivery","Entregado a cliente","Cambio","Arreglo"];
     if (!estadosValidos.includes(p.estado)) return { success: false, error: "Estado inválido" };
+    const tramo = TRAMO_TALLER[rol];
+    if (tramo) {
+      if (tramo.hacia.indexOf(p.estado) === -1) {
+        return { success: false, error: "Este perfil no puede poner el estatus «" + p.estado + "»" };
+      }
+      const actual = String(ws.getRange(fila, 12).getDisplayValue() || "").trim();
+      if (tramo.desde.indexOf(actual) === -1) {
+        return { success: false, error: "Ese pantalón ya está en «" + actual + "». Actualiza la lista." };
+      }
+    }
     ws.getRange(fila, 12).setValue(p.estado); // Columna L
     return { success: true, fila: fila, estado: p.estado };
   } catch(err) {
@@ -424,7 +465,7 @@ function cambiarEstado(p) {
 function getProduccion() {
   const ws    = hoja().getSheetByName("Pedidos " + mesActivo());
   const datos = ws.getDataRange().getDisplayValues();
-  const estadosProduccion = ["Pagado", "En producción", "Empaquetado", "Entregado a delivery"];
+  const estadosProduccion = ["Pagado", "En producción", ESTADO_RUEDO_LISTO, "Empaquetado", "Entregado a delivery"];
   const pedidos = [];
   for (let i = 1; i < datos.length; i++) {
     const row = datos[i];
